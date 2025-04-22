@@ -79,7 +79,8 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel(), popBackStack: () 
             itemCnt = itemCnt,
             siteTypeList = listOf(),
             searchResultTargetState = searchResultTargetState,
-            filterTxt = filterTxt
+            filterTxt = filterTxt,
+            searchKeyword = { keyword, filter -> viewModel.search(keyword, filter) }
         )
     }
 }
@@ -98,6 +99,7 @@ fun SearchScreen(
     siteTypeList: List<String> = listOf(),
     filterTxt: String = "전체",
     searchResultTargetState: SearchScreenUiState<List<UrlData>> = SearchScreenUiState.Init,
+    searchKeyword: (String, String) -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
     Column(
@@ -107,7 +109,7 @@ fun SearchScreen(
             popBackStack = popBackStack,
             focusRequester = focusRequester,
             focusManager = focusManager,
-            userEnterSearchKeyword = { keyword, filter -> }
+            userEnterSearchKeyword = searchKeyword
         )
         SearchHeaderUserSelectFilterInfo(
             searchResultItemCnt = itemCnt,
@@ -153,5 +155,5 @@ fun SearchScreen(
     showBackground = true, backgroundColor = 0xFF444444,
 )
 private fun SearchScreenPreview() {
-    SearchScreen(popBackStack = {}, siteTypeList = listOf("YouTube", "Naver"), searchResultTargetState = SearchScreenUiState.Empty)
+    SearchScreen(popBackStack = {}, siteTypeList = listOf("YouTube", "Naver"), searchResultTargetState = SearchScreenUiState.Empty, searchKeyword = { keyword, filter ->})
 }

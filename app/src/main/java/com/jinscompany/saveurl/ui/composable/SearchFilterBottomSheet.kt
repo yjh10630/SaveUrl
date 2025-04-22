@@ -23,11 +23,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.jinscompany.saveurl.ui.composable.category.CategoryItem
+import com.jinscompany.saveurl.ui.search.SearchScreen
+import com.jinscompany.saveurl.ui.search.SearchScreenUiState
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchFilterBottomSheet(
     options: List<String>,
@@ -38,7 +43,6 @@ fun SearchFilterBottomSheet(
 
     val modalBottomSheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
-    val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val selectTxt = { text: String ->
         scope.launch {
             modalBottomSheetState.hide()
@@ -52,32 +56,56 @@ fun SearchFilterBottomSheet(
         sheetState = modalBottomSheetState,
         dragHandle = { BottomSheetDefaults.DragHandle() },
     ) {
-        Box(
+        SearchFilterView(
+            options = options,
+            itemClick = {
+                selectTxt.invoke(it)
+            },
+            currentSelectedItem = currentSelectedItem
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun SearchFilterView(
+    bottomPadding: Dp = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
+    options: List<String> = listOf(),
+    itemClick: (String) -> Unit,
+    currentSelectedItem: String
+) {
+    Box(
+        modifier = Modifier
+            .padding(top = 10.dp, start = 10.dp, end = 10.dp, bottom = bottomPadding)
+            .fillMaxWidth()
+            .wrapContentHeight(),
+    ) {
+        Column(
             modifier = Modifier
-                .padding(top = 10.dp, start = 10.dp, end = 10.dp, bottom = bottomPadding)
-                .fillMaxWidth()
-                .wrapContentHeight(),
+                .wrapContentHeight()
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = 16.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .wrapContentHeight()
-                    .verticalScroll(rememberScrollState())
-                    .padding(vertical = 16.dp)
-            ) {
-                FlowRow(modifier = Modifier.padding(8.dp)) {
-                    options.forEach {
-                        CategoryItem(
-                            text = it,
-                            onClick = {
-                                selectTxt.invoke(it)
-                            },
-                            isSelected = currentSelectedItem == it
-                        )
-                    }
+            FlowRow(modifier = Modifier.padding(8.dp)) {
+                options.forEach {
+                    CategoryItem(
+                        text = it,
+                        onClick = {
+                            itemClick.invoke(it)
+                        },
+                        isSelected = currentSelectedItem == it
+                    )
                 }
             }
-
         }
-    }
 
+    }
+}
+
+@Composable
+@Preview(
+    showBackground = true, backgroundColor = 0xFF444444,
+)
+private fun SearchScreenPreview() {
+    SearchFilterView(itemClick = {}, currentSelectedItem = "전체", options = listOf("전체", "북마크", "내용", "제목"))
 }

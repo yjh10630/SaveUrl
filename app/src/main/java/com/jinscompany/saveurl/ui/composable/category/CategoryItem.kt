@@ -2,6 +2,7 @@ package com.jinscompany.saveurl.ui.composable.category
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -50,7 +51,7 @@ fun FlowRowScope.CategoryItem(
         onClick = onClick,
         modifier = Modifier
             .wrapContentSize()
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = 4.dp),
         shape = RoundedCornerShape(10.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = if (isSelected) Color.LightGray else Color.Transparent
@@ -302,6 +303,22 @@ private fun CategoryItemPreview3() {
                 onClick = {},
                 deleteClick = {},
                 isSelected = false,
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+@Preview(showBackground = true, backgroundColor = 0xFF444444)
+fun CategoryFlowRowPreview() {
+    val options = listOf("전체", "북마크", "내용", "제목", "전체", "북마크", "내용", "제목", "전체", "북마크", "내용", "제목")
+    FlowRow(modifier = Modifier.padding(8.dp)) {
+        options.forEach {
+            CategoryItem(
+                text = it,
+                onClick = {},
+                isSelected = false
             )
         }
     }
