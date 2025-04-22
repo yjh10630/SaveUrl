@@ -18,7 +18,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun HeaderSection(
+fun MainHeaderSection(
     searchIconClick: () -> Unit
 ) {
     Row(
@@ -43,5 +43,5 @@ fun HeaderSection(
 @Composable
 @Preview
 private fun HeaderSectionPreview() {
-    HeaderSection({})
+    MainHeaderSection({})
 }

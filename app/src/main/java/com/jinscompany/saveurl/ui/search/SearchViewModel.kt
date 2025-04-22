@@ -31,20 +31,16 @@ class SearchViewModel @Inject constructor(
             _searchResultUiState.value = SearchScreenUiState.Loading
 
             val searchResult = when (filter) {
-                "전체" -> urlRepository.searchAll(keyword)
                 "제목" -> urlRepository.searchByTitle(keyword)
                 "내용" -> urlRepository.searchByDescription(keyword)
                 "태그" -> urlRepository.searchByTag(keyword)
-                else -> null
+                else -> urlRepository.searchAll(keyword)
             }
-            searchResult?.let {
-                if (it.isEmpty()) {
-                    _searchResultUiState.value = SearchScreenUiState.Empty
-                } else {
-                    _searchResultUiState.value = SearchScreenUiState.Success(it)
-                }
-            } ?: run {
+
+            if (searchResult.isEmpty()) {
                 _searchResultUiState.value = SearchScreenUiState.Empty
+            } else {
+                _searchResultUiState.value = SearchScreenUiState.Success(searchResult)
             }
         }
     }

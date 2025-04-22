@@ -16,6 +16,7 @@ import com.jinscompany.saveurl.ui.main.MainScreen
 import com.jinscompany.saveurl.ui.save_screen.SaveLinkScreen
 import com.jinscompany.saveurl.ui.save_screen.SaveLinkViewModel
 import com.jinscompany.saveurl.ui.search.SearchScreen
+import com.jinscompany.saveurl.ui.search.SearchViewModel
 
 @Composable
 fun AppNavigation(navController: NavHostController = rememberNavController()) {
@@ -74,7 +75,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             SaveLinkScreen(navController, url, viewModel)
         }
         composable(route = Navigation.Routes.SEARCH) {
-            SearchScreen(navController)
+            SearchScreen(popBackStack = { navController.popBackStack() })
         }
         composable(route = Navigation.Routes.EDIT_CATEGORY) {
             EditCategoryScreen(navController)

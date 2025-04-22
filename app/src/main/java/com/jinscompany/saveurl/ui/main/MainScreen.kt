@@ -44,7 +44,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.ui.composable.CommonBottomSheetConfirmDialog
-import com.jinscompany.saveurl.ui.composable.HeaderSection
+import com.jinscompany.saveurl.ui.composable.MainHeaderSection
 import com.jinscompany.saveurl.ui.composable.LinkUrlListSection
 import com.jinscompany.saveurl.ui.composable.SelectorTextButtonGroup
 import com.jinscompany.saveurl.ui.navigation.navigateToEditCategory
@@ -152,7 +152,7 @@ fun MainScreen(
                 .padding(paddingValues)
                 .background(Color.DarkGray)
         ) {
-            HeaderSection(searchIconClick = { navController.navigateToSearch() })
+            MainHeaderSection(searchIconClick = { navController.navigateToSearch() })
             SelectorTextButtonGroup(
                 options = listOf("북마크", "전체") + viewModel.categoryItemsState.value.map { it.name },
                 clickItem = {
