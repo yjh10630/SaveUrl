@@ -42,6 +42,8 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import androidx.paging.PagingData
+import androidx.paging.compose.collectAsLazyPagingItems
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.ui.composable.CommonBottomSheetConfirmDialog
 import com.jinscompany.saveurl.ui.composable.MainHeaderSection
@@ -51,6 +53,7 @@ import com.jinscompany.saveurl.ui.navigation.navigateToEditCategory
 import com.jinscompany.saveurl.ui.navigation.navigateToSaveLink
 import com.jinscompany.saveurl.ui.navigation.navigateToSearch
 import com.jinscompany.saveurl.utils.extractUrlFromText
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
 @Composable
@@ -67,6 +70,7 @@ fun MainScreen(
 
     val snackBarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val pagedItems = viewModel.urlDataResultFlow?.collectAsLazyPagingItems()
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -167,7 +171,7 @@ fun MainScreen(
             Spacer(modifier = Modifier.size(12.dp))
             LinkUrlListSection(
                 listState = listState,
-                items = viewModel.linkUrlItemsState.value,
+                items = pagedItems ?: flowOf(PagingData.empty<UrlData>()).collectAsLazyPagingItems(),
                 onClick = {
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(it.url))
                     context.startActivity(intent)

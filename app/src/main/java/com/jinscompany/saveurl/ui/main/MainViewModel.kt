@@ -4,9 +4,15 @@ import android.content.ClipboardManager
 import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.domain.repository.CategoryRepository
@@ -14,6 +20,7 @@ import com.jinscompany.saveurl.domain.repository.UrlRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -27,9 +34,6 @@ class MainViewModel @Inject constructor(
     private val clipboardManager: ClipboardManager
 ) : ViewModel() {
 
-    private var _linkUrlItemsState: MutableState<List<UrlData>> = mutableStateOf(listOf())
-    val linkUrlItemsState: State<List<UrlData>> = _linkUrlItemsState
-
     private val _showSnackBar = Channel<String>(Channel.BUFFERED)
     val showSnackBar = _showSnackBar.receiveAsFlow()
 
@@ -39,6 +43,9 @@ class MainViewModel @Inject constructor(
     private val _categoryEditMode: MutableState<Boolean> = mutableStateOf(false)
     val categoryEditModeState: State<Boolean> = _categoryEditMode
 
+    var urlDataResultFlow by mutableStateOf<Flow<PagingData<UrlData>>?>(null)
+        private set
+
     fun getCategoryList() {
         viewModelScope.launch {
             val list = categoryRepository.get().also { Log.d("####", "cate size > ${it.size}") }
@@ -47,15 +54,19 @@ class MainViewModel @Inject constructor(
     }
 
     fun getLinkUrlList() {
-        viewModelScope.launch {
-            _linkUrlItemsState.value =
-                urlRepository.getUrlList().also { Log.d("####", "data Size > ${it.size}") }
-        }
+        urlDataResultFlow = Pager(
+            config = PagingConfig(
+                pageSize = 10,
+                prefetchDistance = 5,
+                enablePlaceholders = false
+            ),
+            pagingSourceFactory = { urlRepository.getUrlList() }
+        ).flow.cachedIn(viewModelScope)
     }
 
     fun deleteLinkUrl(data: UrlData) {
         viewModelScope.launch {
-            _linkUrlItemsState.value = urlRepository.removeUrl(data)
+            urlRepository.removeUrl(data)
         }
     }
 
@@ -67,9 +78,15 @@ class MainViewModel @Inject constructor(
     }
 
     fun categoryItemClickEvent(categoryName: String) {
-        viewModelScope.launch {
-            val list = urlRepository.getUrlList(categoryName).also { Log.d("####", "cate size > ${it.size}") }
-            _linkUrlItemsState.value = list
-        }
+        urlDataResultFlow = Pager(
+            config = PagingConfig(
+                pageSize = 10,
+                prefetchDistance = 5,
+                enablePlaceholders = false
+            ),
+            pagingSourceFactory = {
+                urlRepository.getUrlList(categoryName)
+            }
+        ).flow.cachedIn(viewModelScope)
     }
 }

@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.data.room
 
+import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
@@ -10,6 +11,16 @@ import com.jinscompany.saveurl.domain.model.UrlData
 
 @Dao
 interface BaseSaveUrlDao {
+
+    @Query("SELECT * FROM basesaveurl ORDER BY addDate DESC")
+    fun getUrlData(): PagingSource<Int, UrlData>
+
+    @Query("SELECT * FROM basesaveurl WHERE category = :categoryName ORDER BY addDate DESC")
+    fun getTargetCategoryUrlData(categoryName: String): PagingSource<Int, UrlData>
+
+    @Query("SELECT * FROM basesaveurl WHERE isBookMark = 1 ORDER BY addDate DESC")
+    fun getTargetBookMarkUrlData(): PagingSource<Int, UrlData>
+
 
     @Query("SELECT * FROM basesaveurl ORDER BY addDate DESC")
     suspend fun get(): List<UrlData>
@@ -26,24 +37,20 @@ interface BaseSaveUrlDao {
     @Query("SELECT COUNT(*) FROM basesaveurl WHERE url = :url")
     suspend fun exists(url: String): Int
     
-    // 1. title, description, tagList 에 keyword가 포함된 경우
     @Query("SELECT * FROM BaseSaveUrl \n" +
             "        WHERE title LIKE '%' || :keyword || '%' \n" +
             "        OR description LIKE '%' || :keyword || '%' \n" +
             "        OR tagList LIKE '%' || :keyword || '%'")
-    suspend fun searchAll(keyword: String): List<UrlData>
+    fun searchAll(keyword: String): PagingSource<Int, UrlData>
 
-    // 2. title 만 keyword가 포함된 경우
     @Query("SELECT * FROM BaseSaveUrl WHERE title LIKE '%' || :keyword || '%'")
-    suspend fun searchByTitle(keyword: String): List<UrlData>
+    fun searchByTitle(keyword: String): PagingSource<Int, UrlData>
 
-    // 3. description 만 keyword가 포함된 경우
     @Query("SELECT * FROM BaseSaveUrl WHERE description LIKE '%' || :keyword || '%'")
-    suspend fun searchByDescription(keyword: String): List<UrlData>
+    fun searchByDescription(keyword: String): PagingSource<Int, UrlData>
 
-    // 4. tagList 안에 keyword가 포함된 경우
     @Query("SELECT * FROM BaseSaveUrl WHERE tagList LIKE '%' || :keyword || '%'")
-    suspend fun searchByTag(keyword: String): List<UrlData>
+    fun searchByTag(keyword: String): PagingSource<Int, UrlData>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(vararg entity: UrlData)

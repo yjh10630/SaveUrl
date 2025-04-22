@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.data.source
 
+import androidx.paging.PagingSource
 import androidx.room.withTransaction
 import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.room.BaseSaveUrlDao
@@ -14,16 +15,15 @@ class LocalUrlDbSourceImpl @Inject constructor(
     private val baseSaveUrlDao: BaseSaveUrlDao,
     private val categoryDao: CategoryDao,
     private val db: AppDatabase,
-    private val coroutine: CoroutineScope,
 ): LocalUrlDBSource {
 
-    override suspend fun getLocalSaveDBUrlList(categoryName: String?): List<UrlData> = withContext(Dispatchers.IO) {
-        return@withContext if (categoryName.isNullOrEmpty() || categoryName == "전체") {
-            baseSaveUrlDao.get()
+    override fun getLocalSaveDBUrlList(categoryName: String?): PagingSource<Int, UrlData> {
+        return if (categoryName.isNullOrEmpty() || categoryName == "전체") {
+            baseSaveUrlDao.getUrlData()
         } else if (categoryName == "북마크") {
-            baseSaveUrlDao.getTargetBookMark()
+            baseSaveUrlDao.getTargetBookMarkUrlData()
         } else {
-            baseSaveUrlDao.getTargetCategory(categoryName)
+            baseSaveUrlDao.getTargetCategoryUrlData(categoryName)
         }
     }
 
@@ -84,19 +84,8 @@ class LocalUrlDbSourceImpl @Inject constructor(
         return@withContext baseSaveUrlDao.update(data) > 0
     }
 
-    override suspend fun searchAll(keyword: String): List<UrlData> = withContext(Dispatchers.IO) {
-        return@withContext baseSaveUrlDao.searchAll(keyword)
-    }
-
-    override suspend fun searchByTitle(keyword: String): List<UrlData> = withContext(Dispatchers.IO) {
-        return@withContext baseSaveUrlDao.searchByTitle(keyword)
-    }
-
-    override suspend fun searchByDescription(keyword: String): List<UrlData> = withContext(Dispatchers.IO) {
-        return@withContext baseSaveUrlDao.searchByDescription(keyword)
-    }
-
-    override suspend fun searchByTag(keyword: String): List<UrlData> = withContext(Dispatchers.IO) {
-        return@withContext baseSaveUrlDao.searchByTag(keyword)
-    }
+    override fun searchAll(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchAll(keyword)
+    override fun searchByTitle(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchByTitle(keyword)
+    override fun searchByDescription(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchByDescription(keyword)
+    override fun searchByTag(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchByTag(keyword)
 }

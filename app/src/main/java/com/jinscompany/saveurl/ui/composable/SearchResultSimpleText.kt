@@ -10,13 +10,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 
 @Composable
-fun SearchResultEmptyOrError(isEmpty: Boolean) {
+fun SearchResultSimpleText(text: String) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Transparent),
         contentAlignment = Alignment.Center
     ) {
-        Text(if (isEmpty)"데이터가 없습니다." else "에러입니다.", color = Color.White)
+        Text(text, color = Color.White)
     }
 }

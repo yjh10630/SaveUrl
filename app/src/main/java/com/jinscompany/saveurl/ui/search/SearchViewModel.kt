@@ -1,14 +1,18 @@
 package com.jinscompany.saveurl.ui.search
 
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.domain.repository.UrlRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
 @HiltViewModel
@@ -17,31 +21,28 @@ class SearchViewModel @Inject constructor(
 ) : ViewModel() {
 
     val filterList = listOf("전체", "제목", "내용", "태그")
+    var searchResultFlow by mutableStateOf<Flow<PagingData<UrlData>>?>(null)
+        private set
 
-    private val _searchResultUiState: MutableState<SearchScreenUiState<List<UrlData>>> = mutableStateOf(SearchScreenUiState.Init)
-    val searchResultUiState: State<SearchScreenUiState<List<UrlData>>> = _searchResultUiState
-
-    fun search(_keyword: String, filter: String) {
-        viewModelScope.launch {
-            val keyword = _keyword.trim()
-            if (keyword.isEmpty()) {
-                _searchResultUiState.value = SearchScreenUiState.Error(SearchErrorType.KEYWORD_EMPTY)
-                return@launch
+    fun search(_keyword: String, filter: String){
+        val keyword = _keyword.trim()
+        if (keyword.isEmpty()) searchResultFlow = null
+        searchResultFlow = Pager(
+            config = PagingConfig(
+                pageSize = 10,
+                prefetchDistance = 5,
+                enablePlaceholders = false
+            ),
+            pagingSourceFactory = {
+                when (filter) {
+                    "제목" -> urlRepository.searchByTitle(keyword)
+                    "내용" -> urlRepository.searchByDescription(keyword)
+                    "태그" -> urlRepository.searchByTag(keyword)
+                    else -> urlRepository.searchAll(keyword)
+                }
             }
-            _searchResultUiState.value = SearchScreenUiState.Loading
-
-            val searchResult = when (filter) {
-                "제목" -> urlRepository.searchByTitle(keyword)
-                "내용" -> urlRepository.searchByDescription(keyword)
-                "태그" -> urlRepository.searchByTag(keyword)
-                else -> urlRepository.searchAll(keyword)
-            }
-
-            if (searchResult.isEmpty()) {
-                _searchResultUiState.value = SearchScreenUiState.Empty
-            } else {
-                _searchResultUiState.value = SearchScreenUiState.Success(searchResult)
-            }
-        }
+        ).flow.cachedIn(viewModelScope)
     }
+
+
 }

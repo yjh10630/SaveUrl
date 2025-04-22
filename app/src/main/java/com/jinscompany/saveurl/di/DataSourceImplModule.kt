@@ -27,9 +27,8 @@ class DataSourceImplModule {
     fun provideLocalUrlDBSource(
         baseSaveUrlDao: BaseSaveUrlDao,
         categoryDao: CategoryDao,
-        db: AppDatabase,
-        coroutineScope: CoroutineScope
-    ): LocalUrlDBSource = LocalUrlDbSourceImpl(baseSaveUrlDao, categoryDao, db, coroutineScope)
+        db: AppDatabase
+    ): LocalUrlDBSource = LocalUrlDbSourceImpl(baseSaveUrlDao, categoryDao, db)
 
     @Provides
     @Singleton
