@@ -28,32 +28,29 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.ui.composable.FullScreenLoading
 import com.jinscompany.saveurl.ui.composable.LinkUrlListSection
 import com.jinscompany.saveurl.ui.composable.SearchFilterBottomSheet
 import com.jinscompany.saveurl.ui.composable.SearchHeaderUserInputKeyword
 import com.jinscompany.saveurl.ui.composable.SearchHeaderUserSelectFilterInfo
-import com.jinscompany.saveurl.ui.composable.SearchResultEmptyOrError
+import com.jinscompany.saveurl.ui.composable.SearchResultSimpleText
 
 @Composable
 fun SearchScreen(viewModel: SearchViewModel = hiltViewModel(), popBackStack: () -> Unit) {
 
     val focusRequester = remember { FocusRequester() }
     var filterTxt by remember { mutableStateOf<String>(viewModel.filterList[0]) }
-    var itemCnt by remember { mutableIntStateOf(0) }
     val filterOptions = viewModel.filterList
-    val searchResultTargetState = viewModel.searchResultUiState.value
     var filterShowBottomSheet by remember { mutableStateOf(false) }
+    val searchResult = viewModel.searchResultFlow?.collectAsLazyPagingItems()
+    val itemCnt = searchResult?.itemCount ?: 0
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
-    }
-
-    LaunchedEffect(viewModel.searchResultUiState.value) {
-        itemCnt =
-            (viewModel.searchResultUiState.value as? SearchScreenUiState.Success)?.data?.count()
-                ?: 0
     }
 
     Scaffold { paddingValues ->
@@ -78,7 +75,7 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel(), popBackStack: () 
             focusRequester = focusRequester,
             itemCnt = itemCnt,
             siteTypeList = listOf(),
-            searchResultTargetState = searchResultTargetState,
+            searchResult = searchResult,
             filterTxt = filterTxt,
             searchKeyword = { keyword, filter -> viewModel.search(keyword, filter) }
         )
@@ -98,7 +95,7 @@ fun SearchScreen(
     onFilterClick: () -> Unit = {},
     siteTypeList: List<String> = listOf(),
     filterTxt: String = "전체",
-    searchResultTargetState: SearchScreenUiState<List<UrlData>> = SearchScreenUiState.Init,
+    searchResult: LazyPagingItems<UrlData>? = null,
     searchKeyword: (String, String) -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
@@ -122,30 +119,36 @@ fun SearchScreen(
             color = Color.Gray,
             thickness = 1.dp,
         )
-        AnimatedContent(
-            targetState = searchResultTargetState,
-            label = ""
-        ) { targetState ->
-            when (targetState) {
-                is SearchScreenUiState.Empty -> SearchResultEmptyOrError(isEmpty = true)
-                is SearchScreenUiState.Error -> SearchResultEmptyOrError(isEmpty = false)
-                is SearchScreenUiState.Init -> {}
-                is SearchScreenUiState.Loading -> FullScreenLoading()
-                is SearchScreenUiState.Success -> {
-                    Column {
-                        Spacer(modifier = Modifier.size(12.dp))
-                        LinkUrlListSection(
-                            listState = rememberLazyListState(),
-                            items = targetState.data,
-                            onClick = {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(it.url))
-                                context.startActivity(intent)
-                            },
-                            longOnClick = {}
-                        )
+        searchResult?.let {
+            AnimatedContent(
+                targetState = searchResult,
+                label = ""
+            ) { items ->
+                when {
+                    items.loadState.refresh is LoadState.Loading -> FullScreenLoading()
+                    items.loadState.refresh is LoadState.Error -> SearchResultSimpleText(text = "검색결과 에러 입니다.\n잠시 후 다시 시도해주세요.")
+                    items.itemCount == 0 && items.loadState.refresh is LoadState.NotLoading -> SearchResultSimpleText(
+                        text = "검색 결과가 없습니다."
+                    )
+                    else -> {
+                        Column {
+                            Spacer(modifier = Modifier.size(12.dp))
+                            LinkUrlListSection(
+                                listState = rememberLazyListState(),
+                                items = items,
+                                onClick = {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(it.url))
+                                    context.startActivity(intent)
+                                },
+                                longOnClick = {}
+                            )
+                        }
+
                     }
                 }
             }
+        } ?: run {
+            SearchResultSimpleText(text = "검색어를 입력해 주세요.")
         }
     }
 }
@@ -155,5 +158,8 @@ fun SearchScreen(
     showBackground = true, backgroundColor = 0xFF444444,
 )
 private fun SearchScreenPreview() {
-    SearchScreen(popBackStack = {}, siteTypeList = listOf("YouTube", "Naver"), searchResultTargetState = SearchScreenUiState.Empty, searchKeyword = { keyword, filter ->})
+    SearchScreen(
+        popBackStack = {},
+        siteTypeList = listOf("YouTube", "Naver"),
+        searchKeyword = { keyword, filter -> })
 }

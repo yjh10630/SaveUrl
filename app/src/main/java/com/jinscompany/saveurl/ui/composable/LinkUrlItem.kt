@@ -22,8 +22,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -43,6 +45,7 @@ fun LinkUrlItem(
     tagRemoveClick: (String) -> Unit,
     tagEditMode: Boolean = false,
 ) {
+    val haptic = LocalHapticFeedback.current
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -50,7 +53,10 @@ fun LinkUrlItem(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { onClick.invoke(data.url ?: "") },
-                    onLongPress = { longOnClick.invoke(data) }
+                    onLongPress = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        longOnClick.invoke(data)
+                    }
                 )
             }
             .height(itemHeight)

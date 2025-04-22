@@ -63,6 +63,7 @@ dependencies {
     ksp("androidx.room:room-compiler:2.6.1")
     annotationProcessor("androidx.room:room-compiler:2.6.1") // use kapt for Kotlin
     implementation("androidx.room:room-ktx:2.6.1") //KTX Extensions/Coroutines for Room
+    implementation("androidx.room:room-paging:2.6.1")
 
     implementation("org.jsoup:jsoup:1.14.3")
     implementation("com.google.code.gson:gson:2.10.1")
@@ -82,6 +83,9 @@ dependencies {
 
     implementation("net.dankito.readability4j:readability4j:1.0.8")
     implementation("org.apache.commons:commons-lang3:3.6")
+
+    implementation("androidx.paging:paging-runtime:3.3.6")
+    implementation("androidx.paging:paging-compose:3.3.6")
 
     testImplementation(libs.junit)
 
