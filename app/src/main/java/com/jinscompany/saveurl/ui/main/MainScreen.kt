@@ -45,9 +45,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.jinscompany.saveurl.domain.model.UrlData
-import com.jinscompany.saveurl.ui.composable.CommonBottomSheetConfirmDialog
-import com.jinscompany.saveurl.ui.composable.MainHeaderSection
+import com.jinscompany.saveurl.ui.composable.LinkItemInfoDialog
 import com.jinscompany.saveurl.ui.composable.LinkUrlListSection
+import com.jinscompany.saveurl.ui.composable.MainHeaderSection
 import com.jinscompany.saveurl.ui.composable.SelectorTextButtonGroup
 import com.jinscompany.saveurl.ui.navigation.navigateToEditCategory
 import com.jinscompany.saveurl.ui.navigation.navigateToSaveLink
@@ -141,11 +141,18 @@ fun MainScreen(
         }
     ) { paddingValues ->
         linkItemEditDialog?.let { urlData ->
-            CommonBottomSheetConfirmDialog(
-                confirmTxt = "수정 하기",
-                cancelTxt = "삭제 하기",
-                cancel = { viewModel.deleteLinkUrl(urlData) },
-                confirm = { navController.navigateToSaveLink(url = urlData.url) },
+            LinkItemInfoDialog(
+                onClickShare = {
+                    val sendIntent = Intent().apply {
+                        action = Intent.ACTION_SEND
+                        putExtra(Intent.EXTRA_TEXT, urlData.url)
+                        type = "text/plain"
+                    }
+                    val shareIntent = Intent.createChooser(sendIntent, "링크를 공유할 앱을 선택하세요")
+                    context.startActivity(shareIntent)
+                },
+                onClickEdit = { navController.navigateToSaveLink(url = urlData.url) },
+                onClickDelete = { viewModel.deleteLinkUrl(urlData)},
                 dismiss = { linkItemEditDialog = null }
             )
         }
