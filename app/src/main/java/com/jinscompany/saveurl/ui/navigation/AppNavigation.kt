@@ -3,7 +3,6 @@ package com.jinscompany.saveurl.ui.navigation
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -13,10 +12,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.jinscompany.saveurl.ui.add_category.EditCategoryScreen
 import com.jinscompany.saveurl.ui.main.MainScreen
-import com.jinscompany.saveurl.ui.save_screen.SaveLinkScreen
-import com.jinscompany.saveurl.ui.save_screen.SaveLinkViewModel
+import com.jinscompany.saveurl.ui.save_screen.LinkInsertScreen
 import com.jinscompany.saveurl.ui.search.SearchScreen
-import com.jinscompany.saveurl.ui.search.SearchViewModel
 
 @Composable
 fun AppNavigation(navController: NavHostController = rememberNavController()) {
@@ -71,8 +68,8 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             )
         ) { backStackEntry ->
             val url = backStackEntry.arguments?.getString("url")
-            val viewModel = hiltViewModel<SaveLinkViewModel>()
-            SaveLinkScreen(navController, url, viewModel)
+            //val viewModel = hiltViewModel<SaveLinkViewModel>()
+            LinkInsertScreen(navController, url)
         }
         composable(route = Navigation.Routes.SEARCH) {
             SearchScreen(popBackStack = { navController.popBackStack() })

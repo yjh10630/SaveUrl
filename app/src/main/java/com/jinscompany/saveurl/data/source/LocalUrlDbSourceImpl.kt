@@ -31,7 +31,7 @@ class LocalUrlDbSourceImpl @Inject constructor(
         return@withContext try {
             db.withTransaction {
                 baseSaveUrlDao.insert(data)
-                val categoryName = data.category ?: ""
+                val categoryName = data.category ?: "전체"
                 if (categoryName == "전체") {
                     true
                 } else if (categoryName.isNotEmpty()) {
