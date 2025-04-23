@@ -11,7 +11,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.jinscompany.saveurl.ui.add_category.EditCategoryScreen
-import com.jinscompany.saveurl.ui.main.MainScreen
+import com.jinscompany.saveurl.ui.main.MainListScreen
 import com.jinscompany.saveurl.ui.save_screen.LinkInsertScreen
 import com.jinscompany.saveurl.ui.search.SearchScreen
 
@@ -55,7 +55,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 }
             )
         ) {
-            MainScreen(navController)
+            MainListScreen(navController)
         }
         composable(
             route = "${Navigation.Routes.SAVE_LINK}?url={url}",

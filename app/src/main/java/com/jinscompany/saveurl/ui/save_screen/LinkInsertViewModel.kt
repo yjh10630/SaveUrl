@@ -21,10 +21,10 @@ class LinkInsertViewModel @Inject constructor(
     private val categoryRepository: CategoryRepository
 ): ViewModel() {
 
-    var uiState by mutableStateOf<UiState>(UiState.Idle)
+    var linkInsertUiState by mutableStateOf<LinkInsertUiState>(LinkInsertUiState.Idle)
         private set
 
-    private val _effect = MutableSharedFlow<UiEffect>()
+    private val _effect = MutableSharedFlow<LinkInsertUiEffect>()
     val effect = _effect.asSharedFlow()
 
     var categoryList by mutableStateOf<List<CategoryModel>>(listOf())
@@ -33,47 +33,47 @@ class LinkInsertViewModel @Inject constructor(
     var isUpdateMode by mutableStateOf<Boolean>(false)
         private set
 
-    fun onIntent(intent: UrlIntent) {
+    fun onIntent(intent: LinkInsertUrlIntent) {
         when (intent) {
-            is UrlIntent.SubmitUrl -> startUrlCrawling(intent.url)
-            is UrlIntent.AddTag -> addTag(intent.tag)
-            is UrlIntent.RemoveTag -> removeTag(intent.tag)
-            is UrlIntent.ChangeCategory -> changeCategoryName(intent.name)
-            is UrlIntent.IsBookmark -> changeBookmark(intent.isBookmark)
-            UrlIntent.SubmitSaveData -> saveData()
+            is LinkInsertUrlIntent.SubmitLinkInsertUrl -> startUrlCrawling(intent.url)
+            is LinkInsertUrlIntent.AddTag -> addTag(intent.tag)
+            is LinkInsertUrlIntent.RemoveTag -> removeTag(intent.tag)
+            is LinkInsertUrlIntent.ChangeCategory -> changeCategoryName(intent.name)
+            is LinkInsertUrlIntent.IsBookmark -> changeBookmark(intent.isBookmark)
+            LinkInsertUrlIntent.SubmitSaveData -> saveData()
         }
     }
 
     private fun saveData() {
         viewModelScope.launch {
-            val currentState = uiState
-            if (currentState is UiState.Success) {
+            val currentState = linkInsertUiState
+            if (currentState is LinkInsertUiState.Success) {
                 val isSaved = if (isUpdateMode) {
                     urlRepository.updateUrl(currentState.urlData)
                 } else {
                     urlRepository.saveUrl(currentState.urlData)
                 }
-                if (isSaved) _effect.emit(UiEffect.NavigateToResult)
+                if (isSaved) _effect.emit(LinkInsertUiEffect.NavigateToResult)
             }
         }
     }
 
     private fun startUrlCrawling(url: String) {
-        uiState = UiState.Loading
+        linkInsertUiState = LinkInsertUiState.Loading
         viewModelScope.launch {
             val realUrl = extractUrlFromText(url)
             if (!realUrl.isNullOrEmpty()) {
                 categoryList = categoryRepository.get()
                 urlRepository.findUrlData(realUrl)?.let {
                     isUpdateMode = true
-                    uiState = UiState.Success(it)
+                    linkInsertUiState = LinkInsertUiState.Success(it)
                 } ?: run {
                     isUpdateMode = false
                     val data = urlRepository.parserUrl(realUrl)
-                    uiState = UiState.Success(data)
+                    linkInsertUiState = LinkInsertUiState.Success(data)
                 }
             } else {
-                uiState = UiState.Error(
+                linkInsertUiState = LinkInsertUiState.Error(
                     message = "에러 입니다."
                 )
             }
@@ -81,40 +81,40 @@ class LinkInsertViewModel @Inject constructor(
     }
 
     private fun changeBookmark(bookmark: Boolean) {
-        val currentState = uiState
-        if (currentState is UiState.Success) {
+        val currentState = linkInsertUiState
+        if (currentState is LinkInsertUiState.Success) {
             val currentData = currentState.urlData
             val newData = currentData.copy(isBookMark = bookmark)
-            uiState = UiState.Success(newData)
+            linkInsertUiState = LinkInsertUiState.Success(newData)
         }
     }
 
     private fun changeCategoryName(name: String) {
-        val currentState = uiState
-        if (currentState is UiState.Success) {
+        val currentState = linkInsertUiState
+        if (currentState is LinkInsertUiState.Success) {
             val currentData = currentState.urlData
             val newData = currentData.copy(category = name)
-            uiState = UiState.Success(newData)
+            linkInsertUiState = LinkInsertUiState.Success(newData)
         }
     }
 
     private fun addTag(tag: String) {
-        val currentState = uiState
-        if (currentState is UiState.Success) {
+        val currentState = linkInsertUiState
+        if (currentState is LinkInsertUiState.Success) {
             val currentData = currentState.urlData
             val newTags = (currentData.tagList ?: emptyList()) + tag
             val newData = currentData.copy(tagList = newTags)
-            uiState = UiState.Success(newData)
+            linkInsertUiState = LinkInsertUiState.Success(newData)
         }
     }
 
     private fun removeTag(tag: String) {
-        val currentState = uiState
-        if (currentState is UiState.Success) {
+        val currentState = linkInsertUiState
+        if (currentState is LinkInsertUiState.Success) {
             val currentData = currentState.urlData
             val newTags = (currentData.tagList ?: emptyList()).filter { it != tag }
             val newData = currentData.copy(tagList = newTags)
-            uiState = UiState.Success(newData)
+            linkInsertUiState = LinkInsertUiState.Success(newData)
         }
     }
 

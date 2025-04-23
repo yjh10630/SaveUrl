@@ -50,7 +50,7 @@ fun LinkInsertScreen(
     url: String?,
     viewModel: LinkInsertViewModel = hiltViewModel()
 ) {
-    val uiState = viewModel.uiState
+    val uiState = viewModel.linkInsertUiState
     var showCategorySelector by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val activity = context as? Activity
@@ -58,7 +58,7 @@ fun LinkInsertScreen(
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
-                UiEffect.NavigateToResult -> {
+                LinkInsertUiEffect.NavigateToResult -> {
                     navController.navigateToMain(
                         currentScreen = SAVE_LINK,
                         scrollToTop = true
@@ -77,17 +77,17 @@ fun LinkInsertScreen(
         } else ""
 
         if (linkUrl.isNotEmpty()) {
-            viewModel.onIntent(UrlIntent.SubmitUrl(linkUrl))
+            viewModel.onIntent(LinkInsertUrlIntent.SubmitLinkInsertUrl(linkUrl))
         }
     }
 
     Scaffold { paddingValues ->
         if (showCategorySelector) {
-            val urlData = (uiState as? UiState.Success)?.urlData?.category ?: "전체"
+            val urlData = (uiState as? LinkInsertUiState.Success)?.urlData?.category ?: "전체"
             CategorySelectorDialog(
                 categoryList = viewModel.categoryList.map { it.name },
                 dismiss = {
-                    viewModel.onIntent(UrlIntent.ChangeCategory(it))
+                    viewModel.onIntent(LinkInsertUrlIntent.ChangeCategory(it))
                     showCategorySelector = false
                 },
                 goToCateEdit = {
@@ -100,14 +100,14 @@ fun LinkInsertScreen(
             paddingValues = paddingValues,
             popBackStack = { navController.popBackStack() },
             url = url ?: "",
-            userInputUrl = { inputUrl -> viewModel.onIntent(UrlIntent.SubmitUrl(inputUrl)) },
-            uiState = uiState,
+            userInputUrl = { inputUrl -> viewModel.onIntent(LinkInsertUrlIntent.SubmitLinkInsertUrl(inputUrl)) },
+            linkInsertUiState = uiState,
             isShowCategorySelector = { currentCategoryName -> showCategorySelector = true },
-            onInsertTagTxt = { tag -> viewModel.onIntent(UrlIntent.AddTag(tag)) },
-            onRemoveTagTxt = { tag -> viewModel.onIntent(UrlIntent.RemoveTag(tag)) },
-            isBookMark = { viewModel.onIntent(UrlIntent.IsBookmark(it) )},
+            onInsertTagTxt = { tag -> viewModel.onIntent(LinkInsertUrlIntent.AddTag(tag)) },
+            onRemoveTagTxt = { tag -> viewModel.onIntent(LinkInsertUrlIntent.RemoveTag(tag)) },
+            isBookMark = { viewModel.onIntent(LinkInsertUrlIntent.IsBookmark(it) )},
             isUpdateMode = viewModel.isUpdateMode,
-            onSaveData = { viewModel.onIntent(UrlIntent.SubmitSaveData) }
+            onSaveData = { viewModel.onIntent(LinkInsertUrlIntent.SubmitSaveData) }
         )
     }
 }
@@ -118,7 +118,7 @@ fun LinkInsertScreen(
     popBackStack: () -> Unit = {},
     url: String = "",
     userInputUrl: (String) -> Unit = {},
-    uiState: UiState,
+    linkInsertUiState: LinkInsertUiState,
     isShowCategorySelector: (String) -> Unit,
     onInsertTagTxt: (String) -> Unit,
     onRemoveTagTxt: (String) -> Unit,
@@ -128,7 +128,7 @@ fun LinkInsertScreen(
 ) {
     val focusManager = LocalFocusManager.current
     var linkUrl by rememberSaveable { mutableStateOf(url) }
-    val isShowResultScreen = uiState != UiState.Idle
+    val isShowResultScreen = linkInsertUiState != LinkInsertUiState.Idle
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -149,13 +149,13 @@ fun LinkInsertScreen(
                 userEnter = { userInputUrl.invoke(it) }
             )
             AnimatedVisibility(isShowResultScreen) {
-                when (uiState) {
-                    is UiState.Error -> SearchResultSimpleText(text = "에러가 났어요..")
-                    UiState.Idle -> {}
-                    UiState.Loading -> FullScreenLoading()
-                    is UiState.Success -> {
+                when (linkInsertUiState) {
+                    is LinkInsertUiState.Error -> SearchResultSimpleText(text = "에러가 났어요..")
+                    LinkInsertUiState.Idle -> {}
+                    LinkInsertUiState.Loading -> FullScreenLoading()
+                    is LinkInsertUiState.Success -> {
                         LinkInsertUrlResult(
-                            data = uiState.urlData,
+                            data = linkInsertUiState.urlData,
                             isShowCategorySelector = isShowCategorySelector,
                             focusClear = { focusManager.clearFocus() },
                             onInsertTagTxt = onInsertTagTxt,
@@ -170,7 +170,7 @@ fun LinkInsertScreen(
 
             Button(
                 onClick = onSaveData,
-                enabled = uiState is UiState.Success,
+                enabled = linkInsertUiState is LinkInsertUiState.Success,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -192,7 +192,7 @@ fun LinkInsertScreen(
 @Preview(showBackground = true, backgroundColor = 0xFF444444)
 fun LinkInsertScreenPreview() {
     LinkInsertScreen(
-        uiState = UiState.Idle,
+        linkInsertUiState = LinkInsertUiState.Idle,
         isShowCategorySelector = {},
         onInsertTagTxt = {},
         onRemoveTagTxt = {},
