@@ -20,6 +20,7 @@ sealed class MainCategoryUiState {
 }
 
 sealed class MainListIntent {
+    data object FetchCategoryData: MainListIntent()
     data object GoToSearchScreen: MainListIntent()
     data object GoToCategorySettingScreen: MainListIntent()
     data object GoToLinkInsertScreen: MainListIntent()

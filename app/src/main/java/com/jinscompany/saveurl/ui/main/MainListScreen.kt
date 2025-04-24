@@ -71,6 +71,7 @@ fun MainListScreen(
     var linkItemEditDialog by remember { mutableStateOf<UrlData?>(null) }
 
     LaunchedEffect(Unit) {
+        viewModel.onIntent(MainListIntent.FetchCategoryData)
         uiEffect.collect { effect ->
             when (effect) {
                 is MainListUiEffect.NavigateToResult -> {

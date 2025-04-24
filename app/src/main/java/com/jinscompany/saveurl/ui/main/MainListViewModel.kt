@@ -36,7 +36,6 @@ class MainListViewModel @Inject constructor(
     val mainListEffect = _mainListEffect.asSharedFlow()
 
     init {
-        getCategoryList()
         getLinkList()
     }
 
@@ -83,6 +82,8 @@ class MainListViewModel @Inject constructor(
                 MainListIntent.GoToSearchScreen -> {
                     _mainListEffect.emit(MainListUiEffect.NavigateToResult(route = SEARCH))
                 }
+
+                MainListIntent.FetchCategoryData -> getCategoryList()
             }
         }
     }
