@@ -47,6 +47,7 @@ import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SEARCH
 import com.jinscompany.saveurl.ui.navigation.navigateToEditCategory
 import com.jinscompany.saveurl.ui.navigation.navigateToSaveLink
 import com.jinscompany.saveurl.ui.navigation.navigateToSearch
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.flowOf
 
 @Composable
@@ -72,7 +73,7 @@ fun MainListScreen(
 
     LaunchedEffect(Unit) {
         viewModel.onIntent(MainListIntent.FetchCategoryData)
-        uiEffect.collect { effect ->
+        uiEffect.collectLatest { effect ->
             when (effect) {
                 is MainListUiEffect.NavigateToResult -> {
                     when (effect.route) {
@@ -133,9 +134,18 @@ fun MainListScreen(
 
         linkItemEditDialog?.let { urlData ->
             LinkItemInfoDialog(
-                onClickShare = { viewModel.onIntent(MainListIntent.GotoOutShareUrl(urlData.url)) },
-                onClickEdit = { viewModel.onIntent(MainListIntent.GoToLinkEditScreen(url = urlData.url)) },
-                onClickDelete = { viewModel.onIntent(MainListIntent.DeleteLinkItem(urlData)) },
+                onClickShare = {
+                    linkItemEditDialog = null
+                    viewModel.onIntent(MainListIntent.GotoOutShareUrl(urlData.url))
+                },
+                onClickEdit = {
+                    linkItemEditDialog = null
+                    viewModel.onIntent(MainListIntent.GoToLinkEditScreen(url = urlData.url))
+                },
+                onClickDelete = {
+                    linkItemEditDialog = null
+                    viewModel.onIntent(MainListIntent.DeleteLinkItem(urlData))
+                },
                 dismiss = { linkItemEditDialog = null }
             )
         }
