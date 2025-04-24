@@ -39,7 +39,7 @@ import com.jinscompany.saveurl.domain.model.UrlData
 @Composable
 fun LinkInsertUrlResult(
     data: UrlData,
-    isShowCategorySelector: (String) -> Unit,
+    isShowCategorySelector: () -> Unit,
     focusClear: () -> Unit,
     onRemoveTagTxt: (String) -> Unit,
     onInsertTagTxt: (String) -> Unit,
@@ -74,7 +74,7 @@ fun LinkInsertUrlResult(
                 )
             }
             OutlinedButton(
-                onClick = { isShowCategorySelector.invoke(data.category ?: "전체") },
+                onClick = { isShowCategorySelector.invoke() },
                 modifier = Modifier
                     .wrapContentSize()
                     .padding(horizontal = 10.dp),

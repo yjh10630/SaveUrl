@@ -6,9 +6,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,10 +31,10 @@ fun LinkUrlListSection(
             .background(Color.DarkGray)
     ) {
         items(
-            count = items.itemCount,
+            count = items.itemSnapshotList.size,
             key = { index -> items[index]?.id ?: 0 }
         ) { index ->
-            val item = items.get(index) ?: return@items
+            val item = items.itemSnapshotList[index] ?: return@items
             LinkUrlItem(
                 Modifier.animateItem(),
                 item,

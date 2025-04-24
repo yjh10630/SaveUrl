@@ -1,5 +1,7 @@
 package com.jinscompany.saveurl.ui.composable
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +37,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.jinscompany.saveurl.domain.model.UrlData
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LinkUrlItem(
     modifier: Modifier,
@@ -50,7 +53,7 @@ fun LinkUrlItem(
         modifier = modifier
             .fillMaxWidth()
             //.clickable { onClick.invoke(data.url ?: "") }
-            .pointerInput(Unit) {
+            /*.pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { onClick.invoke(data.url ?: "") },
                     onLongPress = {
@@ -58,7 +61,14 @@ fun LinkUrlItem(
                         longOnClick.invoke(data)
                     }
                 )
-            }
+            }*/
+            .combinedClickable(
+                onClick = { onClick(data.url ?: "") },
+                onLongClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    longOnClick(data)
+                }
+            )
             .height(itemHeight)
     ) {
         Column {
@@ -117,7 +127,7 @@ fun LinkUrlItem(
                     placeholder = ColorPainter(Color.LightGray),
                     error = ColorPainter(Color.LightGray),
                     contentDescription = null,
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
                 )
             }
             if (!data.tagList.isNullOrEmpty()) {
