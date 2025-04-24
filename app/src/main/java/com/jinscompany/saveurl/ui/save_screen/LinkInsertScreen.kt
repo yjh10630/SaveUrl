@@ -173,6 +173,7 @@ fun LinkInsertScreen(
                 enabled = linkInsertUiState is LinkInsertUiState.Success,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
                     .height(50.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
             ) {
