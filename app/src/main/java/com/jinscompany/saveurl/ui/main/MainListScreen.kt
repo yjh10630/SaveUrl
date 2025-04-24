@@ -169,10 +169,6 @@ fun MainListScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-
-    }
-
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackBarHostState) },
         floatingActionButtonPosition = FabPosition.End,
@@ -266,5 +262,20 @@ fun MainListScreen(
 @Composable
 @Preview(showBackground = true, backgroundColor = 0xFF444444)
 fun MainListScreenPreview() {
-    MainListScreen()
+    val fakeData = listOf(
+        UrlData(id = 1, url = "https://google.com", title = "Google", tagList = listOf("검색")),
+        UrlData(id = 2, url = "https://youtube.com", title = "YouTube", tagList = listOf("영상")),
+        UrlData(id = 3, url = "https://github.com", title = "GitHub", tagList = null),
+    )
+    val fakeDataCategory = listOf(
+        CategoryModel(id = 0, name = "오구",),
+        CategoryModel(id = 0, name = "구구",),
+        CategoryModel(id = 0, name = "테테테 ",)
+    )
+
+    val pagingItems = flowOf(PagingData.from(fakeData)).collectAsLazyPagingItems()
+    MainListScreen(
+        mainListPagingData = pagingItems,
+        mainCategoryData = fakeDataCategory
+    )
 }
