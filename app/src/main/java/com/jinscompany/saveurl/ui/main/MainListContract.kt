@@ -22,6 +22,7 @@ sealed class MainCategoryUiState {
 sealed class MainListIntent {
     data object FetchCategoryData: MainListIntent()
     data object GoToSearchScreen: MainListIntent()
+    data object GoToAppSetting: MainListIntent()
     data object GoToCategorySettingScreen: MainListIntent()
     data object GoToLinkInsertScreen: MainListIntent()
     data class GoToLinkEditScreen(val url: String?): MainListIntent()

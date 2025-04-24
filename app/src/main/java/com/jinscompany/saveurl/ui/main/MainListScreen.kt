@@ -53,9 +53,11 @@ import com.jinscompany.saveurl.ui.composable.LinkItemInfoDialog
 import com.jinscompany.saveurl.ui.composable.LinkUrlListSection
 import com.jinscompany.saveurl.ui.composable.MainHeaderSection
 import com.jinscompany.saveurl.ui.composable.SelectorTextButtonGroup
+import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.APP_SETTING
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.EDIT_CATEGORY
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SAVE_LINK
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SEARCH
+import com.jinscompany.saveurl.ui.navigation.navigateToAppSetting
 import com.jinscompany.saveurl.ui.navigation.navigateToEditCategory
 import com.jinscompany.saveurl.ui.navigation.navigateToSaveLink
 import com.jinscompany.saveurl.ui.navigation.navigateToSearch
@@ -121,6 +123,7 @@ fun MainListScreen(
                             else navController.navigateToSaveLink(url = effect.url)
                         }
                         SEARCH -> navController.navigateToSearch()
+                        APP_SETTING -> navController.navigateToAppSetting()
                     }
                 }
                 is MainListUiEffect.OutLinkWebSite -> {
@@ -210,6 +213,7 @@ fun MainListScreen(
             mainCategoryData = mainCategoryData,
             paddingValues = paddingValues,
             onSearchClick = { viewModel.onIntent(MainListIntent.GoToSearchScreen) },
+            onAppSettingClick = { viewModel.onIntent(MainListIntent.GoToAppSetting) },
             onCategoryClick = { name -> viewModel.onIntent(MainListIntent.CategoryClick(name))},
             onCategorySettingClick = { viewModel.onIntent(MainListIntent.GoToCategorySettingScreen) },
             onLinkItemClick = { url -> viewModel.onIntent(MainListIntent.GoToOutLinkWebSite(url))},
@@ -225,6 +229,7 @@ fun MainListScreen(
     mainCategoryData: List<CategoryModel>? = listOf(),
     paddingValues: PaddingValues = PaddingValues(),
     onSearchClick: () -> Unit = {},
+    onAppSettingClick: () -> Unit = {},
     onCategoryClick: (String) -> Unit = {},
     onCategorySettingClick: () -> Unit = {},
     onLinkItemClick: (String?) -> Unit = {},
@@ -237,7 +242,7 @@ fun MainListScreen(
             .padding(paddingValues)
             .background(Color.DarkGray)
     ) {
-        MainHeaderSection(searchIconClick = onSearchClick)
+        MainHeaderSection(searchIconClick = onSearchClick, appSettingClick = onAppSettingClick)
         mainCategoryData?.let { categories ->
             SelectorTextButtonGroup(
                 options = listOf("북마크", "전체") + categories.map { it.name },

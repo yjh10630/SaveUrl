@@ -14,6 +14,7 @@ import com.jinscompany.saveurl.ui.add_category.EditCategoryScreen
 import com.jinscompany.saveurl.ui.main.MainListScreen
 import com.jinscompany.saveurl.ui.save_screen.LinkInsertScreen
 import com.jinscompany.saveurl.ui.search.SearchScreen
+import com.jinscompany.saveurl.ui.setting.AppSettingScreen
 
 @Composable
 fun AppNavigation(navController: NavHostController = rememberNavController()) {
@@ -68,7 +69,6 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             )
         ) { backStackEntry ->
             val url = backStackEntry.arguments?.getString("url")
-            //val viewModel = hiltViewModel<SaveLinkViewModel>()
             LinkInsertScreen(navController, url)
         }
         composable(route = Navigation.Routes.SEARCH) {
@@ -77,11 +77,15 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         composable(route = Navigation.Routes.EDIT_CATEGORY) {
             EditCategoryScreen(navController)
         }
+        composable(route = Navigation.Routes.APP_SETTING) {
+            AppSettingScreen(navController)
+        }
     }
 }
 
 object Navigation {
     object Routes {
+        const val APP_SETTING = "appSetting"
         const val MAIN = "mainScreen"
         const val SAVE_LINK = "saveLinkScreen"
         const val SEARCH = "searchScreen"
@@ -111,4 +115,8 @@ fun NavController.navigateToEditCategory() {
 
 fun NavController.navigateToSearch() {
     navigate(route = "${Navigation.Routes.SEARCH}")
+}
+
+fun NavController.navigateToAppSetting() {
+    navigate(route = "${Navigation.Routes.APP_SETTING}")
 }

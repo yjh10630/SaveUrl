@@ -11,6 +11,7 @@ import androidx.paging.cachedIn
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.domain.repository.CategoryRepository
 import com.jinscompany.saveurl.domain.repository.UrlRepository
+import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.APP_SETTING
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.EDIT_CATEGORY
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SAVE_LINK
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SEARCH
@@ -85,6 +86,9 @@ class MainListViewModel @Inject constructor(
 
                 MainListIntent.FetchCategoryData -> getCategoryList()
                 is MainListIntent.ClipboardUrlCheck -> clipboardUrlCheckToSnackBar(intent.url)
+                MainListIntent.GoToAppSetting -> {
+                    _mainListEffect.emit(MainListUiEffect.NavigateToResult(route = APP_SETTING))
+                }
             }
         }
     }
