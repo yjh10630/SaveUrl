@@ -84,7 +84,15 @@ class MainListViewModel @Inject constructor(
                 }
 
                 MainListIntent.FetchCategoryData -> getCategoryList()
+                is MainListIntent.ClipboardUrlCheck -> clipboardUrlCheckToSnackBar(intent.url)
             }
+        }
+    }
+
+    private fun clipboardUrlCheckToSnackBar(url: String) {
+        viewModelScope.launch {
+            val isSaved = urlRepository.isSavedUrl(url)
+            if (!isSaved) _mainListEffect.emit(MainListUiEffect.ShowSnackBarSaveUrl(url))
         }
     }
 

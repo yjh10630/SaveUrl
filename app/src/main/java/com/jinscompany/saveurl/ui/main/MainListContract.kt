@@ -29,6 +29,7 @@ sealed class MainListIntent {
     data class CategoryClick(val categoryName: String): MainListIntent()
     data class GotoOutShareUrl(val url: String?): MainListIntent()
     data class DeleteLinkItem(val urlData: UrlData): MainListIntent()
+    data class ClipboardUrlCheck(val url: String): MainListIntent()
 }
 
 sealed class MainListUiEffect {
@@ -36,5 +37,6 @@ sealed class MainListUiEffect {
     data class OutLinkWebSite(val url: String): MainListUiEffect()
     data class ShowToast(val message: String): MainListUiEffect()
     data class UrlShare(val url: String): MainListUiEffect()
+    data class ShowSnackBarSaveUrl(val url: String): MainListUiEffect()
     data object ListRefresh: MainListUiEffect()
 }
