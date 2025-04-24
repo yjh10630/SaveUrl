@@ -19,3 +19,28 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+-keep,allowobfuscation,allowshrinking class kotlinx.coroutines.flow.Flow
+-keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
+
+# Room
+-dontwarn androidx.room.**
+-keep class androidx.room.paging.LimitOffsetDataSource { *; }
+-keep class androidx.sqlite.db.SupportSQLiteOpenHelper$Factory
+-keepclasseswithmembernames class * {
+    @androidx.room.ColumnInfo <fields>;
+
+}
+# Room
+-keep class androidx.room.** { *; }
+-dontwarn androidx.room.**
+# Room Entity와 DAO 클래스 보호
+-keep class com.jinscompany.saveurl.domain.model.** { *; }         # 데이터 모델 패키지 경로
+
+# OKHttp3
+-dontwarn okhttp3.**
+-keep class okhttp3.** { *; }
+-keep interface okhttp3.** { *; }
+
+# Kotlin reflection
+-keep class kotlin.reflect.jvm.internal.** { *; }
