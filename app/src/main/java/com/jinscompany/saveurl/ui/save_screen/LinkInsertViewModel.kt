@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jinscompany.saveurl.domain.model.CategoryModel
+import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.domain.repository.CategoryRepository
 import com.jinscompany.saveurl.domain.repository.UrlRepository
 import com.jinscompany.saveurl.utils.extractUrlFromText
@@ -35,12 +36,25 @@ class LinkInsertViewModel @Inject constructor(
 
     fun onIntent(intent: LinkInsertUrlIntent) {
         when (intent) {
-            is LinkInsertUrlIntent.SubmitLinkInsertUrl -> startUrlCrawling(intent.url)
+            //is LinkInsertUrlIntent.SubmitLinkInsertUrl -> startUrlCrawling(intent.url)
             is LinkInsertUrlIntent.AddTag -> addTag(intent.tag)
             is LinkInsertUrlIntent.RemoveTag -> removeTag(intent.tag)
             is LinkInsertUrlIntent.ChangeCategory -> changeCategoryName(intent.name)
             is LinkInsertUrlIntent.IsBookmark -> changeBookmark(intent.isBookmark)
             LinkInsertUrlIntent.SubmitSaveData -> saveData()
+            is LinkInsertUrlIntent.SubmitWebViewCrawlerResult -> transferUrlData(intent.data)
+            LinkInsertUrlIntent.CrawlerLoading -> linkInsertUiState = LinkInsertUiState.Loading
+        }
+    }
+
+    private fun transferUrlData(data: UrlData?) {
+        viewModelScope.launch {
+            categoryList = categoryRepository.get()
+            data?.let {
+                linkInsertUiState = LinkInsertUiState.Success(it)
+            } ?: run {
+                linkInsertUiState = LinkInsertUiState.Error("데이터를 가지고 오지 못했습니다.")
+            }
         }
     }
 

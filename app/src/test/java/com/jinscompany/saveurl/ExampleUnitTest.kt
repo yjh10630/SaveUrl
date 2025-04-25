@@ -17,7 +17,8 @@ class ExampleUnitTest {
 
     @Test
     fun test() {
-        val url = "나는야 테스트 url 입니당 https://jihunstudy.tistory.com/66 이거좀 바보라공"
+        //val url = "나는야 테스트 url 입니당 https://jihunstudy.tistory.com/66 이거좀 바보라공"
+        val url = "쿠팡을 추천 합니다!\n삼성전자 4K UHD QLED 스마트 TV\nhttps://link.coupang.com/a/cqn415"
         println(extractUrlFromText(url))
     }
 

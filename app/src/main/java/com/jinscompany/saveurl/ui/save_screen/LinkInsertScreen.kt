@@ -37,6 +37,7 @@ import androidx.navigation.NavHostController
 import com.jinscompany.saveurl.ui.composable.FullScreenLoading
 import com.jinscompany.saveurl.ui.composable.LinkInsertUrlResult
 import com.jinscompany.saveurl.ui.composable.LinkInsertUserInputUrl
+import com.jinscompany.saveurl.ui.composable.LinkUrlCrawlerHidden
 import com.jinscompany.saveurl.ui.composable.SearchResultSimpleText
 import com.jinscompany.saveurl.ui.composable.category.CategorySelectorDialog
 import com.jinscompany.saveurl.ui.composable.noRippleClickable
@@ -52,6 +53,7 @@ fun LinkInsertScreen(
 ) {
     val uiState = viewModel.linkInsertUiState
     var showCategorySelector by remember { mutableStateOf(false) }
+    var startCrawlerUrl by remember { mutableStateOf("") }
     val context = LocalContext.current
     val activity = context as? Activity
 
@@ -77,7 +79,8 @@ fun LinkInsertScreen(
         } else ""
 
         if (linkUrl.isNotEmpty()) {
-            viewModel.onIntent(LinkInsertUrlIntent.SubmitLinkInsertUrl(linkUrl))
+            viewModel.onIntent(LinkInsertUrlIntent.CrawlerLoading)
+            startCrawlerUrl = linkUrl
         }
     }
 
@@ -96,11 +99,27 @@ fun LinkInsertScreen(
                 selectedItem = urlData.ifEmpty { "전체" }
             )
         }
+        if (startCrawlerUrl.isNotEmpty()) {
+            LinkUrlCrawlerHidden(
+                url = startCrawlerUrl,
+                onSuccess = {
+                    viewModel.onIntent(LinkInsertUrlIntent.SubmitWebViewCrawlerResult(it))
+                    startCrawlerUrl = ""
+                },
+                onError = {
+                    viewModel.onIntent(LinkInsertUrlIntent.SubmitWebViewCrawlerResult())
+                    startCrawlerUrl = ""
+                }
+            )
+        }
         LinkInsertScreen(
             paddingValues = paddingValues,
             popBackStack = { navController.popBackStack() },
             url = url ?: "",
-            userInputUrl = { inputUrl -> viewModel.onIntent(LinkInsertUrlIntent.SubmitLinkInsertUrl(inputUrl)) },
+            userInputUrl = { inputUrl ->
+                viewModel.onIntent(LinkInsertUrlIntent.CrawlerLoading)
+                startCrawlerUrl = inputUrl
+            },
             linkInsertUiState = uiState,
             isShowCategorySelector = { showCategorySelector = true },
             onInsertTagTxt = { tag -> viewModel.onIntent(LinkInsertUrlIntent.AddTag(tag)) },

@@ -3,6 +3,7 @@ package com.jinscompany.saveurl
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -21,6 +22,7 @@ import androidx.navigation.compose.rememberNavController
 import com.jinscompany.saveurl.ui.navigation.AppNavigation
 import com.jinscompany.saveurl.ui.navigation.Navigation
 import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
+import com.jinscompany.saveurl.utils.extractUrlFromText
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -40,8 +42,11 @@ class MainActivity : ComponentActivity() {
                 val intent = activity?.intent
                 if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
                     val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
-                    if (!sharedText.isNullOrEmpty()) {
-                        navController.navigate(Navigation.Routes.SAVE_LINK)
+                    val realUrl = extractUrlFromText(sharedText ?: "")
+                    Log.d("####", "sharedText > ${sharedText}\nrealUrl > ${realUrl}")
+                    if (!realUrl.isNullOrEmpty()) {
+                        val route = "${Navigation.Routes.SAVE_LINK}?url=$realUrl"
+                        navController.navigate(route)
                     }
                 }
             }
