@@ -245,7 +245,7 @@ fun MainListScreen(
         MainHeaderSection(searchIconClick = onSearchClick, appSettingClick = onAppSettingClick)
         mainCategoryData?.let { categories ->
             SelectorTextButtonGroup(
-                options = listOf("북마크", "전체") + categories.map { it.name },
+                options = categories,
                 clickItem = { onCategoryClick.invoke(it) },
                 settingOnClick = onCategorySettingClick,
                 isSettingIcon = true,

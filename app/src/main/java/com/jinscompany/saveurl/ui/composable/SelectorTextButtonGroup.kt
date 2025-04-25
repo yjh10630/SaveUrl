@@ -31,17 +31,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.jinscompany.saveurl.domain.model.CategoryModel
 
 @Composable
 fun SelectorTextButtonGroup(
     modifier: Modifier = Modifier,
-    options: List<String>,
+    options: List<CategoryModel>,
     clickItem: (String) -> Unit,
     isSettingIcon: Boolean,
     settingOnClick: () -> Unit,
     isEditMode: Boolean = false,
 ) {
-    var selectedOption by remember { mutableStateOf("전체") }
+    var selectedOption by remember { mutableStateOf(options.firstOrNull { it.isSelected }?.name ?: "전체") }
     val onSelectionChange = { text: String ->
         selectedOption = text
         clickItem.invoke(text)
@@ -51,17 +52,17 @@ fun SelectorTextButtonGroup(
         LazyRow(
             modifier = modifier.fillMaxWidth(),
         ) {
-            itemsIndexed(options) { index, text ->
+            itemsIndexed(options) { index, model ->
                 if (index == 0) Spacer(modifier = Modifier.width(8.dp))
                 OutlinedButton(
-                    onClick = { onSelectionChange(text) },
+                    onClick = { onSelectionChange(model.name) },
                     modifier = Modifier
                         .animateItem()
                         .wrapContentSize()
                         .padding(horizontal = 4.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (text == selectedOption) {
+                        containerColor = if (model.name == selectedOption) {
                             Color.LightGray
                         } else {
                             Color.Transparent
@@ -74,15 +75,15 @@ fun SelectorTextButtonGroup(
                             modifier = Modifier.size(24.dp),
                             imageVector = Icons.Default.Bookmark,
                             contentDescription = "icon",
-                            tint = if (text == selectedOption) Color.Black else Color.White
+                            tint = if (model.name == selectedOption) Color.Black else Color.White
                         )
                     } else {
                         Row (
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text,
-                                color = if (text == selectedOption) Color.Black else Color.White,
+                                model.name,
+                                color = if (model.name == selectedOption) Color.Black else Color.White,
                                 fontSize = 14.sp,
                                 maxLines = 1
                             )
@@ -121,20 +122,20 @@ fun SelectorTextButtonGroup(
 @Preview
 private fun SearchFilterGroupPreview() {
     SelectorTextButtonGroup(options = listOf(
-        "BookMark",
-        "Option 1",
-        "Option 2",
-        "Option 3",
+        CategoryModel(name = "BookMark"),
+        CategoryModel(name = "Option 1"),
+        CategoryModel(name = "Option 2"),
+        CategoryModel(name = "Option 3"),
     ), clickItem = {}, settingOnClick = {}, isSettingIcon = true )
 }
 @Composable
 @Preview
 private fun SearchFilterGroupPreview2() {
     SelectorTextButtonGroup(options = listOf(
-        "BookMark",
-        "Option 1",
-        "Option 2",
-        "Option 3",
+        CategoryModel(name = "BookMark"),
+        CategoryModel(name = "Option 1"),
+        CategoryModel(name = "Option 2"),
+        CategoryModel(name = "Option 3"),
     ), clickItem = {}, settingOnClick = {}, isSettingIcon = false )
 }
 
@@ -142,9 +143,9 @@ private fun SearchFilterGroupPreview2() {
 @Preview
 private fun SearchFilterGroupPreview3() {
     SelectorTextButtonGroup(options = listOf(
-        "BookMark",
-        "Option 1",
-        "Option 2",
-        "Option 3",
+        CategoryModel(name = "BookMark"),
+        CategoryModel(name = "Option 1"),
+        CategoryModel(name = "Option 2"),
+        CategoryModel(name = "Option 3"),
     ), clickItem = {}, settingOnClick = {}, isSettingIcon = false, isEditMode = true )
 }

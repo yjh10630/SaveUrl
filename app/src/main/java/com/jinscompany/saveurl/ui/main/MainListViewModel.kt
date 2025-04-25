@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.cachedIn
+import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.domain.repository.CategoryRepository
 import com.jinscompany.saveurl.domain.repository.UrlRepository
@@ -15,6 +16,7 @@ import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.APP_SETTING
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.EDIT_CATEGORY
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SAVE_LINK
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SEARCH
+import com.jinscompany.saveurl.ui.save_screen.LinkInsertUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -35,6 +37,8 @@ class MainListViewModel @Inject constructor(
 
     private val _mainListEffect = MutableSharedFlow<MainListUiEffect>()
     val mainListEffect = _mainListEffect.asSharedFlow()
+
+    private var isSelectedCategoryName by mutableStateOf("전체")
 
     init {
         getLinkList()
@@ -109,13 +113,15 @@ class MainListViewModel @Inject constructor(
     private fun getCategoryList() {
         viewModelScope.launch {
             mainCategoryUiState = MainCategoryUiState.Loading
-            val categories = categoryRepository.get()
+            val categories = listOf(CategoryModel(name = "북마크"), CategoryModel(name = "전체")) + categoryRepository.get()
+            categories.firstOrNull { it.name == isSelectedCategoryName }?.isSelected = true
             mainCategoryUiState = MainCategoryUiState.Success(categories = categories)
         }
     }
 
     private fun getLinkList(categoryName: String? = "") {
         viewModelScope.launch {
+            isSelectedCategoryName = categoryName ?: "전체"
             mainListUiState = MainListUiState.Loading
             val dataFlow = Pager(
                 config = PagingConfig(
