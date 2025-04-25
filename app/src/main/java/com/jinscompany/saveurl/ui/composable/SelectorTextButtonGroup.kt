@@ -32,11 +32,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/**
- * //todo 메인 에서 헤더 영역에 사용될 전용 으로 다시 만들어 져야 할 것 같음.
- * //todo 공통 으로 사용 하려면.. 카테고리 를 따로 Component 로 만들고 여기서 는 메인 카테고리 영역 으로 만들어 야 할 것 같음.
- * https://demat.tistory.com/73 참고 해야함
- */
 @Composable
 fun SelectorTextButtonGroup(
     modifier: Modifier = Modifier,
