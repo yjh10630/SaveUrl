@@ -11,10 +11,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,11 +27,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchHeaderUserInputKeyword(
     popBackStack: () -> Unit,
@@ -50,7 +55,8 @@ fun SearchHeaderUserInputKeyword(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back"
+                contentDescription = "Back",
+                tint = Color.LightGray,
             )
         }
 
@@ -88,7 +94,18 @@ fun SearchHeaderUserInputKeyword(
                 },
             ),
             label = { Text("링크 검색") },
-            placeholder = { Text("링크 검색") }
+            placeholder = { Text("링크 검색") },
+            textStyle = TextStyle(color = Color.LightGray),
+            colors = TextFieldDefaults.outlinedTextFieldColors(
+                focusedBorderColor = Color.LightGray,
+                unfocusedBorderColor = Color.Gray,
+                focusedLabelColor = Color.LightGray,
+                unfocusedLabelColor = Color.Gray,
+                focusedLeadingIconColor = Color.LightGray,
+                unfocusedLeadingIconColor = Color.Gray,
+                focusedTrailingIconColor = Color.LightGray,
+                unfocusedTrailingIconColor = Color.Gray
+            )
         )
     }
 }

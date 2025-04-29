@@ -84,6 +84,7 @@ fun LinkUrlItem(
                         data.siteName ?: "",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Thin,
+                        color = Color.LightGray,
                         maxLines = 1
                     )
                     Spacer(modifier = Modifier.height(3.dp))
@@ -91,12 +92,14 @@ fun LinkUrlItem(
                         data.title ?: "",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
+                        color = Color.LightGray,
                         maxLines = 1
                     )
                     Text(
                         data.description ?: "",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
+                        color = Color.LightGray,
                         maxLines = 2
                     )
                     Row (
@@ -114,6 +117,7 @@ fun LinkUrlItem(
                         Text(
                             text = data.getDate(),
                             fontSize = 10.sp,
+                            color = Color.LightGray,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -140,7 +144,7 @@ fun LinkUrlItem(
 
 @Composable
 @Preview(
-    showBackground = true, backgroundColor = 0xFFFFFFFF,
+    showBackground = true, backgroundColor = 0xFF444444,
 )
 fun LinkUrlItemPreview() {
     LinkUrlItem(Modifier, UrlData(

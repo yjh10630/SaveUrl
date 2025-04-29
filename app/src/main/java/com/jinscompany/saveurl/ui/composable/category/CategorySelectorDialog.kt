@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -31,10 +29,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.jinscompany.saveurl.ui.composable.CommonPositiveButton
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -99,7 +97,7 @@ fun CategorySelectorDialog(
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
-            Button(
+            CommonPositiveButton(
                 onClick = {
                     scope.launch {
                         modalBottomSheetState.hide()
@@ -108,18 +106,8 @@ fun CategorySelectorDialog(
                     }
                 },
                 enabled = selectItem.isNotEmpty(),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
-            ) {
-                Text(
-                    "선택",
-                    fontSize = 16.sp,
-                    color = Color.White,
-                    textAlign = TextAlign.Center
-                )
-            }
+                text = "선택"
+            )
         }
     }
 }

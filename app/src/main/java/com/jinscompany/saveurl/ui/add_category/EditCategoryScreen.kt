@@ -15,11 +15,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,6 +47,7 @@ import androidx.navigation.compose.rememberNavController
 import com.jinscompany.saveurl.ui.composable.category.EditCategoryList
 import com.jinscompany.saveurl.ui.composable.noRippleClickable
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditCategoryScreen(navController: NavHostController) {
 
@@ -89,7 +92,8 @@ fun EditCategoryScreen(navController: NavHostController) {
                 }) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back"
+                        contentDescription = "Back",
+                        tint = Color.LightGray,
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -161,7 +165,17 @@ fun EditCategoryScreen(navController: NavHostController) {
                             }
                         ),
                         label = { Text("카테고리 이름", color = Color.Gray) },
-                        placeholder = { Text("입력해 주세요.", color = Color.Gray) }
+                        placeholder = { Text("입력해 주세요.", color = Color.Gray) },
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            focusedBorderColor = Color.LightGray,
+                            unfocusedBorderColor = Color.Gray,
+                            focusedLabelColor = Color.LightGray,
+                            unfocusedLabelColor = Color.Gray,
+                            focusedLeadingIconColor = Color.LightGray,
+                            unfocusedLeadingIconColor = Color.Gray,
+                            focusedTrailingIconColor = Color.LightGray,
+                            unfocusedTrailingIconColor = Color.Gray
+                        )
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(

@@ -11,10 +11,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddLink
 import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,12 +25,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LinkInsertUserInputUrl(
     popBackStack: () -> Unit = {},
@@ -42,14 +46,15 @@ fun LinkInsertUserInputUrl(
         IconButton(onClick = popBackStack) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back"
+                contentDescription = "Back",
+                tint = Color.LightGray,
             )
         }
         Spacer(modifier = Modifier.height(16.dp))
         Column(
             modifier = Modifier.padding(horizontal = 24.dp)
         ) {
-            Text("링크 저장하기", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Text("링크 저장하기", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.LightGray,)
             Text(
                 "저장할 웹 사이트 의 링크(URL)를 입력해 주세요.",
                 fontSize = 14.sp, color = Color.Gray
@@ -71,7 +76,7 @@ fun LinkInsertUserInputUrl(
                         }) {
                             Icon(
                                 imageVector = Icons.Default.Cancel,
-                                contentDescription = "linkCancel"
+                                contentDescription = "linkCancel",
                             )
                         }
                     }
@@ -92,7 +97,18 @@ fun LinkInsertUserInputUrl(
                     }
                 ),
                 label = { Text("링크 주소") },
-                placeholder = { Text("URL을 입력해주세요.") }
+                placeholder = { Text("URL을 입력해주세요.") },
+                textStyle = TextStyle(color = Color.LightGray),
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+                    focusedBorderColor = Color.LightGray,
+                    unfocusedBorderColor = Color.Gray,
+                    focusedLabelColor = Color.LightGray,
+                    unfocusedLabelColor = Color.Gray,
+                    focusedLeadingIconColor = Color.LightGray,
+                    unfocusedLeadingIconColor = Color.Gray,
+                    focusedTrailingIconColor = Color.LightGray,
+                    unfocusedTrailingIconColor = Color.Gray
+                )
             )
         }
     }

@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.jinscompany.saveurl.ui.composable.CommonPositiveButton
 import com.jinscompany.saveurl.ui.composable.FullScreenLoading
 import com.jinscompany.saveurl.ui.composable.LinkInsertUrlResult
 import com.jinscompany.saveurl.ui.composable.LinkInsertUserInputUrl
@@ -187,22 +188,12 @@ fun LinkInsertScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            Button(
+            CommonPositiveButton(
                 onClick = onSaveData,
                 enabled = linkInsertUiState is LinkInsertUiState.Success,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
-            ) {
-                Text(
-                    if (isUpdateMode) "수정" else "저장",
-                    fontSize = 16.sp,
-                    color = Color.White,
-                    textAlign = TextAlign.Center
-                )
-            }
+                text = if (isUpdateMode) "수정" else "저장",
+            )
+
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
