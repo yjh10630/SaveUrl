@@ -46,7 +46,6 @@ fun MainHeaderSection(
                 tint = Color.LightGray
             )
         }
-        Spacer(modifier = Modifier.size(12.dp))
     }
 }
 

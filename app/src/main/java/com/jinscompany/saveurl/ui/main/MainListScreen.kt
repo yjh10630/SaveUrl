@@ -61,6 +61,7 @@ import com.jinscompany.saveurl.ui.navigation.navigateToAppSetting
 import com.jinscompany.saveurl.ui.navigation.navigateToEditCategory
 import com.jinscompany.saveurl.ui.navigation.navigateToSaveLink
 import com.jinscompany.saveurl.ui.navigation.navigateToSearch
+import com.jinscompany.saveurl.ui.theme.Brown
 import com.jinscompany.saveurl.utils.extractUrlFromText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
@@ -178,7 +179,7 @@ fun MainListScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { viewModel.onIntent(MainListIntent.GoToLinkInsertScreen) },
-                containerColor = Color(0xFF88540B),
+                containerColor = Brown,
                 contentColor = Color.White,
                 elevation = FloatingActionButtonDefaults.elevation(6.dp)
             ) {
