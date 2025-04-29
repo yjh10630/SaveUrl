@@ -242,6 +242,7 @@ fun MainListScreen(
             .padding(paddingValues)
             .background(Color.DarkGray)
     ) {
+        //todo 출시 후, 헤더 부분을 검색, 카테고리 선택, 앱설정 으로 변경 예정
         MainHeaderSection(searchIconClick = onSearchClick, appSettingClick = onAppSettingClick)
         mainCategoryData?.let { categories ->
             SelectorTextButtonGroup(
