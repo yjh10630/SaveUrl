@@ -87,6 +87,8 @@ dependencies {
     implementation("androidx.paging:paging-runtime:3.3.6")
     implementation("androidx.paging:paging-compose:3.3.6")
 
+    implementation("com.google.accompanist:accompanist-systemuicontroller:0.17.0")
+
     testImplementation(libs.junit)
 
     androidTestImplementation(libs.androidx.junit)
