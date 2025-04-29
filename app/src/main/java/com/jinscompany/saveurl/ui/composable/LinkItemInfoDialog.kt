@@ -54,7 +54,10 @@ fun LinkItemInfoDialog(
     ModalBottomSheet(
         onDismissRequest = { dismiss() },
         sheetState = modalBottomSheetState,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
+        dragHandle = { BottomSheetDefaults.DragHandle(
+            color = Color.LightGray
+        ) },
+        containerColor = Color.DarkGray
     ) {
         LinkItemInfoDialog(
             onClickShare = {

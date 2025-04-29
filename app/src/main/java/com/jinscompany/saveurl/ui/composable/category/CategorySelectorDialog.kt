@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jinscompany.saveurl.ui.composable.CommonPositiveButton
+import com.jinscompany.saveurl.ui.theme.Brown
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -51,7 +52,9 @@ fun CategorySelectorDialog(
     ModalBottomSheet(
         onDismissRequest = { dismiss.invoke(selectItem) },
         sheetState = modalBottomSheetState,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
+        dragHandle = { BottomSheetDefaults.DragHandle(
+            color = Color.LightGray
+        ) },
         containerColor = Color.DarkGray
     ) {
         Column(
@@ -61,7 +64,7 @@ fun CategorySelectorDialog(
                 .wrapContentHeight(),
 
         ) {
-            Text("카테고리 선택", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Text("카테고리 선택", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.LightGray)
             Text(
                 "분류할 카테고리를 선택해 주세요. (하나만 선택이 가능)",
                 fontSize = 14.sp, color = Color.Gray
@@ -73,7 +76,7 @@ fun CategorySelectorDialog(
                     goToCateEdit.invoke()
                 }
             }) {
-                Text("카테고리 편집", style = TextStyle(textDecoration = TextDecoration.Underline))
+                Text("카테고리 편집", style = TextStyle(textDecoration = TextDecoration.Underline), color = Color.LightGray)
             }
             Spacer(modifier = Modifier.height(12.dp))
             Column(
