@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.google.firebase.crashlytics.ktx.crashlytics
+import com.google.firebase.ktx.Firebase
 import com.jinscompany.saveurl.ui.composable.CommonPositiveButton
 import com.jinscompany.saveurl.ui.composable.FullScreenLoading
 import com.jinscompany.saveurl.ui.composable.LinkInsertUrlResult
@@ -110,6 +112,7 @@ fun LinkInsertScreen(
                 onError = {
                     viewModel.onIntent(LinkInsertUrlIntent.SubmitWebViewCrawlerResult())
                     startCrawlerUrl = ""
+                    Firebase.crashlytics.log("Crawling Error Url > ${startCrawlerUrl}")
                 }
             )
         }
