@@ -6,6 +6,7 @@ import android.util.Log
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import com.jinscompany.saveurl.domain.model.UrlData
+import com.jinscompany.saveurl.utils.CmLog
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
@@ -116,10 +117,10 @@ class UrlParserSourceImpl @Inject constructor(
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView?, url: String?) {
                         evaluateJavascript("(document.documentElement.outerHTML)") { html ->
-                            Log.d("####", "${html}")
+                            CmLog.d("${html}")
                             Readability4J(url ?: "", html).parse().let { article ->
-                                Log.d("Test Data", "html: ${article.textContent}")
-                                Log.d("Test Data Url", "url : $url")
+                                CmLog.d("html: ${article.textContent}")
+                                CmLog.d("url : $url")
                                 val realHtml = article.content ?: ""
                                 val decodedHtml =
                                     realHtml.replace("\\u003C", "<").replace("\\u003E", ">")

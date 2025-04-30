@@ -2,6 +2,9 @@ package com.jinscompany.saveurl.utils
 
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.Context
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 
 fun extractUrlFromText(text: String): String? {
     val urlRegex = Regex(
@@ -29,4 +32,19 @@ fun ClipboardManager.checkClipboardForUrl(): String {
     }
     //CmLog.d("클립보드에 텍스트가 없습니다.")
     return ""
+}
+
+fun isDebuggable(context: Context): Boolean {
+    var debuggable = false
+
+    val pm = context.packageManager
+    try {
+        val appInfo = pm.getApplicationInfo(context.packageName, 0)
+        appInfo.flags
+        ApplicationInfo.FLAG_DEBUGGABLE
+        debuggable = appInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+    } catch (e: PackageManager.NameNotFoundException) {
+
+    }
+    return debuggable
 }
