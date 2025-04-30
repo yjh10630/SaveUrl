@@ -64,7 +64,7 @@ fun AppSettingScreen(
                 emailSelectorIntent.setData(Uri.parse("mailto:"))
 
                 val intent = Intent(Intent.ACTION_SEND)
-                intent.putExtra(Intent.EXTRA_EMAIL, arrayOf("yjhzzing@gmail.com"))    //todo 출시 전 메일 받을 주소 업데이트 하기
+                intent.putExtra(Intent.EXTRA_EMAIL, arrayOf("jinscompany25@gmail.com"))    //todo 출시 전 메일 받을 주소 업데이트 하기
                 intent.putExtra(Intent.EXTRA_SUBJECT, "SaveLink App 오류 신고")
                 intent.putExtra(Intent.EXTRA_TEXT, "사진 및 영상을 올려주신 다면, 신속한 오류 개선에 도움이 됩니다.")
                 intent.selector = emailSelectorIntent
