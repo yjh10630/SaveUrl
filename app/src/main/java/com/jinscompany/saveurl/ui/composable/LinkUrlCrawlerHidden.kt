@@ -6,10 +6,12 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.jinscompany.saveurl.domain.model.UrlData
+import kotlinx.coroutines.delay
 import org.jsoup.Jsoup
 
 /**
@@ -23,6 +25,7 @@ fun LinkUrlCrawlerHidden(
 
 ) {
     val context = LocalContext.current
+    val hasFinished = remember { mutableStateOf(false) }
     val webView = remember {
         WebView(context).apply {
             visibility = View.GONE
@@ -55,7 +58,7 @@ fun LinkUrlCrawlerHidden(
 
                         else -> {}
                     }
-
+                    if (hasFinished.value) return
                     evaluateJavascript("(document.documentElement.outerHTML)") { html ->
                         try {
                             val realHtml = html
@@ -71,6 +74,7 @@ fun LinkUrlCrawlerHidden(
                             val siteName = doc.select("meta[property=og:site_name]").attr("content")
 
                             if (!title.isNullOrEmpty()) {
+                                hasFinished.value = true
                                 onSuccess(
                                     UrlData(
                                         url = url,
@@ -82,7 +86,10 @@ fun LinkUrlCrawlerHidden(
                                 )
                             }
                         } catch (e: Exception) {
-                            onError()
+                            if (!hasFinished.value) {
+                                hasFinished.value = true
+                                onError()
+                            }
                         }
                     }
                 }
@@ -93,6 +100,11 @@ fun LinkUrlCrawlerHidden(
     LaunchedEffect(url) {
         if (url.isNotBlank()) {
             webView.loadUrl(url)
+        }
+        delay(20000)
+        if (!hasFinished.value) {
+            hasFinished.value = true
+            onError()
         }
     }
     AndroidView(factory = { webView }, update = { it.loadUrl(url) })
