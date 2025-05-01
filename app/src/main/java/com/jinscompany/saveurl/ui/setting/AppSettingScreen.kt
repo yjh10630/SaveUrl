@@ -34,6 +34,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.jinscompany.saveurl.utils.getCurrentAppVersion
 
 
 @Composable
@@ -70,7 +71,8 @@ fun AppSettingScreen(
                 intent.selector = emailSelectorIntent
                 if (intent.resolveActivity(context.packageManager) != null)
                     context.startActivity(intent)
-            }
+            },
+            currentAppVersion = getCurrentAppVersion(context)
         )
     }
 }
@@ -78,6 +80,7 @@ fun AppSettingScreen(
 @Composable
 fun AppSettingScreen(
     paddingValues: PaddingValues = PaddingValues(),
+    currentAppVersion: String = "",
     popBackStack: () -> Unit = {},
     shareMyApp: () -> Unit = {},
     updateClick: () -> Unit = {},
@@ -103,7 +106,7 @@ fun AppSettingScreen(
         item { Divider() }
         item { SettingItem(onClick = shareMyApp, text = "친구 초대") }
         item { Divider() }
-        item { AppVersionItem(onClick = updateClick, currentVersion = "1.0.0", isUpdateAble = true) }   //todo 앱 버전 관리는 파이어베이스를 통해 할 예정,
+        item { AppVersionItem(onClick = updateClick, currentVersion = currentAppVersion, isUpdateAble = false) }   //todo 앱 버전 관리는 파이어베이스를 통해 할 예정,
         //todo 휴지통 기능 추가 예정 ( 저장 기간은 최대 한달 )
         //todo 인앱 결제 추가 예정
         //todo 구글 드라이브를 이용해여 백업 및 가져오기 기능 추가 예정

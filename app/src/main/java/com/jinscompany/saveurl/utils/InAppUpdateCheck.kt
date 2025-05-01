@@ -56,14 +56,7 @@ class InAppUpdateCheck(
     }
 
     private fun getCurrentAppVersion(): Int {
-        val versionName = try {
-            val packageManager = activity.packageManager
-            val packageName = activity.packageName
-            val packageInfo = packageManager.getPackageInfo(packageName, 0)
-            packageInfo.versionName ?: "1.0.0"
-        } catch (e: Exception) {
-            "1.0.0"
-        }
+        val versionName = getCurrentAppVersion(activity)
         return versionName.replace(".", "").toIntOrNull() ?: 100
     }
 

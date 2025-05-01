@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 
 fun extractUrlFromText(text: String): String? {
@@ -47,4 +48,9 @@ fun isDebuggable(context: Context): Boolean {
 
     }
     return debuggable
+}
+
+fun getCurrentAppVersion(context: Context): String {
+    val info: PackageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+    return info.versionName ?: "1.0.0"
 }
