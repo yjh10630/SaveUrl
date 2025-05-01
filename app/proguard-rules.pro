@@ -29,8 +29,13 @@
 -keep class androidx.sqlite.db.SupportSQLiteOpenHelper$Factory
 -keepclasseswithmembernames class * {
     @androidx.room.ColumnInfo <fields>;
-
 }
+
+# Gson specific classes
+-keep class * implements com.google.gson.TypeAdapterFactory
+-keep class * implements com.google.gson.JsonSerializer
+-keep class * implements com.google.gson.JsonDeserializer
+
 # Room
 -keep class androidx.room.** { *; }
 -dontwarn androidx.room.**
@@ -42,5 +47,13 @@
 -keep class okhttp3.** { *; }
 -keep interface okhttp3.** { *; }
 
+-keepclassmembers,allowobfuscation class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+
 # Kotlin reflection
 -keep class kotlin.reflect.jvm.internal.** { *; }
+
+# Firebase
+-keep class com.google.firebase.** { *; }
+-dontwarn com.google.firebase.**
