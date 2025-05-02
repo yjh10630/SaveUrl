@@ -38,7 +38,6 @@ fun LinkUrlListSection(
             LinkUrlItem(
                 Modifier.animateItem(),
                 item,
-                itemHeight = if (item.tagList.isNullOrEmpty()) 120.dp else 160.dp,
                 onClick = { onClick(item) },
                 longOnClick = { longOnClick(item) },
                 tagRemoveClick = {},

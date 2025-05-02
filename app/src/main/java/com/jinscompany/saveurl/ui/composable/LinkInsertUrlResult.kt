@@ -59,7 +59,6 @@ fun LinkInsertUrlResult(
             data,
             {},
             {},
-            if (data.tagList.isNullOrEmpty()) 120.dp else 160.dp,
             tagEditMode = true,
             tagRemoveClick = { tag ->
                 onRemoveTagTxt.invoke(tag)

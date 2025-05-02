@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
@@ -44,7 +46,6 @@ fun LinkUrlItem(
     data: UrlData,
     onClick: (String) -> Unit,
     longOnClick: (UrlData) -> Unit,
-    itemHeight: Dp = 120.dp,
     tagRemoveClick: (String) -> Unit,
     tagEditMode: Boolean = false,
 ) {
@@ -52,16 +53,6 @@ fun LinkUrlItem(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            //.clickable { onClick.invoke(data.url ?: "") }
-            /*.pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = { onClick.invoke(data.url ?: "") },
-                    onLongPress = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        longOnClick.invoke(data)
-                    }
-                )
-            }*/
             .combinedClickable(
                 onClick = { onClick(data.url ?: "") },
                 onLongClick = {
@@ -69,7 +60,7 @@ fun LinkUrlItem(
                     longOnClick(data)
                 }
             )
-            .height(itemHeight)
+            .wrapContentHeight()
     ) {
         Column {
             Row(
@@ -153,6 +144,6 @@ fun LinkUrlItemPreview() {
         siteName = "매일경제",
         isBookMark = true,
         tagList = mutableListOf("네이트", "네이버", "카카오톡", "운동", "농구", "축구", "스마트폰", "갤럭시", "아이폰", "운동", "농구", "축구", "스마트폰", "갤럭시", "아이폰")
-    ), {}, {}, 120.dp, {}
+    ), {}, {}, {}
     )
 }
