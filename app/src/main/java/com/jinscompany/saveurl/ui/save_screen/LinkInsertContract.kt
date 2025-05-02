@@ -11,6 +11,7 @@ sealed class LinkInsertUiState {
 
 sealed class LinkInsertUrlIntent {
     //data class SubmitLinkInsertUrl(val url: String) : LinkInsertUrlIntent()
+    data class CheckSaveUrlInfo(val url: String): LinkInsertUrlIntent()
     data class SubmitWebViewCrawlerResult(val data: UrlData? = null): LinkInsertUrlIntent()
     data object CrawlerLoading: LinkInsertUrlIntent()
     data class AddTag(val tag: String): LinkInsertUrlIntent()
@@ -22,4 +23,5 @@ sealed class LinkInsertUrlIntent {
 
 sealed class LinkInsertUiEffect {
     data object NavigateToResult : LinkInsertUiEffect()
+    data class StartCrawling(val url: String): LinkInsertUiEffect()
 }

@@ -44,6 +44,19 @@ class LinkInsertViewModel @Inject constructor(
             LinkInsertUrlIntent.SubmitSaveData -> saveData()
             is LinkInsertUrlIntent.SubmitWebViewCrawlerResult -> transferUrlData(intent.data)
             LinkInsertUrlIntent.CrawlerLoading -> linkInsertUiState = LinkInsertUiState.Loading
+            is LinkInsertUrlIntent.CheckSaveUrlInfo -> checkUrlData(intent.url)
+        }
+    }
+
+    private fun checkUrlData(url: String) {
+        viewModelScope.launch {
+            urlRepository.findUrlData(url)?.let {
+                isUpdateMode = true
+                linkInsertUiState = LinkInsertUiState.Success(it)
+            } ?: run {
+                isUpdateMode = false
+                _effect.emit(LinkInsertUiEffect.StartCrawling(url))
+            }
         }
     }
 

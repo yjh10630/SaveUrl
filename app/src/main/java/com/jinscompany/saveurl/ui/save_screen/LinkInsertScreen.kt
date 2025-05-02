@@ -57,6 +57,7 @@ fun LinkInsertScreen(
     val uiState = viewModel.linkInsertUiState
     var showCategorySelector by remember { mutableStateOf(false) }
     var startCrawlerUrl by remember { mutableStateOf("") }
+    var userInputUrl by remember { mutableStateOf("") }
     val context = LocalContext.current
     val activity = context as? Activity
 
@@ -69,10 +70,17 @@ fun LinkInsertScreen(
                         scrollToTop = true
                     )
                 }
+
+                is LinkInsertUiEffect.StartCrawling -> {
+                    userInputUrl = effect.url
+                    viewModel.onIntent(LinkInsertUrlIntent.CrawlerLoading)
+                    startCrawlerUrl = effect.url
+                }
             }
         }
     }
 
+    // 앱 외부에서 공유하기 다이렉트로 들어왔을 경우에만 해당 되는 로직
     LaunchedEffect(Unit) {
         val intent = activity?.intent
         val linkUrl = if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
@@ -82,8 +90,7 @@ fun LinkInsertScreen(
         } else ""
 
         if (linkUrl.isNotEmpty()) {
-            viewModel.onIntent(LinkInsertUrlIntent.CrawlerLoading)
-            startCrawlerUrl = linkUrl
+            viewModel.onIntent(LinkInsertUrlIntent.CheckSaveUrlInfo(linkUrl))
         }
     }
 
@@ -121,8 +128,7 @@ fun LinkInsertScreen(
             popBackStack = { navController.popBackStack() },
             url = url ?: "",
             userInputUrl = { inputUrl ->
-                viewModel.onIntent(LinkInsertUrlIntent.CrawlerLoading)
-                startCrawlerUrl = inputUrl
+                viewModel.onIntent(LinkInsertUrlIntent.CheckSaveUrlInfo(inputUrl))
             },
             linkInsertUiState = uiState,
             isShowCategorySelector = { showCategorySelector = true },
