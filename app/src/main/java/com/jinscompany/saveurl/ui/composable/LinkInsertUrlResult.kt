@@ -13,11 +13,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.AddTask
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -31,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -46,7 +49,7 @@ fun LinkInsertUrlResult(
     isShowCategorySelector: () -> Unit,
     focusClear: () -> Unit,
     onRemoveTagTxt: (String) -> Unit,
-    onInsertTagTxt: (String) -> Unit,
+    onInsertTagTxt: (List<String>) -> Unit,
     isBookMark: (Boolean) -> Unit
 ) {
     var tag by rememberSaveable { mutableStateOf("") }
@@ -98,51 +101,67 @@ fun LinkInsertUrlResult(
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
-        OutlinedTextField(
-            modifier = Modifier.fillMaxWidth(),
-            value = tag,
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.BookmarkAdd,
-                    contentDescription = "Bookmark"
-                )
-            },
-            trailingIcon = {
-                if (tag.isNotEmpty()) {
-                    IconButton(onClick = {
-                        tag = ""
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Cancel,
-                            contentDescription = "tagCancel"
-                        )
+        Row (
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                modifier = Modifier.weight(1f),
+                value = tag,
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.BookmarkAdd,
+                        contentDescription = "Bookmark"
+                    )
+                },
+                trailingIcon = {
+                    if (tag.isNotEmpty()) {
+                        IconButton(onClick = {
+                            tag = ""
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Cancel,
+                                contentDescription = "tagCancel"
+                            )
+                        }
                     }
-                }
-            },
-            onValueChange = { tag = it },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(
-                onDone = {
-                    onInsertTagTxt.invoke(tag)
+                },
+                onValueChange = { tag = it },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(
+                    onDone = {}
+                ),
+                textStyle = TextStyle(color = Color.LightGray),
+                label = { Text("태그를 달아 주세요.") },
+                placeholder = { Text("태그를 달아 주세요.") },
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+                    focusedBorderColor = Color.LightGray,
+                    unfocusedBorderColor = Color.Gray,
+                    focusedLabelColor = Color.LightGray,
+                    unfocusedLabelColor = Color.Gray,
+                    focusedLeadingIconColor = Color.LightGray,
+                    unfocusedLeadingIconColor = Color.Gray,
+                    focusedTrailingIconColor = Color.LightGray,
+                    unfocusedTrailingIconColor = Color.Gray
+                ),
+                supportingText = { Text("콤마 ( , ) 를 사용해서 여러개 등록 가능해요!", color = Color.Gray) }
+            )
+            IconButton(
+                enabled = tag.trim().isNotEmpty(),
+                onClick = {
+                    val tagList = tag.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                    onInsertTagTxt.invoke(tagList)
                     tag = ""
                     focusClear.invoke()
-                }
-            ),
-            textStyle = TextStyle(color = Color.LightGray),
-            label = { Text("태그를 달아 주세요.") },
-            placeholder = { Text("태그를 달아 주세요.") },
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = Color.LightGray,
-                unfocusedBorderColor = Color.Gray,
-                focusedLabelColor = Color.LightGray,
-                unfocusedLabelColor = Color.Gray,
-                focusedLeadingIconColor = Color.LightGray,
-                unfocusedLeadingIconColor = Color.Gray,
-                focusedTrailingIconColor = Color.LightGray,
-                unfocusedTrailingIconColor = Color.Gray
-            )
-        )
+                },
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.AddTask,
+                    contentDescription = "add",
+                    tint = if (tag.trim().isEmpty()) Color.Gray else Color.LightGray,
+                )
+            }
+        }
     }
 }
 

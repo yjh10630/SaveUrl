@@ -37,7 +37,7 @@ class LinkInsertViewModel @Inject constructor(
     fun onIntent(intent: LinkInsertUrlIntent) {
         when (intent) {
             //is LinkInsertUrlIntent.SubmitLinkInsertUrl -> startUrlCrawling(intent.url)
-            is LinkInsertUrlIntent.AddTag -> addTag(intent.tag)
+            is LinkInsertUrlIntent.AddTag -> addTag(intent.tagList)
             is LinkInsertUrlIntent.RemoveTag -> removeTag(intent.tag)
             is LinkInsertUrlIntent.ChangeCategory -> changeCategoryName(intent.name)
             is LinkInsertUrlIntent.IsBookmark -> changeBookmark(intent.isBookmark)
@@ -125,11 +125,11 @@ class LinkInsertViewModel @Inject constructor(
         }
     }
 
-    private fun addTag(tag: String) {
+    private fun addTag(tagList: List<String>) {
         val currentState = linkInsertUiState
         if (currentState is LinkInsertUiState.Success) {
             val currentData = currentState.urlData
-            val newTags = (currentData.tagList ?: emptyList()) + tag
+            val newTags = (currentData.tagList ?: emptyList()) + tagList
             val newData = currentData.copy(tagList = newTags)
             linkInsertUiState = LinkInsertUiState.Success(newData)
         }

@@ -14,7 +14,7 @@ sealed class LinkInsertUrlIntent {
     data class CheckSaveUrlInfo(val url: String): LinkInsertUrlIntent()
     data class SubmitWebViewCrawlerResult(val data: UrlData? = null): LinkInsertUrlIntent()
     data object CrawlerLoading: LinkInsertUrlIntent()
-    data class AddTag(val tag: String): LinkInsertUrlIntent()
+    data class AddTag(val tagList: List<String>): LinkInsertUrlIntent()
     data class RemoveTag(val tag: String): LinkInsertUrlIntent()
     data class ChangeCategory(val name: String): LinkInsertUrlIntent()
     data class IsBookmark(val isBookmark: Boolean): LinkInsertUrlIntent()

@@ -132,7 +132,7 @@ fun LinkInsertScreen(
             },
             linkInsertUiState = uiState,
             isShowCategorySelector = { showCategorySelector = true },
-            onInsertTagTxt = { tag -> viewModel.onIntent(LinkInsertUrlIntent.AddTag(tag)) },
+            onInsertTagTxtList = { tag -> viewModel.onIntent(LinkInsertUrlIntent.AddTag(tag)) },
             onRemoveTagTxt = { tag -> viewModel.onIntent(LinkInsertUrlIntent.RemoveTag(tag)) },
             isBookMark = { viewModel.onIntent(LinkInsertUrlIntent.IsBookmark(it) )},
             isUpdateMode = viewModel.isUpdateMode,
@@ -149,7 +149,7 @@ fun LinkInsertScreen(
     userInputUrl: (String) -> Unit = {},
     linkInsertUiState: LinkInsertUiState,
     isShowCategorySelector: () -> Unit,
-    onInsertTagTxt: (String) -> Unit,
+    onInsertTagTxtList: (List<String>) -> Unit,
     onRemoveTagTxt: (String) -> Unit,
     isBookMark: (Boolean) -> Unit,
     isUpdateMode: Boolean,
@@ -187,7 +187,7 @@ fun LinkInsertScreen(
                             data = linkInsertUiState.urlData,
                             isShowCategorySelector = isShowCategorySelector,
                             focusClear = { focusManager.clearFocus() },
-                            onInsertTagTxt = onInsertTagTxt,
+                            onInsertTagTxt = onInsertTagTxtList,
                             onRemoveTagTxt = onRemoveTagTxt,
                             isBookMark = isBookMark
                         )
@@ -214,7 +214,7 @@ fun LinkInsertScreenPreview() {
     LinkInsertScreen(
         linkInsertUiState = LinkInsertUiState.Idle,
         isShowCategorySelector = {},
-        onInsertTagTxt = {},
+        onInsertTagTxtList = {},
         onRemoveTagTxt = {},
         isBookMark = {},
         isUpdateMode = false,
