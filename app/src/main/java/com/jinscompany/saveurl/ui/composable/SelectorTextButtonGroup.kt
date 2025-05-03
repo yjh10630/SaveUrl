@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Settings
@@ -103,10 +104,21 @@ fun SelectorTextButtonGroup(
             }
             if (isSettingIcon) {
                 item {
-                    IconButton(onClick = settingOnClick) {
+                    OutlinedButton(
+                        onClick = settingOnClick,
+                        modifier = Modifier
+                            .animateItem()
+                            .wrapContentSize()
+                            .padding(horizontal = 4.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Transparent
+                        ),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                    ) {
                         Icon(
                             modifier = Modifier.size(20.dp),
-                            imageVector = Icons.Default.Settings,
+                            imageVector = Icons.Default.Add,
                             contentDescription = "settingCategory",
                             tint = Color.White
                         )
