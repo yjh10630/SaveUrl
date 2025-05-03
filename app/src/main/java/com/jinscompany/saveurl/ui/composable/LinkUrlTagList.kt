@@ -23,6 +23,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+//todo 선택시 아래로 확장 될 수 있도록 변경 예정
 @Composable
 fun LinkUrlTagList(tagList: List<String>, editMode: Boolean = false, removeClick: (String) -> Unit) {
     val listState = rememberLazyListState()
