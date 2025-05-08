@@ -20,6 +20,24 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 
+# Hilt
+-keep class dagger.hilt.** { *; }
+-keep class * extends dagger.hilt.android.internal.lifecycle.HiltViewModelFactory { *; }
+-keep class * extends androidx.lifecycle.ViewModel
+
+# If using @Inject constructor in ViewModel
+-keepclassmembers class * {
+    @dagger.hilt.android.lifecycle.HiltViewModel <init>(...);
+}
+
+# Needed if you're using assisted injection
+-keep class dagger.assisted.** { *; }
+
+# ViewModel
+-keep public class * extends androidx.lifecycle.ViewModel {
+    public <init>(...);
+}
+
 -keep,allowobfuscation,allowshrinking class kotlinx.coroutines.flow.Flow
 -keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
 
@@ -57,3 +75,9 @@
 # Firebase
 -keep class com.google.firebase.** { *; }
 -dontwarn com.google.firebase.**
+
+-keep class dagger.hilt.** { *; }
+-keep class * extends dagger.hilt.android.internal.lifecycle.HiltViewModelFactory { *; }
+
+-keep class com.google.android.play.** { *; }
+-keep class com.google.android.play.core.** { *; }

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -53,7 +54,7 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel(), popBackStack: () 
         focusRequester.requestFocus()
     }
 
-    Scaffold { paddingValues ->
+    Box {
         if (filterShowBottomSheet) {
             SearchFilterBottomSheet(
                 options = filterOptions,
@@ -68,7 +69,6 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel(), popBackStack: () 
         SearchScreen(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
                 .background(Color.DarkGray),
             onFilterClick = { filterShowBottomSheet = true },
             popBackStack = popBackStack,

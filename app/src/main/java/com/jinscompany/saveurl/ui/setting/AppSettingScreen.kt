@@ -42,9 +42,8 @@ fun AppSettingScreen(
     navController: NavHostController
 ) {
     val context = LocalContext.current
-    Scaffold { paddingValue ->
+    Box {
         AppSettingScreen(
-            paddingValues = paddingValue,
             popBackStack = { navController.popBackStack() },
             shareMyApp = {
                 val sendIntent = Intent().apply {
@@ -79,7 +78,6 @@ fun AppSettingScreen(
 
 @Composable
 fun AppSettingScreen(
-    paddingValues: PaddingValues = PaddingValues(),
     currentAppVersion: String = "",
     popBackStack: () -> Unit = {},
     shareMyApp: () -> Unit = {},
@@ -89,7 +87,6 @@ fun AppSettingScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues)
             .background(Color.DarkGray)
     ) {
         item {

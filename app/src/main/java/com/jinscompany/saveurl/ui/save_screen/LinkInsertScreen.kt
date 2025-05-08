@@ -94,7 +94,7 @@ fun LinkInsertScreen(
         }
     }
 
-    Scaffold { paddingValues ->
+    Box {
         if (showCategorySelector) {
             val urlData = (uiState as? LinkInsertUiState.Success)?.urlData?.category ?: "전체"
             CategorySelectorDialog(
@@ -124,7 +124,6 @@ fun LinkInsertScreen(
             )
         }
         LinkInsertScreen(
-            paddingValues = paddingValues,
             popBackStack = { navController.popBackStack() },
             url = url ?: "",
             userInputUrl = { inputUrl ->
@@ -143,7 +142,6 @@ fun LinkInsertScreen(
 
 @Composable
 fun LinkInsertScreen(
-    paddingValues: PaddingValues = PaddingValues(),
     popBackStack: () -> Unit = {},
     url: String = "",
     userInputUrl: (String) -> Unit = {},
@@ -167,7 +165,6 @@ fun LinkInsertScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
                 .imePadding(),
         ) {
             LinkInsertUserInputUrl(

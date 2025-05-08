@@ -1,8 +1,11 @@
 package com.jinscompany.saveurl.ui.navigation
 
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -10,17 +13,28 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.jinscompany.saveurl.MainActivity
+import com.jinscompany.saveurl.SharedViewModel
 import com.jinscompany.saveurl.ui.add_category.EditCategoryScreen
 import com.jinscompany.saveurl.ui.main.MainListScreen
 import com.jinscompany.saveurl.ui.save_screen.LinkInsertScreen
 import com.jinscompany.saveurl.ui.search.SearchScreen
 import com.jinscompany.saveurl.ui.setting.AppSettingScreen
+import com.jinscompany.saveurl.utils.CmLog
 
 @Composable
-fun AppNavigation(navController: NavHostController = rememberNavController()) {
+fun AppNavigation(
+    navController: NavHostController = rememberNavController(),
+    sharedViewModel: SharedViewModel
+) {
+    LaunchedEffect(navController) {
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            sharedViewModel.notifyCurrentRoute(destination.route ?: "")
+        }
+    }
     NavHost(
         navController = navController,
-        startDestination = Navigation.Routes.MAIN,
+        startDestination = sharedViewModel.startDestination,
         enterTransition = {
             slideIntoContainer(
                 towards = AnimatedContentTransitionScope.SlideDirection.Start,
@@ -56,7 +70,10 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 }
             )
         ) {
-            MainListScreen(navController)
+            MainListScreen(
+                navController = navController,
+                sharedViewModel = sharedViewModel
+            )
         }
         composable(
             route = "${Navigation.Routes.SAVE_LINK}?url={url}",

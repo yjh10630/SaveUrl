@@ -74,7 +74,7 @@ fun EditCategoryScreen(navController: NavHostController) {
         focusRequester.requestFocus()
     }
 
-    Scaffold { paddingValues ->
+    Box {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -84,7 +84,6 @@ fun EditCategoryScreen(navController: NavHostController) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
                     .imePadding()
             ) {
                 IconButton(onClick = {

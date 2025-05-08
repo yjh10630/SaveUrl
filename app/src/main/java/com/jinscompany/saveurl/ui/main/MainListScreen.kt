@@ -6,25 +6,14 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.FabPosition
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -47,6 +36,8 @@ import androidx.navigation.NavHostController
 import androidx.paging.PagingData
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
+import com.jinscompany.saveurl.SharedModelUiEffect
+import com.jinscompany.saveurl.SharedViewModel
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.ui.composable.LinkItemInfoDialog
@@ -61,7 +52,6 @@ import com.jinscompany.saveurl.ui.navigation.navigateToAppSetting
 import com.jinscompany.saveurl.ui.navigation.navigateToEditCategory
 import com.jinscompany.saveurl.ui.navigation.navigateToSaveLink
 import com.jinscompany.saveurl.ui.navigation.navigateToSearch
-import com.jinscompany.saveurl.ui.theme.Brown
 import com.jinscompany.saveurl.utils.extractUrlFromText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
@@ -73,7 +63,8 @@ fun MainListScreen(
     navController: NavHostController,
     viewModel: MainListViewModel = hiltViewModel(),
     lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current,
-    coroutineScope: CoroutineScope = rememberCoroutineScope()
+    coroutineScope: CoroutineScope = rememberCoroutineScope(),
+    sharedViewModel: SharedViewModel
 ) {
     val context = LocalContext.current
     val listState = rememberLazyListState()
@@ -146,18 +137,7 @@ fun MainListScreen(
                 MainListUiEffect.ListRefresh -> mainListPagingData?.refresh()
                 is MainListUiEffect.ShowSnackBarSaveUrl -> {
                     coroutineScope.launch {
-                        val result = snackBarHostState
-                            .showSnackbar(
-                                message = "클립보드에 복사된 링크 저장\n${effect.url}",
-                                duration = SnackbarDuration.Short,
-                                actionLabel = "저장"
-                            )
-                        when (result) {
-                            SnackbarResult.ActionPerformed -> {
-                                viewModel.onIntent(MainListIntent.GoToLinkEditScreen(effect.url))
-                            }
-                            SnackbarResult.Dismissed -> {}
-                        }
+                        sharedViewModel.notifySnackBarEvent(SharedModelUiEffect.ShowSnackBarClipBoardUrlGoToLinkInsertScreenAction(url = effect.url))
                     }
                 }
             }
@@ -173,24 +153,7 @@ fun MainListScreen(
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackBarHostState) },
-        floatingActionButtonPosition = FabPosition.End,
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { viewModel.onIntent(MainListIntent.GoToLinkInsertScreen) },
-                containerColor = Brown,
-                contentColor = Color.White,
-                elevation = FloatingActionButtonDefaults.elevation(6.dp)
-            ) {
-                Icon(
-                    Icons.Filled.Add,
-                    contentDescription = ""
-                )
-            }
-        }
-    ) { paddingValues ->
-
+    Box{
         linkItemEditDialog?.let { urlData ->
             LinkItemInfoDialog(
                 onClickShare = {
@@ -212,7 +175,6 @@ fun MainListScreen(
         MainListScreen(
             mainListPagingData = mainListPagingData,
             mainCategoryData = mainCategoryData,
-            paddingValues = paddingValues,
             onSearchClick = { viewModel.onIntent(MainListIntent.GoToSearchScreen) },
             onAppSettingClick = { viewModel.onIntent(MainListIntent.GoToAppSetting) },
             onCategoryClick = { name -> viewModel.onIntent(MainListIntent.CategoryClick(name))},
@@ -228,7 +190,6 @@ fun MainListScreen(
 fun MainListScreen(
     mainListPagingData: LazyPagingItems<UrlData>? = flowOf(PagingData.empty<UrlData>()).collectAsLazyPagingItems(),
     mainCategoryData: List<CategoryModel>? = listOf(),
-    paddingValues: PaddingValues = PaddingValues(),
     onSearchClick: () -> Unit = {},
     onAppSettingClick: () -> Unit = {},
     onCategoryClick: (String) -> Unit = {},
@@ -240,7 +201,6 @@ fun MainListScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues)
             .background(Color.DarkGray)
     ) {
         //todo 출시 후, 헤더 부분을 검색, 카테고리 선택, 앱설정 으로 변경 예정
