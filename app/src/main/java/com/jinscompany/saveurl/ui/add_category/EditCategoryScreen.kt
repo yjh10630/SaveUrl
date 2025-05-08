@@ -1,19 +1,14 @@
 package com.jinscompany.saveurl.ui.add_category
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -28,7 +23,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -119,13 +116,35 @@ fun EditCategoryScreen(navController: NavHostController) {
                         textStyle = TextStyle(color = Color.LightGray),
                         trailingIcon = {
                             if (categoryName.text.isNotEmpty()) {
-                                IconButton(onClick = {
-                                    categoryName = "".toTextFieldValueWithCursorToEnd()
-                                }) {
+                                Row(modifier = Modifier.padding(end = 15.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = "Check Category",
+                                        tint = Color.Gray,
+                                        modifier = Modifier
+                                            .size(25.dp)
+                                            .clickable {
+                                                handleCategorySubmit(
+                                                    categoryName = categoryName.text,
+                                                    selectItem = selectItem,
+                                                    clearEditText = clearEditText,
+                                                    viewModel = viewModel,
+                                                    focusManager = focusManager
+                                                )
+                                            }
+                                    )
                                     Icon(
                                         imageVector = Icons.Default.Cancel,
-                                        contentDescription = "CategoryCancel",
-                                        tint = Color.Gray
+                                        contentDescription = "Clear Category",
+                                        tint = Color.Gray,
+                                        modifier = Modifier
+                                            .size(25.dp)
+                                            .clickable {
+                                                categoryName = "".toTextFieldValueWithCursorToEnd()
+                                            }
                                     )
                                 }
                             }
@@ -152,16 +171,13 @@ fun EditCategoryScreen(navController: NavHostController) {
                         keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(
                             onDone = {
-                                focusManager.clearFocus() // 키보드 닫기 (포커스 제거)
-                                if (selectItem.isEmpty()) {
-                                    viewModel.insertCategory(categoryName.text)
-                                } else {
-                                    viewModel.updateCategoryName(
-                                        oldName = selectItem,
-                                        newName = categoryName.text
-                                    )
-                                }
-                                clearEditText.invoke()
+                                handleCategorySubmit(
+                                    categoryName = categoryName.text,
+                                    selectItem = selectItem,
+                                    clearEditText = clearEditText,
+                                    viewModel = viewModel,
+                                    focusManager = focusManager
+                                )
                             }
                         ),
                         label = { Text("카테고리 이름", color = Color.Gray) },
@@ -212,6 +228,25 @@ fun String.toTextFieldValueWithCursorToEnd(): TextFieldValue {
         text = this,
         selection = TextRange(this.length)
     )
+}
+
+fun handleCategorySubmit(
+    categoryName: String,
+    selectItem: String,
+    clearEditText: () -> Unit,
+    viewModel: EditCategoryViewModel,
+    focusManager: FocusManager
+) {
+    focusManager.clearFocus()
+    if (selectItem.isEmpty()) {
+        viewModel.insertCategory(categoryName)
+    } else {
+        viewModel.updateCategoryName(
+            oldName = selectItem,
+            newName = categoryName
+        )
+    }
+    clearEditText()
 }
 
 @Composable
