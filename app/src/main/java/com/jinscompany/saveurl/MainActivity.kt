@@ -39,24 +39,10 @@ class MainActivity : ComponentActivity() {
     private var backPressedTime: Long = 0L
     private lateinit var toast: Toast
 
-    private val onBackPressedCallback: OnBackPressedCallback = object : OnBackPressedCallback(true) {
-        override fun handleOnBackPressed() {
-            val currentTime = System.currentTimeMillis()
-            if (currentTime - backPressedTime <= 2000L) {
-                toast.cancel()
-                finish()
-            } else {
-                backPressedTime = currentTime
-                toast.show()
-            }
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         inAppUpdateCheck = InAppUpdateCheck(this)
-        toast = Toast.makeText(this, "뒤로 버튼을 한 번 더 누르면 종료됩니다", Toast.LENGTH_SHORT)
-        onBackPressedDispatcher.addCallback(this, onBackPressedCallback)
+        setupBackPressedHandler()
 
         installSplashScreen().apply {
             setKeepOnScreenCondition { inAppUpdateCheck.isChecking.value }
@@ -95,6 +81,23 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun setupBackPressedHandler() {
+        toast = Toast.makeText(this, "뒤로 버튼을 한 번 더 누르면 종료됩니다", Toast.LENGTH_SHORT)
+        val callback = object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - backPressedTime <= 2000L) {
+                    toast.cancel()
+                    finish()
+                } else {
+                    backPressedTime = currentTime
+                    toast.show()
+                }
+            }
+        }
+        onBackPressedDispatcher.addCallback(this, callback)
     }
 
     override fun onActivityResult(
