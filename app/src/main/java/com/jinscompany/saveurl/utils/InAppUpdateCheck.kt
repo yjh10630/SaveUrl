@@ -16,6 +16,7 @@ import com.jinscompany.saveurl.SaveUrlApplication
 import com.jinscompany.saveurl.SharedViewModel
 import com.jinscompany.saveurl.domain.model.AppInfo
 import java.util.concurrent.TimeUnit
+import com.jinscompany.saveurl.BuildConfig
 
 class InAppUpdateCheck(
     private val activity: ComponentActivity,
@@ -40,11 +41,11 @@ class InAppUpdateCheck(
     private fun fetchRemoteConfig() {
         remoteConfig.fetchAndActivate().addOnCompleteListener {
             val appInfo = Gson().fromJson(remoteConfig.getString("app_info"), AppInfo::class.java)
-            val currentVersion = getCurrentAppVersion()
+            val currentBuildCode = BuildConfig.VERSION_CODE
 
             val updateType = when {
-                currentVersion < appInfo.minVersion -> AppUpdateType.IMMEDIATE // 강제 업데이트
-                currentVersion < appInfo.latestVersion -> AppUpdateType.FLEXIBLE // 선택적 업데이트
+                currentBuildCode < appInfo.minVersion -> AppUpdateType.IMMEDIATE // 강제 업데이트
+                currentBuildCode < appInfo.latestVersion -> AppUpdateType.FLEXIBLE // 선택적 업데이트
                 else -> null
             }
 
@@ -56,11 +57,6 @@ class InAppUpdateCheck(
                 checkUpdate()
             }
         }
-    }
-
-    private fun getCurrentAppVersion(): Int {
-        val versionName = getCurrentAppVersion(activity)
-        return versionName.replace(".", "").toIntOrNull() ?: 100
     }
 
     private fun checkUpdate() {
