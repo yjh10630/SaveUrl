@@ -5,7 +5,9 @@ import android.app.ComponentCaller
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,9 +36,28 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var inAppUpdateCheck: InAppUpdateCheck
 
+    private var backPressedTime: Long = 0L
+    private lateinit var toast: Toast
+
+    private val onBackPressedCallback: OnBackPressedCallback = object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - backPressedTime <= 2000L) {
+                toast.cancel()
+                finish()
+            } else {
+                backPressedTime = currentTime
+                toast.show()
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         inAppUpdateCheck = InAppUpdateCheck(this)
+        toast = Toast.makeText(this, "뒤로 버튼을 한 번 더 누르면 종료됩니다", Toast.LENGTH_SHORT)
+        onBackPressedDispatcher.addCallback(this, onBackPressedCallback)
+
         installSplashScreen().apply {
             setKeepOnScreenCondition { inAppUpdateCheck.isChecking.value }
         }
