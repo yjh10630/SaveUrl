@@ -59,7 +59,7 @@ fun LinkInsertUrlResult(
     onInsertTagTxt: (List<String>) -> Unit,
     isBookMark: (Boolean) -> Unit
 ) {
-    var tag by rememberSaveable { mutableStateOf("sdad") }
+    var tag by rememberSaveable { mutableStateOf("") }
     Column(
         modifier = Modifier.padding(horizontal = 24.dp)
     ) {
