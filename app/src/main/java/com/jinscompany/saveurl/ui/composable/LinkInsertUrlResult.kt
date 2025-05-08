@@ -1,5 +1,7 @@
 package com.jinscompany.saveurl.ui.composable
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -18,8 +20,12 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.AddTask
+import androidx.compose.material.icons.rounded.AddCircleOutline
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.CheckCircleOutline
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -40,6 +46,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.jinscompany.saveurl.domain.model.UrlData
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,7 +59,7 @@ fun LinkInsertUrlResult(
     onInsertTagTxt: (List<String>) -> Unit,
     isBookMark: (Boolean) -> Unit
 ) {
-    var tag by rememberSaveable { mutableStateOf("") }
+    var tag by rememberSaveable { mutableStateOf("sdad") }
     Column(
         modifier = Modifier.padding(horizontal = 24.dp)
     ) {
@@ -115,10 +122,30 @@ fun LinkInsertUrlResult(
                 },
                 trailingIcon = {
                     if (tag.isNotEmpty()) {
-                        IconButton(onClick = {
-                            tag = ""
-                        }) {
+                        Row(
+                            modifier = Modifier.padding(end = 15.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
                             Icon(
+                                modifier = Modifier
+                                    .padding(horizontal = 4.dp)
+                                    .clickable {
+                                        val tagList = tag
+                                            .split(",")
+                                            .map { it.trim() }
+                                            .filter { it.isNotEmpty() }
+                                        onInsertTagTxt.invoke(tagList)
+                                        tag = ""
+                                        focusClear.invoke()
+                                    },
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "addTag"
+                            )
+                            Icon(
+                                modifier = Modifier
+                                    .padding(horizontal = 4.dp)
+                                    .clickable { tag = "" },
                                 imageVector = Icons.Default.Cancel,
                                 contentDescription = "tagCancel"
                             )
@@ -129,11 +156,13 @@ fun LinkInsertUrlResult(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(
-                    onDone = {}
+                    onDone = {
+                        focusClear.invoke()
+                    }
                 ),
                 textStyle = TextStyle(color = Color.LightGray),
-                label = { Text("태그를 달아 주세요.") },
-                placeholder = { Text("태그를 달아 주세요.") },
+                label = { Text("태그 입력") },
+                placeholder = { Text("태그 입력") },
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     focusedBorderColor = Color.LightGray,
                     unfocusedBorderColor = Color.Gray,
@@ -146,21 +175,27 @@ fun LinkInsertUrlResult(
                 ),
                 supportingText = { Text("콤마 ( , ) 를 사용해서 여러개 등록 가능해요!", color = Color.Gray) }
             )
-            IconButton(
-                enabled = tag.trim().isNotEmpty(),
+            /*OutlinedButton(
                 onClick = {
                     val tagList = tag.split(",").map { it.trim() }.filter { it.isNotEmpty() }
                     onInsertTagTxt.invoke(tagList)
                     tag = ""
                     focusClear.invoke()
                 },
+                modifier = Modifier
+                    .wrapContentSize()
+                    .padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    if (tag.trim().isEmpty()) Color.Transparent else Color.Gray
+                ),
+                contentPadding = PaddingValues(
+                    horizontal = 10.dp,
+                    vertical = 4.dp
+                ),
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.AddTask,
-                    contentDescription = "add",
-                    tint = if (tag.trim().isEmpty()) Color.Gray else Color.LightGray,
-                )
-            }
+                Text("#", fontSize = 30.sp, color = if (tag.trim().isEmpty()) Color.Gray else Color.White)
+            }*/
         }
     }
 }

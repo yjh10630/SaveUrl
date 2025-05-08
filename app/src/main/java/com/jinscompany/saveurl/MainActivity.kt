@@ -1,23 +1,19 @@
 package com.jinscompany.saveurl
 
 import android.app.Activity
-import android.app.ComponentCaller
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.compose.rememberNavController
 import com.jinscompany.saveurl.ui.composable.SetStatusBarColor
 import com.jinscompany.saveurl.ui.navigation.AppNavigation
@@ -27,26 +23,19 @@ import com.jinscompany.saveurl.utils.CmLog
 import com.jinscompany.saveurl.utils.InAppUpdateCheck
 import com.jinscompany.saveurl.utils.extractUrlFromText
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    private val sharedViewModel by viewModels<SharedViewModel>()
     private lateinit var inAppUpdateCheck: InAppUpdateCheck
+    private val updateLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        inAppUpdateCheck.onActivityResult(resultCode = result.resultCode)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        inAppUpdateCheck = InAppUpdateCheck(this)
-        installSplashScreen().apply {
-            setKeepOnScreenCondition { inAppUpdateCheck.isChecking.value }
-        }
-
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.RESUMED){
-                inAppUpdateCheck.resumeFlexibleUpdateCheck()
-            }
-        }
-
+        inAppUpdateCheck = InAppUpdateCheck(this, updateLauncher, sharedViewModel)
         enableEdgeToEdge()
         setContent {
             val navController = rememberNavController()
@@ -76,13 +65,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onActivityResult(
-        requestCode: Int,
-        resultCode: Int,
-        data: Intent?,
-        caller: ComponentCaller
-    ) {
-        super.onActivityResult(requestCode, resultCode, data, caller)
-        inAppUpdateCheck.onActivityResult(requestCode, resultCode)
+    override fun onResume() {
+        super.onResume()
+        if (!SaveUrlApplication.DEBUG) inAppUpdateCheck.resumeFlexibleUpdateCheck()
     }
 }

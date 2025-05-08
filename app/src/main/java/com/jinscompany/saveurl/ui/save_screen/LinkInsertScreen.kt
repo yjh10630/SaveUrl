@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Scaffold
@@ -110,18 +113,20 @@ fun LinkInsertScreen(
             )
         }
         if (startCrawlerUrl.isNotEmpty()) {
-            LinkUrlCrawlerHidden(
-                url = startCrawlerUrl,
-                onSuccess = {
-                    viewModel.onIntent(LinkInsertUrlIntent.SubmitWebViewCrawlerResult(it))
-                    startCrawlerUrl = ""
-                },
-                onError = {
-                    viewModel.onIntent(LinkInsertUrlIntent.SubmitWebViewCrawlerResult())
-                    startCrawlerUrl = ""
-                    Firebase.crashlytics.log("Crawling Error Url > ${startCrawlerUrl}")
-                }
-            )
+            Column {
+                LinkUrlCrawlerHidden(
+                    url = startCrawlerUrl,
+                    onSuccess = {
+                        viewModel.onIntent(LinkInsertUrlIntent.SubmitWebViewCrawlerResult(it))
+                        startCrawlerUrl = ""
+                    },
+                    onError = {
+                        viewModel.onIntent(LinkInsertUrlIntent.SubmitWebViewCrawlerResult())
+                        startCrawlerUrl = ""
+                        Firebase.crashlytics.log("Crawling Error Url > ${startCrawlerUrl}")
+                    }
+                )
+            }
         }
         LinkInsertScreen(
             paddingValues = paddingValues,
@@ -167,8 +172,7 @@ fun LinkInsertScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .imePadding(),
+                .padding(paddingValues),
         ) {
             LinkInsertUserInputUrl(
                 popBackStack = popBackStack,
