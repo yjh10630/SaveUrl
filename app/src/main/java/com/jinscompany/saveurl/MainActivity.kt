@@ -3,7 +3,9 @@ package com.jinscompany.saveurl
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -33,9 +35,14 @@ class MainActivity : ComponentActivity() {
         inAppUpdateCheck.onActivityResult(resultCode = result.resultCode)
     }
 
+    private var backPressedTime: Long = 0L
+    private lateinit var toast: Toast
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         inAppUpdateCheck = InAppUpdateCheck(this, updateLauncher, sharedViewModel)
+        setupBackPressedHandler()
+
         enableEdgeToEdge()
         setContent {
             val navController = rememberNavController()
@@ -68,5 +75,23 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         if (!SaveUrlApplication.DEBUG) inAppUpdateCheck.resumeFlexibleUpdateCheck()
+
+    }
+
+    private fun setupBackPressedHandler() {
+        toast = Toast.makeText(this, "뒤로 버튼을 한 번 더 누르면 종료됩니다", Toast.LENGTH_SHORT)
+        val callback = object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - backPressedTime <= 2000L) {
+                    toast.cancel()
+                    finish()
+                } else {
+                    backPressedTime = currentTime
+                    toast.show()
+                }
+            }
+        }
+        onBackPressedDispatcher.addCallback(this, callback)
     }
 }
