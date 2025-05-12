@@ -14,13 +14,6 @@ sealed class MainListUiState {
     data class Error(val message: String): MainListUiState()
 }
 
-sealed class MainCategoryUiState {
-    data object Idle : MainCategoryUiState()
-    data object Loading: MainCategoryUiState()
-    data class Success(val categories: List<CategoryModel>): MainCategoryUiState()
-    data class Error(val message: String): MainCategoryUiState()
-}
-
 sealed class MainListIntent {
     data object FetchCategoryData: MainListIntent()
     data object GoToSearchScreen: MainListIntent()
@@ -47,9 +40,4 @@ sealed class MainListUiEffect {
 sealed class FilterState {
     data class MultiSelect<T>(val options: List<T>, val selected: SnapshotStateList<T>) : FilterState()
     data class SingleSelect<T>(val options: List<T>, var selected: MutableState<T>) : FilterState()
-}
-
-enum class FilterKey(val label: String) {
-    CATEGORY("카테고리"),
-    SORT("정렬"),
 }

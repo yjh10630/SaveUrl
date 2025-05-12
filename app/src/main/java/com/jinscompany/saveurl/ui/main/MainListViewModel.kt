@@ -125,14 +125,4 @@ class MainListViewModel @Inject constructor(
             mainListUiState = MainListUiState.Success(urlFlowState = dataFlow)
         }
     }
-
-    private fun SnapshotStateMap<FilterKey, FilterState>.extractFilterParams(): FilterParams {
-        val categories = (this[FilterKey.CATEGORY] as? FilterState.MultiSelect<String>)
-            ?.selected ?: emptyList()
-
-        val sort = (this[FilterKey.SORT] as? FilterState.SingleSelect<String>)
-            ?.selected?.value ?: "최신순"
-
-        return FilterParams(categories = categories, sort = sort)
-    }
 }

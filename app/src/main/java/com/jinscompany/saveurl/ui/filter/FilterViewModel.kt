@@ -37,6 +37,11 @@ class FilterViewModel @Inject constructor(
                 is FilterIntent.InitData -> {
                     loadInitialData(intent.params)
                 }
+                FilterIntent.GoToCategorySetting -> {
+                    viewModelScope.launch {
+                        _uiEffect.emit(FilterUiEffect.GoToCategorySetting)
+                    }
+                }
             }
         }
     }

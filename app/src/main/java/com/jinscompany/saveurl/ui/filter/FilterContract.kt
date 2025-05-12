@@ -11,6 +11,7 @@ sealed class FilterIntent {
     data class ToggleSort(val sort: String): FilterIntent()
     data object Confirm: FilterIntent()
     data object Clear: FilterIntent()
+    data object GoToCategorySetting: FilterIntent()
 }
 
 data class FilterUiState(
@@ -20,4 +21,10 @@ data class FilterUiState(
 
 sealed class FilterUiEffect {
     data class Confirm(val category: List<String>, val sort: String): FilterUiEffect()
+    data object GoToCategorySetting: FilterUiEffect()
+}
+
+enum class FilterTab(val label: String) {
+    CATEGORY("카테고리"),
+    SORT("정렬")
 }

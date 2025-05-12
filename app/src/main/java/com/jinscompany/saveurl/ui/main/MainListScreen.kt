@@ -196,7 +196,10 @@ fun MainListScreen(
                     viewModel.onIntent(MainListIntent.NewFilterData(category = categories, sort = sort))
                     filterDialog = null
                 },
-                goToCategorySetting = {}
+                goToCategorySetting = {
+                    viewModel.onIntent(MainListIntent.GoToCategorySettingScreen )
+                    filterDialog = null
+                }
             )
         }
         linkItemEditDialog?.let { urlData ->
