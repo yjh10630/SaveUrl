@@ -1,10 +1,11 @@
 package com.jinscompany.saveurl.data.source
 
 import androidx.paging.PagingSource
+import com.jinscompany.saveurl.domain.model.FilterParams
 import com.jinscompany.saveurl.domain.model.UrlData
 
 interface LocalUrlDBSource {
-    fun getLocalSaveDBUrlList(categoryName: String? = null): PagingSource<Int, UrlData>
+    fun getLocalSaveDBUrlList(params: FilterParams? = null): PagingSource<Int, UrlData>
     fun searchAll(keyword: String): PagingSource<Int, UrlData>
     fun searchByTitle(keyword: String): PagingSource<Int, UrlData>
     fun searchByDescription(keyword: String): PagingSource<Int, UrlData>

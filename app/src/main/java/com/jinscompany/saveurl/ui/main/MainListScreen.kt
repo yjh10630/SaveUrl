@@ -49,10 +49,12 @@ import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.UrlData
+import com.jinscompany.saveurl.ui.composable.FilterSelectedList
 import com.jinscompany.saveurl.ui.composable.LinkItemInfoDialog
 import com.jinscompany.saveurl.ui.composable.LinkUrlListSection
 import com.jinscompany.saveurl.ui.composable.MainHeaderSection
-import com.jinscompany.saveurl.ui.composable.SelectorTextButtonGroup
+import com.jinscompany.saveurl.ui.filter.FilterScreenBottomSheet
+import com.jinscompany.saveurl.ui.filter.FilterUiState
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.APP_SETTING
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.EDIT_CATEGORY
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SAVE_LINK
@@ -83,14 +85,10 @@ fun MainListScreen(
         is MainListUiState.Success -> uiState.urlFlowState.collectAsLazyPagingItems()
         else -> null
     }
-
-    val mainCategoryData = when (val uiState = viewModel.mainCategoryUiState) {
-        is MainCategoryUiState.Success -> uiState.categories
-        else -> null
-    }
     
     val uiEffect = viewModel.mainListEffect
     var linkItemEditDialog by remember { mutableStateOf<UrlData?>(null) }
+    var filterDialog by remember { mutableStateOf<String?>(null) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -190,7 +188,20 @@ fun MainListScreen(
             }
         }
     ) { paddingValues ->
-
+        filterDialog?.let {
+            FilterScreenBottomSheet(
+                dismiss = { filterDialog = null },
+                initSelectedData = viewModel.filterSelectedItems,
+                onConfirm = { categories, sort ->
+                    viewModel.onIntent(MainListIntent.NewFilterData(category = categories, sort = sort))
+                    filterDialog = null
+                },
+                goToCategorySetting = {
+                    viewModel.onIntent(MainListIntent.GoToCategorySettingScreen )
+                    filterDialog = null
+                }
+            )
+        }
         linkItemEditDialog?.let { urlData ->
             LinkItemInfoDialog(
                 onClickShare = {
@@ -211,14 +222,13 @@ fun MainListScreen(
 
         MainListScreen(
             mainListPagingData = mainListPagingData,
-            mainCategoryData = mainCategoryData,
             paddingValues = paddingValues,
             onSearchClick = { viewModel.onIntent(MainListIntent.GoToSearchScreen) },
             onAppSettingClick = { viewModel.onIntent(MainListIntent.GoToAppSetting) },
-            onCategoryClick = { name -> viewModel.onIntent(MainListIntent.CategoryClick(name))},
-            onCategorySettingClick = { viewModel.onIntent(MainListIntent.GoToCategorySettingScreen) },
             onLinkItemClick = { url -> viewModel.onIntent(MainListIntent.GoToOutLinkWebSite(url))},
             onLinkItemLongClick = { urlData: UrlData -> linkItemEditDialog = urlData },
+            onFilterOpen = { filterDialog = "" },
+            filterSelectedData = viewModel.filterSelectedItems.getMainSelectedList(),
             listState = listState,
         )
     }
@@ -227,14 +237,13 @@ fun MainListScreen(
 @Composable
 fun MainListScreen(
     mainListPagingData: LazyPagingItems<UrlData>? = flowOf(PagingData.empty<UrlData>()).collectAsLazyPagingItems(),
-    mainCategoryData: List<CategoryModel>? = listOf(),
     paddingValues: PaddingValues = PaddingValues(),
     onSearchClick: () -> Unit = {},
     onAppSettingClick: () -> Unit = {},
-    onCategoryClick: (String) -> Unit = {},
-    onCategorySettingClick: () -> Unit = {},
     onLinkItemClick: (String?) -> Unit = {},
     onLinkItemLongClick: (UrlData) -> Unit = {},
+    onFilterOpen: () -> Unit = {},
+    filterSelectedData: List<String> = listOf(),
     listState: LazyListState = rememberLazyListState(),
 ) {
     Column(
@@ -243,17 +252,12 @@ fun MainListScreen(
             .padding(paddingValues)
             .background(Color.DarkGray)
     ) {
-        //todo 출시 후, 헤더 부분을 검색, 카테고리 선택, 앱설정 으로 변경 예정
         MainHeaderSection(searchIconClick = onSearchClick, appSettingClick = onAppSettingClick)
-        mainCategoryData?.let { categories ->
-            SelectorTextButtonGroup(
-                options = categories,
-                clickItem = { onCategoryClick.invoke(it) },
-                settingOnClick = onCategorySettingClick,
-                isSettingIcon = true,
-            )
-            Spacer(modifier = Modifier.size(12.dp))
-        }
+        FilterSelectedList(
+            data = filterSelectedData,
+            onClick = onFilterOpen
+        )
+        Spacer(modifier = Modifier.size(12.dp))
         mainListPagingData?.let {
             LinkUrlListSection(
                 listState = listState,
@@ -283,6 +287,5 @@ fun MainListScreenPreview() {
     val pagingItems = flowOf(PagingData.from(fakeData)).collectAsLazyPagingItems()
     MainListScreen(
         mainListPagingData = pagingItems,
-        mainCategoryData = fakeDataCategory
     )
 }

@@ -13,14 +13,25 @@ import com.jinscompany.saveurl.domain.model.UrlData
 interface BaseSaveUrlDao {
 
     @Query("SELECT * FROM basesaveurl ORDER BY addDate DESC")
-    fun getUrlData(): PagingSource<Int, UrlData>
+    fun getUrlDataLatest(): PagingSource<Int, UrlData>
+
+    @Query("SELECT * FROM basesaveurl ORDER BY addDate ASC")
+    fun getUrlDataOldest(): PagingSource<Int, UrlData>
+
+    @Query("SELECT * FROM basesaveurl WHERE isBookMark = 1 ORDER BY addDate DESC")
+    fun getTargetBookMarkUrlDataLatest(): PagingSource<Int, UrlData>
+
+    @Query("SELECT * FROM basesaveurl WHERE isBookMark = 1 ORDER BY addDate ASC")
+    fun getTargetBookMarkUrlDataOldest(): PagingSource<Int, UrlData>
 
     @Query("SELECT * FROM basesaveurl WHERE category = :categoryName ORDER BY addDate DESC")
     fun getTargetCategoryUrlData(categoryName: String): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM basesaveurl WHERE isBookMark = 1 ORDER BY addDate DESC")
-    fun getTargetBookMarkUrlData(): PagingSource<Int, UrlData>
+    @Query("SELECT * FROM basesaveurl WHERE category IN (:categoryNames) ORDER BY addDate DESC")
+    fun getTargetCategoryUrlDataLatest(categoryNames: List<String>): PagingSource<Int, UrlData>
 
+    @Query("SELECT * FROM basesaveurl WHERE category IN (:categoryNames) ORDER BY addDate ASC")
+    fun getTargetCategoryUrlDataOldest(categoryNames: List<String>): PagingSource<Int, UrlData>
 
     @Query("SELECT * FROM basesaveurl ORDER BY addDate DESC")
     suspend fun get(): List<UrlData>
