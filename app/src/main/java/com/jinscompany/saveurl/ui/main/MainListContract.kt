@@ -1,5 +1,7 @@
 package com.jinscompany.saveurl.ui.main
 
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.paging.PagingData
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.UrlData
@@ -27,10 +29,10 @@ sealed class MainListIntent {
     data object GoToLinkInsertScreen: MainListIntent()
     data class GoToLinkEditScreen(val url: String?): MainListIntent()
     data class GoToOutLinkWebSite(val url: String?): MainListIntent()
-    data class CategoryClick(val categoryName: String): MainListIntent()
     data class GotoOutShareUrl(val url: String?): MainListIntent()
     data class DeleteLinkItem(val urlData: UrlData): MainListIntent()
     data class ClipboardUrlCheck(val url: String): MainListIntent()
+    data class NewFilterData(val data: Map<FilterKey, FilterState>): MainListIntent()
 }
 
 sealed class MainListUiEffect {
@@ -40,4 +42,14 @@ sealed class MainListUiEffect {
     data class UrlShare(val url: String): MainListUiEffect()
     data class ShowSnackBarSaveUrl(val url: String): MainListUiEffect()
     data object ListRefresh: MainListUiEffect()
+}
+
+sealed class FilterState {
+    data class MultiSelect<T>(val options: List<T>, val selected: SnapshotStateList<T>) : FilterState()
+    data class SingleSelect<T>(val options: List<T>, var selected: MutableState<T>) : FilterState()
+}
+
+enum class FilterKey(val label: String) {
+    CATEGORY("카테고리"),
+    SORT("정렬"),
 }

@@ -5,8 +5,8 @@ import androidx.room.withTransaction
 import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.room.BaseSaveUrlDao
 import com.jinscompany.saveurl.data.room.CategoryDao
+import com.jinscompany.saveurl.domain.model.FilterParams
 import com.jinscompany.saveurl.domain.model.UrlData
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -17,13 +17,23 @@ class LocalUrlDbSourceImpl @Inject constructor(
     private val db: AppDatabase,
 ): LocalUrlDBSource {
 
-    override fun getLocalSaveDBUrlList(categoryName: String?): PagingSource<Int, UrlData> {
-        return if (categoryName.isNullOrEmpty() || categoryName == "전체") {
-            baseSaveUrlDao.getUrlData()
-        } else if (categoryName == "북마크") {
-            baseSaveUrlDao.getTargetBookMarkUrlData()
-        } else {
-            baseSaveUrlDao.getTargetCategoryUrlData(categoryName)
+    override fun getLocalSaveDBUrlList(params: FilterParams?): PagingSource<Int, UrlData> {
+        return with (baseSaveUrlDao) {
+            params?.let {
+                if (it.categories.contains("전체")) {
+                    if (params.sort == "최신순") getUrlDataLatest() else getUrlDataOldest()
+                } else if (it.categories.contains("북마크")) {
+                    with(baseSaveUrlDao) {
+                        if (params.sort == "최신순") getTargetBookMarkUrlDataLatest()
+                        else getTargetBookMarkUrlDataOldest()
+                    }
+                } else {
+                    if (params.sort == "최신순") getTargetCategoryUrlDataLatest(params.categories)
+                    else getTargetCategoryUrlDataOldest(params.categories)
+                }
+            } ?: run {
+                baseSaveUrlDao.getUrlDataLatest()
+            }
         }
     }
 
