@@ -1,0 +1,23 @@
+package com.jinscompany.saveurl.ui.filter
+
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import com.jinscompany.saveurl.domain.model.FilterParams
+import com.jinscompany.saveurl.ui.main.FilterState
+
+sealed class FilterIntent {
+    data class InitData(val params: FilterParams): FilterIntent()
+    data class ToggleCategory(val category: String): FilterIntent()
+    data class ToggleSort(val sort: String): FilterIntent()
+    data object Confirm: FilterIntent()
+    data object Clear: FilterIntent()
+}
+
+data class FilterUiState(
+    val categoryState: FilterState.MultiSelect<String> = FilterState.MultiSelect(emptyList(), mutableStateListOf()),
+    val sortState: FilterState.SingleSelect<String> = FilterState.SingleSelect(emptyList(), mutableStateOf("최신순"))
+)
+
+sealed class FilterUiEffect {
+    data class Confirm(val category: List<String>, val sort: String): FilterUiEffect()
+}

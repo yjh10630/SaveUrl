@@ -53,6 +53,8 @@ import com.jinscompany.saveurl.ui.composable.FilterSelectedList
 import com.jinscompany.saveurl.ui.composable.LinkItemInfoDialog
 import com.jinscompany.saveurl.ui.composable.LinkUrlListSection
 import com.jinscompany.saveurl.ui.composable.MainHeaderSection
+import com.jinscompany.saveurl.ui.filter.FilterScreenBottomSheet
+import com.jinscompany.saveurl.ui.filter.FilterUiState
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.APP_SETTING
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.EDIT_CATEGORY
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SAVE_LINK
@@ -189,10 +191,9 @@ fun MainListScreen(
         filterDialog?.let {
             FilterScreenBottomSheet(
                 dismiss = { filterDialog = null },
-                filterData = viewModel.filterMap,
-                clearFormat = viewModel.onClearMap,
-                onConfirm = {
-                    viewModel.onIntent(MainListIntent.NewFilterData(it))
+                initSelectedData = viewModel.filterSelectedItems,
+                onConfirm = { categories, sort ->
+                    viewModel.onIntent(MainListIntent.NewFilterData(category = categories, sort = sort))
                     filterDialog = null
                 },
                 goToCategorySetting = {}
@@ -224,7 +225,7 @@ fun MainListScreen(
             onLinkItemClick = { url -> viewModel.onIntent(MainListIntent.GoToOutLinkWebSite(url))},
             onLinkItemLongClick = { urlData: UrlData -> linkItemEditDialog = urlData },
             onFilterOpen = { filterDialog = "" },
-            filterSelectedData = viewModel.filterSelectedData(),
+            filterSelectedData = viewModel.filterSelectedItems.getMainSelectedList(),
             listState = listState,
         )
     }

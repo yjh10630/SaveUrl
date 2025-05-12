@@ -1,4 +1,4 @@
-package com.jinscompany.saveurl.ui.main
+package com.jinscompany.saveurl.ui.filter
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -20,37 +20,52 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.SnapshotStateList
-import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.jinscompany.saveurl.domain.model.FilterParams
 import com.jinscompany.saveurl.ui.composable.category.BookmarkItem
 import com.jinscompany.saveurl.ui.composable.category.CategoryItem
+import com.jinscompany.saveurl.ui.main.FilterKey
 import com.jinscompany.saveurl.ui.theme.Brown
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FilterScreenBottomSheet(
     dismiss: () -> Unit,
-    filterData: SnapshotStateMap<FilterKey, FilterState>,
-    clearFormat: SnapshotStateMap<FilterKey, FilterState>,
-    onConfirm: (Map<FilterKey, FilterState>) -> Unit,
+    initSelectedData: FilterParams,
+    onConfirm: (List<String>, String) -> Unit,
+    viewModel: FilterViewModel = hiltViewModel<FilterViewModel>(),
     goToCategorySetting: () -> Unit,
 ) {
     val modalBottomSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
     )
     val scope = rememberCoroutineScope()
+    val state = viewModel.uiState
+
+    LaunchedEffect(Unit) {
+        viewModel.onIntent(FilterIntent.InitData(initSelectedData))
+        viewModel.uiEffect.collectLatest { effect ->
+            when(effect) {
+                is FilterUiEffect.Confirm -> {
+                    scope.launch {
+                        modalBottomSheetState.hide()
+                    }.invokeOnCompletion {
+                        onConfirm.invoke(effect.category, effect.sort)
+                    }
+                }
+            }
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = {dismiss.invoke()},
@@ -66,15 +81,11 @@ fun FilterScreenBottomSheet(
             val maxHeight = maxHeight * 0.9f
             FilterScreenBottomSheet(
                 modifier = Modifier.heightIn(max = maxHeight),
-                data = filterData,
-                onConfirm = { data ->
-                    scope.launch {
-                        modalBottomSheetState.hide()
-                    }.invokeOnCompletion {
-                        onConfirm.invoke(data)
-                    }
-                },
-                clearFormat = clearFormat,
+                data = state,
+                onConfirm = { viewModel.onIntent(FilterIntent.Confirm) },
+                onClickCategory = { viewModel.onIntent(FilterIntent.ToggleCategory(it)) },
+                onClickSort = { viewModel.onIntent(FilterIntent.ToggleSort(it)) },
+                onClickClear = { viewModel.onIntent(FilterIntent.Clear) }
             )
         }
     }
@@ -83,73 +94,30 @@ fun FilterScreenBottomSheet(
 @Composable
 fun FilterScreenBottomSheet(
     modifier: Modifier = Modifier,
-    data: SnapshotStateMap<FilterKey, FilterState> = SnapshotStateMap(),
-    onConfirm: (Map<FilterKey, FilterState>) -> Unit = {},
-    clearFormat: SnapshotStateMap<FilterKey, FilterState> = SnapshotStateMap(),
+    onConfirm: () -> Unit = {},
+    onClickCategory: (String) -> Unit = {},
+    onClickSort: (String) -> Unit = {},
+    onClickClear: () -> Unit = {},
+    data: FilterUiState,
 ) {
-    var localFilterState by remember {
-        mutableStateOf(data.mapValues { (_, v) -> v.deepCopy() })
-    }
-
-    fun onCategoryToggle(value: String) {
-        val categoryState = localFilterState[FilterKey.CATEGORY] as? FilterState.MultiSelect<String> ?: return
-        val selected = categoryState.selected
-
-        if (value == "전체" || value == "북마크") {
-            selected.clear()
-            selected.add(value)
-        } else {
-            selected.removeAll(listOf("전체", "북마크"))
-            if (selected.contains(value)) selected.remove(value) else selected.add(value)
-        }
-
-        localFilterState = localFilterState.toMutableMap().also {
-            it[FilterKey.CATEGORY] = categoryState
-        }
-    }
-
-    fun onSortToggle(value: String) {
-        val sortState = localFilterState[FilterKey.SORT] as? FilterState.SingleSelect<String> ?: return
-        if (sortState.selected.value == value) {
-            return
-        } else {
-            sortState.selected.value = value
-        }
-        localFilterState = localFilterState.toMutableMap().also {
-            it[FilterKey.SORT] = sortState
-        }
-    }
-
-    fun changeClearFilterState() {
-        val clearCategoryState = clearFormat[FilterKey.CATEGORY] as? FilterState.MultiSelect<String> ?: return
-        val localCategoryState = localFilterState[FilterKey.CATEGORY] as? FilterState.MultiSelect<String> ?: return
-        localCategoryState.selected.apply {
-            clear()
-            add(clearCategoryState.selected.first())
-        }
-        val clearSortState = clearFormat[FilterKey.SORT] as? FilterState.SingleSelect<String> ?: return
-        val localSortState = localFilterState[FilterKey.SORT] as? FilterState.SingleSelect<String> ?: return
-        localSortState.selected.value = clearSortState.selected.value
-    }
-
     Column (modifier = modifier) {
 
         // 카테고리
         Text(FilterKey.CATEGORY.name)
         LazyRow {
-            val categoryState = localFilterState[FilterKey.CATEGORY] as? FilterState.MultiSelect<String>
-            categoryState?.options?.forEach { option ->
+            val categoryState = data.categoryState
+            categoryState.options.forEach { option ->
                 item {
                     val selected = option in categoryState.selected
                     if (option == "북마크") {
                         BookmarkItem(
-                            onClick = { onCategoryToggle(option) },
+                            onClick = { onClickCategory.invoke(option) },
                             isSelected = selected
                         )
                     } else {
                         CategoryItem(
                             text = option,
-                            onClick = { onCategoryToggle(option) },
+                            onClick = { onClickCategory.invoke(option) },
                             isSelected = selected,
                         )    
                     }
@@ -159,13 +127,13 @@ fun FilterScreenBottomSheet(
         //정렬
         Text(FilterKey.SORT.name)
         LazyRow {
-            val sortState = localFilterState[FilterKey.SORT] as? FilterState.SingleSelect<String>
-            sortState?.options?.forEach { option ->
+            val sortState = data.sortState
+            sortState.options.forEach { option ->
                 item {
                     val selected = sortState.selected.value == option
                     CategoryItem(
                         text = option,
-                        onClick = { onSortToggle(option) },
+                        onClick = { onClickSort.invoke(option) },
                         isSelected = selected,
                     )
                 }
@@ -183,7 +151,7 @@ fun FilterScreenBottomSheet(
             horizontalArrangement = Arrangement.Absolute.SpaceAround
         ) {
             OutlinedButton(
-                onClick = {changeClearFilterState()},
+                onClick = onClickClear,
                 modifier = Modifier
                     .weight(1f)
                     .padding(horizontal = 4.dp),
@@ -200,9 +168,7 @@ fun FilterScreenBottomSheet(
             }
             OutlinedButton(
                 onClick = {
-                    (localFilterState as? Map<FilterKey, FilterState>)?.let {
-                        onConfirm.invoke(it)
-                    }
+                    onConfirm.invoke()
                 },
                 modifier = Modifier
                     .weight(1f)
@@ -226,24 +192,8 @@ fun FilterScreenBottomSheet(
     }
 }
 
-fun FilterState.deepCopy(): FilterState {
-    return when (this) {
-        is FilterState.MultiSelect<*> -> {
-            @Suppress("UNCHECKED_CAST")
-            FilterState.MultiSelect(
-                options = this.options,
-                selected = SnapshotStateList<Any?>().also { it.addAll(this.selected) }
-            ) as FilterState
-        }
-
-        is FilterState.SingleSelect<*> -> {
-            FilterState.SingleSelect(options = this.options, selected = mutableStateOf(selected.value))
-        }
-    }
-}
-
 @Composable
 @Preview(showBackground = true, backgroundColor = 0xFF444444)
 fun FilterScreenPreview() {
-    FilterScreenBottomSheet()
+    FilterScreenBottomSheet(data = FilterUiState())
 }
