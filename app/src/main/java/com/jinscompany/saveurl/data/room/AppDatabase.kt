@@ -12,7 +12,7 @@ import com.jinscompany.saveurl.domain.model.UrlData
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.Executors
 
-@Database(entities = [UrlData::class, CategoryModel::class], version = 1, exportSchema = false)
+@Database(entities = [UrlData::class, CategoryModel::class], version = 1, exportSchema = true)
 @TypeConverters(value = [ListTypeConverter::class])
 abstract class AppDatabase: RoomDatabase() {
     abstract fun baseSaveUrlDao(): BaseSaveUrlDao
