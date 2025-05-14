@@ -113,7 +113,7 @@ fun FilterScreenBottomSheet(
         containerColor = Color.DarkGray,
     ) {
         BoxWithConstraints {
-            val maxHeight = maxHeight * 0.9f
+            val maxHeight = this@BoxWithConstraints.maxHeight * 0.9f
             FilterScreenBottomSheet(
                 modifier = Modifier.heightIn(max = maxHeight),
                 data = state,

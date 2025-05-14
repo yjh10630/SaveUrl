@@ -63,71 +63,10 @@ fun LinkUrlItem(
             .wrapContentHeight()
     ) {
         Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        data.siteName ?: "",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Thin,
-                        color = Color.LightGray,
-                        maxLines = 1
-                    )
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Text(
-                        data.title ?: "",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.LightGray,
-                        maxLines = 1
-                    )
-                    Text(
-                        data.description ?: "",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.LightGray,
-                        maxLines = 2
-                    )
-                    Row (
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (data.isBookMark) {
-                            Icon(
-                                modifier = Modifier.size(14.dp),
-                                imageVector = Icons.Filled.Bookmark,
-                                contentDescription = "bookMark",
-                                tint = Color.LightGray
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                        }
-                        Text(
-                            text = data.getDate(),
-                            fontSize = 10.sp,
-                            color = Color.LightGray,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(5.dp))
-                AsyncImage(
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                    model = data.imgUrl,
-                    placeholder = ColorPainter(Color.LightGray),
-                    error = ColorPainter(Color.LightGray),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                )
-            }
+            PreviewLinkUrlItem(data = data)
             if (!data.tagList.isNullOrEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
-                LinkUrlTagList(data.tagList ?: listOf(), editMode = tagEditMode, removeClick = tagRemoveClick)
+                LinkUrlTagList(tagList = data.tagList ?: listOf(), editMode = tagEditMode, removeClick = tagRemoveClick)
             }
         }
     }

@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.sp
 
 //todo 선택시 아래로 확장 될 수 있도록 변경 예정
 @Composable
-fun LinkUrlTagList(tagList: List<String>, editMode: Boolean = false, removeClick: (String) -> Unit) {
+fun LinkUrlTagList(modifier: Modifier = Modifier, tagList: List<String>, editMode: Boolean = false, removeClick: (String) -> Unit) {
     val listState = rememberLazyListState()
     LaunchedEffect(tagList.size) {
 
@@ -35,7 +35,7 @@ fun LinkUrlTagList(tagList: List<String>, editMode: Boolean = false, removeClick
     }
 
     LazyRow(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         state = listState
     ) {
         itemsIndexed(tagList) { index, item ->
@@ -83,5 +83,5 @@ fun TagItemPreview() {
 @Composable
 @Preview
 fun TagListPreview() {
-    LinkUrlTagList(listOf("조선일보", "네이버", "네이트", "카카오톡", "인스타그램", "운동", "러닝"), true, {})
+    LinkUrlTagList(tagList = listOf("조선일보", "네이버", "네이트", "카카오톡", "인스타그램", "운동", "러닝"), editMode = true, removeClick = {})
 }

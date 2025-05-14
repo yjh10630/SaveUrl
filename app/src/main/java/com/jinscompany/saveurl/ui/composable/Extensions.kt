@@ -5,6 +5,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
 
 inline fun Modifier.noRippleClickable(crossinline onClick: ()->Unit): Modifier = composed {
     clickable(indication = null,
@@ -12,3 +14,6 @@ inline fun Modifier.noRippleClickable(crossinline onClick: ()->Unit): Modifier =
         onClick()
     }
 }
+
+inline fun <reified T> Flow<*>.filterNotIsInstance(): Flow<Any> =
+    this.filter { it !is T } as Flow<Any>
