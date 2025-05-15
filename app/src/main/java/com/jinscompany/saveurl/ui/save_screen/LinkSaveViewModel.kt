@@ -34,7 +34,7 @@ class LinkSaveViewModel @Inject constructor(
             LinkSaveIntent.ScreenBackPress -> onBackPress()
             is LinkSaveIntent.UserInputTag -> insertTag(intent.tag)
             is LinkSaveIntent.WebViewCrawlerDataResult -> webViewCrawlerStateResult(intent.data)
-            LinkSaveIntent.CrawlerLoading -> crawlerLoading()
+            is LinkSaveIntent.CrawlerLoading -> crawlerLoading(intent.loadingUrl)
             is LinkSaveIntent.UserRemoveTag -> removeTag(intent.tag)
             is LinkSaveIntent.CategorySelectedItem -> selectedCategoryItem(intent.selectedCategory)
             LinkSaveIntent.CategoryEdit -> goToCategoryEditScreen()
@@ -111,10 +111,13 @@ class LinkSaveViewModel @Inject constructor(
         }
     }
 
-    private fun crawlerLoading() {
+    private fun crawlerLoading(loadingUrl: String) {
         viewModelScope.launch {
             _uiState.update { current ->
-                current.copy(linkUrlPreviewUiState = LinkUrlPreviewUiState.Loading)
+                current.copy(
+                    linkUrlPreviewUiState = LinkUrlPreviewUiState.Loading,
+                    userInputUrl = loadingUrl
+                )
             }
         }
     }
@@ -153,12 +156,6 @@ class LinkSaveViewModel @Inject constructor(
                     )
                 }
             } ?: run {
-                _uiState.update { current ->
-                    current.copy(
-                        linkUrlPreviewUiState = LinkUrlPreviewUiState.Loading,
-                        userInputUrl = url
-                    )
-                }
                 _uiEffect.emit(LinkSaveUiEffect.StartCrawling(url))
             }
         }

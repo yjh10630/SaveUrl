@@ -137,7 +137,7 @@ fun LinkSaveScreen(
         }
 
         if (startCrawlerUrl.isNotEmpty()) {
-            event.invoke(LinkSaveIntent.CrawlerLoading)
+            event.invoke(LinkSaveIntent.CrawlerLoading(startCrawlerUrl))
             LinkUrlCrawlerHidden(
                 url = startCrawlerUrl,
                 onSuccess = {

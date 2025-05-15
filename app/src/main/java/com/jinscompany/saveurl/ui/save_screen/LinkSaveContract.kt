@@ -39,7 +39,7 @@ sealed class LinkSaveIntent {
     data object OpenPreviewContentEdit: LinkSaveIntent()
     data class PreviewContentEditData(val urlData: UrlData): LinkSaveIntent()
     data class CategorySelectedItem(val selectedCategory: String): LinkSaveIntent()
-    data object CrawlerLoading: LinkSaveIntent()
+    data class CrawlerLoading(val loadingUrl: String): LinkSaveIntent()
 }
 
 sealed class LinkSaveUiEffect {
