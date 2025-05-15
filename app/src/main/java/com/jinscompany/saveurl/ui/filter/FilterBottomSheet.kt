@@ -58,6 +58,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jinscompany.saveurl.domain.model.FilterParams
 import com.jinscompany.saveurl.ui.composable.category.CategoryItem
 import com.jinscompany.saveurl.ui.main.FilterState
@@ -70,7 +71,7 @@ import kotlinx.coroutines.launch
 fun FilterScreenBottomSheet(
     dismiss: () -> Unit,
     initSelectedData: FilterParams,
-    onConfirm: (List<String>, String) -> Unit,
+    onConfirm: (List<String>, String, List<String>) -> Unit,
     viewModel: FilterViewModel = hiltViewModel<FilterViewModel>(),
     goToCategorySetting: () -> Unit,
 ) {
@@ -88,7 +89,7 @@ fun FilterScreenBottomSheet(
                     scope.launch {
                         modalBottomSheetState.hide()
                     }.invokeOnCompletion {
-                        onConfirm.invoke(effect.category, effect.sort)
+                        onConfirm.invoke(effect.category, effect.sort, effect.site)
                     }
                 }
                 FilterUiEffect.GoToCategorySetting -> {
@@ -120,6 +121,7 @@ fun FilterScreenBottomSheet(
                 onConfirm = { viewModel.onIntent(FilterIntent.Confirm) },
                 onClickCategory = { viewModel.onIntent(FilterIntent.ToggleCategory(it)) },
                 onClickSort = { viewModel.onIntent(FilterIntent.ToggleSort(it)) },
+                onClickSite = { viewModel.onIntent(FilterIntent.ToggleSite(it)) },
                 onClickClear = { viewModel.onIntent(FilterIntent.Clear) },
                 goToCategorySetting = { viewModel.onIntent(FilterIntent.GoToCategorySetting) },
             )
@@ -133,6 +135,7 @@ fun FilterScreenBottomSheet(
     onConfirm: () -> Unit = {},
     onClickCategory: (String) -> Unit = {},
     onClickSort: (String) -> Unit = {},
+    onClickSite: (String) -> Unit = {},
     onClickClear: () -> Unit = {},
     data: FilterUiState,
     goToCategorySetting: () -> Unit = {}
@@ -226,6 +229,14 @@ fun FilterScreenBottomSheet(
                             data = data.sortState.options.toMutableList(),
                             selectedContentList = mutableListOf(data.sortState.selected.value),
                             click = { onClickSort.invoke(it) }
+                        )
+                    }
+
+                    FilterTab.SITE -> {
+                        TabContent(
+                            data = data.siteState.options.toMutableList(),
+                            selectedContentList = data.siteState.selected,
+                            click = { onClickSite.invoke(it) }
                         )
                     }
                 }
@@ -339,6 +350,7 @@ fun TabContent(
 fun FilterScreenPreview() {
     FilterScreenBottomSheet(data = FilterUiState(
         categoryState = FilterState.MultiSelect(listOf("북마크", "전체", "테스트요"), mutableStateListOf("전체")),
-        sortState = FilterState.SingleSelect(listOf("최신순", "과거순"), mutableStateOf("최신순"))
+        sortState = FilterState.SingleSelect(listOf("최신순", "과거순"), mutableStateOf("최신순")),
+        siteState = FilterState.MultiSelect(listOf(), mutableStateListOf())
     ))
 }

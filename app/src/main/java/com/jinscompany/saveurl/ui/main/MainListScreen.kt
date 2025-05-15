@@ -206,8 +206,8 @@ fun MainListScreen(
             FilterScreenBottomSheet(
                 dismiss = { filterDialog = null },
                 initSelectedData = viewModel.filterSelectedItems,
-                onConfirm = { categories, sort ->
-                    viewModel.onIntent(MainListIntent.NewFilterData(category = categories, sort = sort))
+                onConfirm = { categories, sort, site ->
+                    viewModel.onIntent(MainListIntent.NewFilterData(category = categories, sort = sort, site = site))
                     filterDialog = null
                 },
                 goToCategorySetting = {

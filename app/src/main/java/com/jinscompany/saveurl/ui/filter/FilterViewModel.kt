@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jinscompany.saveurl.domain.model.FilterParams
 import com.jinscompany.saveurl.domain.repository.CategoryRepository
+import com.jinscompany.saveurl.domain.repository.UrlRepository
 import com.jinscompany.saveurl.ui.main.FilterState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -18,6 +19,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class FilterViewModel @Inject constructor(
+    private val urlRepository: UrlRepository,
     private val categoryRepository: CategoryRepository
 ): ViewModel() {
 
@@ -42,6 +44,7 @@ class FilterViewModel @Inject constructor(
                         _uiEffect.emit(FilterUiEffect.GoToCategorySetting)
                     }
                 }
+                is FilterIntent.ToggleSite -> toggleSite(intent.site)
             }
         }
     }
@@ -50,8 +53,19 @@ class FilterViewModel @Inject constructor(
         viewModelScope.launch {
             val category = uiState.categoryState.selected
             val sort = uiState.sortState.selected.value
-            _uiEffect.emit(FilterUiEffect.Confirm(category, sort))
+            val site = uiState.siteState.selected
+            _uiEffect.emit(FilterUiEffect.Confirm(category, sort, site))
         }
+    }
+
+    private fun toggleSite(value: String) {
+        val selected = uiState.siteState.selected
+        val updated = selected.toMutableList().apply {
+            if (contains(value)) remove(value) else add(value)
+        }
+        uiState = uiState.copy(
+            siteState = uiState.siteState.copy(selected = SnapshotStateList<String>().apply { addAll(updated) })
+        )
     }
 
     private fun toggleCategory(value: String) {
@@ -82,7 +96,8 @@ class FilterViewModel @Inject constructor(
         viewModelScope.launch {
             uiState = uiState.copy(
                 categoryState = uiState.categoryState.copy(selected = mutableStateListOf("전체")),
-                sortState = uiState.sortState.copy(selected = mutableStateOf("최신순"))
+                sortState = uiState.sortState.copy(selected = mutableStateOf("최신순")),
+                siteState = uiState.siteState.copy(selected = mutableStateListOf())
             )
         }
     }
@@ -90,6 +105,7 @@ class FilterViewModel @Inject constructor(
     private fun loadInitialData(params: FilterParams) {
         viewModelScope.launch {
             val categories = listOf("북마크", "전체") + categoryRepository.get().map { it.name }
+            val siteList = urlRepository.getSiteNameList()
             uiState = uiState.copy(
                 categoryState = FilterState.MultiSelect(
                     options = categories,
@@ -100,6 +116,12 @@ class FilterViewModel @Inject constructor(
                 sortState = FilterState.SingleSelect(
                     options = listOf("최신순", "과거순"),
                     selected = mutableStateOf(params.sort)
+                ),
+                siteState = FilterState.MultiSelect(
+                    options = siteList,
+                    selected = mutableStateListOf<String>().apply {
+                        addAll(params.siteList)
+                    }
                 )
             )
         }

@@ -33,6 +33,28 @@ interface BaseSaveUrlDao {
     @Query("SELECT * FROM basesaveurl WHERE category IN (:categoryNames) ORDER BY addDate ASC")
     fun getTargetCategoryUrlDataOldest(categoryNames: List<String>): PagingSource<Int, UrlData>
 
+    @Query("SELECT * FROM basesaveurl WHERE siteName IN (:siteNames) ORDER BY addDate DESC")
+    fun getUrlDataLatestBySites(siteNames: List<String>): PagingSource<Int, UrlData>
+
+    @Query("SELECT * FROM basesaveurl WHERE siteName IN (:siteNames) ORDER BY addDate ASC")
+    fun getUrlDataOldestBySites(siteNames: List<String>): PagingSource<Int, UrlData>
+
+    @Query("SELECT * FROM basesaveurl WHERE isBookMark = 1 AND siteName IN (:siteNames) ORDER BY addDate DESC")
+    fun getTargetBookMarkUrlDataLatestBySites(siteNames: List<String>): PagingSource<Int, UrlData>
+
+    @Query("SELECT * FROM basesaveurl WHERE isBookMark = 1 AND siteName IN (:siteNames) ORDER BY addDate ASC")
+    fun getTargetBookMarkUrlDataOldestBySites(siteNames: List<String>): PagingSource<Int, UrlData>
+
+    @Query("SELECT * FROM basesaveurl WHERE category IN (:categories) AND siteName IN (:siteNames) ORDER BY addDate DESC")
+    fun getTargetCategoryUrlDataLatestBySites(categories: List<String>, siteNames: List<String>): PagingSource<Int, UrlData>
+
+    @Query("SELECT * FROM basesaveurl WHERE category IN (:categories) AND siteName IN (:siteNames) ORDER BY addDate ASC")
+    fun getTargetCategoryUrlDataOldestBySites(categories: List<String>, siteNames: List<String>): PagingSource<Int, UrlData>
+
+
+
+
+
     @Query("SELECT * FROM basesaveurl ORDER BY addDate DESC")
     suspend fun get(): List<UrlData>
 
@@ -62,6 +84,9 @@ interface BaseSaveUrlDao {
 
     @Query("SELECT * FROM BaseSaveUrl WHERE tagList LIKE '%' || :keyword || '%'")
     fun searchByTag(keyword: String): PagingSource<Int, UrlData>
+
+    @Query("SELECT DISTINCT siteName FROM BaseSaveUrl WHERE siteName IS NOT NULL AND TRIM(siteName) != ''")
+    suspend fun getDistinctNonEmptySiteNames(): List<String>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(vararg entity: UrlData)

@@ -34,7 +34,7 @@ class MainListViewModel @Inject constructor(
     private val _mainListEffect = MutableSharedFlow<MainListUiEffect>()
     val mainListEffect = _mainListEffect.asSharedFlow()
 
-    var filterSelectedItems by mutableStateOf<FilterParams>(FilterParams(categories = listOf("전체"), sort = "최신순"))
+    var filterSelectedItems by mutableStateOf<FilterParams>(FilterParams(categories = listOf("전체"), sort = "최신순", siteList = listOf()))
         private set
 
     init {
@@ -85,7 +85,7 @@ class MainListViewModel @Inject constructor(
                 }
                 is MainListIntent.NewFilterData -> {
                     viewModelScope.launch {
-                        filterSelectedItems = FilterParams(categories = intent.category, sort = intent.sort)
+                        filterSelectedItems = FilterParams(categories = intent.category, sort = intent.sort, siteList = intent.site)
                         getLinkList(filterSelectedItems)
                     }
                 }

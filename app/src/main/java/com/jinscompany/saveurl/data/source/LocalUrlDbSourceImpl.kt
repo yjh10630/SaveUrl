@@ -18,21 +18,41 @@ class LocalUrlDbSourceImpl @Inject constructor(
 ): LocalUrlDBSource {
 
     override fun getLocalSaveDBUrlList(params: FilterParams?): PagingSource<Int, UrlData> {
-        return with (baseSaveUrlDao) {
-            params?.let {
-                if (it.categories.contains("전체")) {
-                    if (params.sort == "최신순") getUrlDataLatest() else getUrlDataOldest()
-                } else if (it.categories.contains("북마크")) {
-                    with(baseSaveUrlDao) {
-                        if (params.sort == "최신순") getTargetBookMarkUrlDataLatest()
-                        else getTargetBookMarkUrlDataOldest()
+        return with(baseSaveUrlDao) {
+            val categories = params?.categories ?: listOf("전체")
+            val siteNames = params?.siteList.orEmpty()
+            val sortDesc = (params?.sort ?: "최신순") == "최신순"
+
+            return when {
+                categories.contains("전체") -> {
+                    if (siteNames.isEmpty()) {
+                        if (sortDesc) baseSaveUrlDao.getUrlDataLatest()
+                        else baseSaveUrlDao.getUrlDataOldest()
+                    } else {
+                        if (sortDesc) getUrlDataLatestBySites(siteNames)
+                        else getUrlDataOldestBySites(siteNames)
                     }
-                } else {
-                    if (params.sort == "최신순") getTargetCategoryUrlDataLatest(params.categories)
-                    else getTargetCategoryUrlDataOldest(params.categories)
                 }
-            } ?: run {
-                baseSaveUrlDao.getUrlDataLatest()
+
+                categories.contains("북마크") -> {
+                    if (siteNames.isEmpty()) {
+                        if (sortDesc) getTargetBookMarkUrlDataLatest()
+                        else getTargetBookMarkUrlDataOldest()
+                    } else {
+                        if (sortDesc) getTargetBookMarkUrlDataLatestBySites(siteNames)
+                        else getTargetBookMarkUrlDataOldestBySites(siteNames)
+                    }
+                }
+
+                else -> {
+                    if (siteNames.isEmpty()) {
+                        if (sortDesc) getTargetCategoryUrlDataLatest(categories)
+                        else getTargetCategoryUrlDataOldest(categories)
+                    } else {
+                        if (sortDesc) getTargetCategoryUrlDataLatestBySites(categories, siteNames)
+                        else getTargetCategoryUrlDataOldestBySites(categories, siteNames)
+                    }
+                }
             }
         }
     }
@@ -92,6 +112,10 @@ class LocalUrlDbSourceImpl @Inject constructor(
 
     override suspend fun updateLocalDBUrlData(data: UrlData): Boolean = withContext(Dispatchers.IO) {
         return@withContext baseSaveUrlDao.update(data) > 0
+    }
+
+    override suspend fun getSiteNameList(): List<String> = withContext(Dispatchers.IO) {
+        return@withContext baseSaveUrlDao.getDistinctNonEmptySiteNames()
     }
 
     override fun searchAll(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchAll(keyword)
