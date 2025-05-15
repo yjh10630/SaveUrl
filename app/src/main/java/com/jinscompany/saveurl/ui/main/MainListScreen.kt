@@ -118,8 +118,13 @@ fun MainListScreen(
                     when (effect.route) {
                         EDIT_CATEGORY -> navController.navigateToEditCategory()
                         SAVE_LINK -> {
-                            if (effect.url.isNullOrEmpty()) navController.navigateToSaveLink()
-                            else navController.navigateToSaveLink(url = effect.url)
+                            if (effect.url?.isNotEmpty() == true) {
+                                navController.navigateToSaveLink(url = effect.url)
+                            } else if (effect.urlData != null) {
+                                navController.navigateToSaveLink(data = effect.urlData)
+                            } else {
+                                navController.navigateToSaveLink()
+                            }
                         }
                         SEARCH -> navController.navigateToSearch()
                         APP_SETTING -> navController.navigateToAppSetting()
@@ -152,7 +157,7 @@ fun MainListScreen(
                             )
                         when (result) {
                             SnackbarResult.ActionPerformed -> {
-                                viewModel.onIntent(MainListIntent.GoToLinkEditScreen(effect.url))
+                                viewModel.onIntent(MainListIntent.GoToLinkInsertScreen(effect.url))
                             }
                             SnackbarResult.Dismissed -> {}
                         }
@@ -176,7 +181,16 @@ fun MainListScreen(
         floatingActionButtonPosition = FabPosition.End,
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { viewModel.onIntent(MainListIntent.GoToLinkInsertScreen) },
+                onClick = {
+                    var url = ""
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    if (clipboard.hasPrimaryClip() && (clipboard.primaryClip?.itemCount ?: 0) > 0) {
+                        clipboard.primaryClip?.getItemAt(0)?.text?.let {
+                            url = extractUrlFromText(it.toString()) ?: ""
+                        }
+                    }
+                    viewModel.onIntent(MainListIntent.GoToLinkInsertScreen(url))
+                },
                 containerColor = Brown,
                 contentColor = Color.White,
                 elevation = FloatingActionButtonDefaults.elevation(6.dp)
@@ -210,7 +224,7 @@ fun MainListScreen(
                 },
                 onClickEdit = {
                     linkItemEditDialog = null
-                    viewModel.onIntent(MainListIntent.GoToLinkEditScreen(url = urlData.url))
+                    viewModel.onIntent(MainListIntent.GoToLinkEditScreen(urlData = urlData))
                 },
                 onClickDelete = {
                     linkItemEditDialog = null

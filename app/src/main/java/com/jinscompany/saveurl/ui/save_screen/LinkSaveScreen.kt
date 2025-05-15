@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -137,7 +138,7 @@ fun LinkSaveScreen(
         }
 
         if (startCrawlerUrl.isNotEmpty()) {
-            event.invoke(LinkSaveIntent.CrawlerLoading(startCrawlerUrl))
+            //event.invoke(LinkSaveIntent.CrawlerLoading(startCrawlerUrl))
             LinkUrlCrawlerHidden(
                 url = startCrawlerUrl,
                 onSuccess = {
@@ -166,7 +167,9 @@ fun LinkSaveScreen(
                 BackIcon(backPress = {event.invoke(LinkSaveIntent.ScreenBackPress)})
                 HeaderUserInputEditText(
                     url = uiState.userInputUrl,
-                    userInputStartCrawler = { startCrawlerUrl = it },
+                    userInputStartCrawler = {
+                        event.invoke(LinkSaveIntent.StartCrawling(it))
+                    },
                     focusClear = { focusManager.clearFocus() },
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -186,9 +189,20 @@ fun LinkSaveScreen(
                                 .matchParentSize()
                                 .background(Color.Transparent)
                                 .clickable(enabled = false) {},
-                            contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator()
+                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                            IconButton(
+                                modifier = Modifier.align(Alignment.TopEnd),
+                                onClick = { event.invoke(LinkSaveIntent.UserForcedEndCrawling) }
+                            ) {
+                                Icon(
+                                    modifier = Modifier
+                                        .padding(8.dp), // 여백 주기
+                                    imageVector = Icons.Rounded.Close,
+                                    contentDescription = "close",
+                                    tint = Color.LightGray,
+                                )
+                            }
                         }
                     }
                 }
@@ -465,7 +479,7 @@ fun LinkSaveScreenPreview() {
         override val replayCache: List<LinkSaveUiState>
             get() = emptyList()
         override val value: LinkSaveUiState
-            get() = LinkSaveUiState()
+            get() = LinkSaveUiState(linkUrlPreviewUiState = LinkUrlPreviewUiState.Loading)
         override suspend fun collect(collector: FlowCollector<LinkSaveUiState>): Nothing {
             throw UnsupportedOperationException("Not supported in preview")
         }

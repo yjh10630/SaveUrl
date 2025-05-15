@@ -5,7 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.domain.repository.CategoryRepository
 import com.jinscompany.saveurl.domain.repository.UrlRepository
+import com.jinscompany.saveurl.utils.extractUrlFromText
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +28,8 @@ class LinkSaveViewModel @Inject constructor(
     private val _uiEffect = MutableSharedFlow<LinkSaveUiEffect>()
     val uiEffect = _uiEffect.asSharedFlow()
 
+    private var parseJob: Job? = null
+
     fun onIntent(intent: LinkSaveIntent) {
         when(intent) {
             is LinkSaveIntent.BookMarkToggle -> bookMarkToggle(intent.isBookMark)
@@ -40,6 +44,25 @@ class LinkSaveViewModel @Inject constructor(
             LinkSaveIntent.CategoryEdit -> goToCategoryEditScreen()
             LinkSaveIntent.OpenPreviewContentEdit -> goToPreviewContentEditScreen()
             is LinkSaveIntent.PreviewContentEditData -> editPreviewContentData(intent.urlData)
+            is LinkSaveIntent.StartCrawling -> startCrawling(intent.url)
+            LinkSaveIntent.UserForcedEndCrawling -> userForcedEndCrawling()
+        }
+    }
+
+    private fun userForcedEndCrawling() {
+        viewModelScope.launch {
+            parseJob?.cancel()
+            _uiState.update { current ->
+                current.copy(
+                    linkUrlPreviewUiState = LinkUrlPreviewUiState.LinkUrlData(
+                        urlData = UrlData(
+                            url = _uiState.value.userInputUrl,
+                            description = _uiState.value.userInputUrl
+                        )
+                    ),
+                    isEditScreen = false,
+                )
+            }
         }
     }
 
@@ -124,6 +147,9 @@ class LinkSaveViewModel @Inject constructor(
 
     private fun webViewCrawlerStateResult(data: UrlData?) {
         viewModelScope.launch {
+            // 현재 상태가 로딩 중 일 때에만 값을 출력 하도록
+            val isStateLoading = _uiState.value.linkUrlPreviewUiState == LinkUrlPreviewUiState.Loading
+            if (isStateLoading == false) return@launch
             _uiState.update { current ->
                 current.copy(
                     linkUrlPreviewUiState = data?.let {
@@ -132,31 +158,54 @@ class LinkSaveViewModel @Inject constructor(
                         LinkUrlPreviewUiState.LinkUrlData(
                             urlData = UrlData(
                                 url = _uiState.value.userInputUrl,
-                                title = "링크 정보를 불러오지 못했어요.",
                                 description = _uiState.value.userInputUrl
                             )
                         )
-                    }
+                    },
+                    isEditScreen = false
                 )
             }
         }
     }
 
-    fun externalInputUrl(url: String) {
-        viewModelScope.launch {
-            urlRepository.findUrlData(url)?.let {
-                _uiState.update { current ->
-                    current.copy(
-                        isEditScreen = true,
-                        userInputUrl = url,
-                        categoryName = it.category ?: "전체",
-                        isBookMark = it.isBookMark,
-                        tagList = it.tagList ?: emptyList(),
-                        linkUrlPreviewUiState = LinkUrlPreviewUiState.LinkUrlData(urlData = it)
-                    )
+    fun startCrawling(url: String) {
+        parseJob?.cancel()
+        parseJob = viewModelScope.launch {
+            val realUrl = extractUrlFromText(url)
+            if (!realUrl.isNullOrEmpty()) {
+                urlRepository.findUrlData(realUrl)?.let {
+                    _uiState.update { current ->
+                        current.copy(
+                            isEditScreen = true,
+                            userInputUrl = realUrl,
+                            categoryName = it.category ?: "전체",
+                            isBookMark = it.isBookMark,
+                            tagList = it.tagList ?: emptyList(),
+                            linkUrlPreviewUiState = LinkUrlPreviewUiState.LinkUrlData(urlData = it)
+                        )
+                    }
+                } ?: run {
+                    _uiState.update { current ->
+                        current.copy(
+                            isEditScreen = false,
+                            userInputUrl = url,
+                            linkUrlPreviewUiState = LinkUrlPreviewUiState.Loading
+                        )
+                    }
+                    val data = urlRepository.parserUrl(realUrl)
+                    if (data.title.isNullOrEmpty()) {
+                        _uiEffect.emit(LinkSaveUiEffect.StartCrawling(url))
+                    } else {
+                        val checkData = urlRepository.findUrlData(data.url ?: "")
+                        _uiState.update { current ->
+                            current.copy(
+                                isEditScreen = data.title == (checkData?.title ?: ""),
+                                userInputUrl = realUrl,
+                                linkUrlPreviewUiState = LinkUrlPreviewUiState.LinkUrlData(urlData = data)
+                            )
+                        }
+                    }
                 }
-            } ?: run {
-                _uiEffect.emit(LinkSaveUiEffect.StartCrawling(url))
             }
         }
     }
@@ -172,6 +221,21 @@ class LinkSaveViewModel @Inject constructor(
             val categories = categoryRepository.get()
             categories.firstOrNull { it.name == currentCategoryName }?.isSelected = true
             _uiEffect.emit(LinkSaveUiEffect.OpenCategorySelector(categories))
+        }
+    }
+
+    fun userSelectLinkEditMode(data: UrlData) {
+        viewModelScope.launch {
+            _uiState.update { current ->
+                current.copy(
+                    isEditScreen = true,
+                    userInputUrl = data.url ?: "",
+                    categoryName = data.category ?: "전체",
+                    isBookMark = data.isBookMark,
+                    tagList = data.tagList ?: emptyList(),
+                    linkUrlPreviewUiState = LinkUrlPreviewUiState.LinkUrlData(urlData = data)
+                )
+            }
         }
     }
 }

@@ -3,7 +3,6 @@ package com.jinscompany.saveurl.ui.main
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
@@ -65,19 +64,15 @@ class MainListViewModel @Inject constructor(
                 }
                 is MainListIntent.GoToLinkEditScreen -> {
                     _mainListEffect.emit(
-                        if (intent.url.isNullOrEmpty()) {
-                            MainListUiEffect.ShowToast("Url 정보가 누락 되어 이동할 수 없습니다.")
-                        } else {
-                            MainListUiEffect.NavigateToResult(route = SAVE_LINK, url = intent.url)
-                        }
+                        MainListUiEffect.NavigateToResult(route = SAVE_LINK, urlData = intent.urlData)
                     )
                 }
                 is MainListIntent.DeleteLinkItem -> deleteLinkItem(intent.urlData)
                 MainListIntent.GoToCategorySettingScreen -> {
                     _mainListEffect.emit(MainListUiEffect.NavigateToResult(route = EDIT_CATEGORY))
                 }
-                MainListIntent.GoToLinkInsertScreen -> {
-                    _mainListEffect.emit(MainListUiEffect.NavigateToResult(route = SAVE_LINK))
+                is MainListIntent.GoToLinkInsertScreen -> {
+                    _mainListEffect.emit(MainListUiEffect.NavigateToResult(route = SAVE_LINK, url = intent.url))
                 }
                 MainListIntent.GoToSearchScreen -> {
                     _mainListEffect.emit(MainListUiEffect.NavigateToResult(route = SEARCH))

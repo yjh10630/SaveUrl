@@ -31,6 +31,7 @@ sealed class LinkSaveIntent {
     data object ScreenBackPress: LinkSaveIntent()
     data object CategoryEdit: LinkSaveIntent()
     data object SaveLink: LinkSaveIntent()
+    data class StartCrawling(val url: String): LinkSaveIntent()
     data class WebViewCrawlerDataResult(val data: UrlData? = null): LinkSaveIntent()
     data class UserInputTag(val tag: List<String>): LinkSaveIntent()
     data class UserRemoveTag(val tag: String): LinkSaveIntent()
@@ -40,6 +41,7 @@ sealed class LinkSaveIntent {
     data class PreviewContentEditData(val urlData: UrlData): LinkSaveIntent()
     data class CategorySelectedItem(val selectedCategory: String): LinkSaveIntent()
     data class CrawlerLoading(val loadingUrl: String): LinkSaveIntent()
+    data object UserForcedEndCrawling: LinkSaveIntent()
 }
 
 sealed class LinkSaveUiEffect {

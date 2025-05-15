@@ -23,9 +23,6 @@ class UrlRepositoryImpl @Inject constructor(
     }
     override suspend fun parserUrl(url: String): UrlData = withContext(Dispatchers.IO){
         var data = urlParser.jsoupUrlParser(url)
-        if (data.title.isNullOrEmpty()) {
-            data = urlParser.webViewGetHtml(url)
-        }
         return@withContext data
     }
 
