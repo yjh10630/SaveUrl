@@ -42,6 +42,29 @@ fun CommonPositiveButton(
 }
 
 @Composable
+fun CommonNegativeButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    text: String,
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .height(50.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
+    ) {
+        Text(
+            text,
+            fontSize = 16.sp,
+            color = Color.White,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
 @Preview(showBackground = true, backgroundColor = 0xFF444444)
 fun PositiveButtonPreview() {
     Column {
@@ -53,6 +76,10 @@ fun PositiveButtonPreview() {
             onClick = {},
             text = "저장",
             enabled = false
+        )
+        CommonNegativeButton(
+            onClick = {},
+            text = "취소"
         )
     }
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.room.BaseSaveUrlDao
 import com.jinscompany.saveurl.data.room.CategoryDao
+import com.jinscompany.saveurl.data.room.TrashDao
 import com.jinscompany.saveurl.data.source.CategoryDBSource
 import com.jinscompany.saveurl.data.source.CategoryDBSourceImpl
 import com.jinscompany.saveurl.data.source.LocalUrlDBSource
@@ -15,7 +16,6 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.CoroutineScope
 import javax.inject.Singleton
 
 @Module
@@ -27,8 +27,9 @@ class DataSourceImplModule {
     fun provideLocalUrlDBSource(
         baseSaveUrlDao: BaseSaveUrlDao,
         categoryDao: CategoryDao,
-        db: AppDatabase
-    ): LocalUrlDBSource = LocalUrlDbSourceImpl(baseSaveUrlDao, categoryDao, db)
+        db: AppDatabase,
+        trashDao: TrashDao
+    ): LocalUrlDBSource = LocalUrlDbSourceImpl(baseSaveUrlDao, categoryDao, db, trashDao)
 
     @Provides
     @Singleton

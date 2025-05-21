@@ -5,6 +5,7 @@ import android.content.Context
 import com.jinscompany.saveurl.data.room.BaseSaveUrlDao
 import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.room.CategoryDao
+import com.jinscompany.saveurl.data.room.TrashDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -43,5 +44,9 @@ class AppModule {
     @Singleton
     @Provides
     fun provideCategoryDao(appDatabase: AppDatabase): CategoryDao = appDatabase.categoryDao()
+
+    @Singleton
+    @Provides
+    fun provideTrashDao(appDatabase: AppDatabase): TrashDao = appDatabase.trashDao()
 
 }

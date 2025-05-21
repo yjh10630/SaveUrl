@@ -9,9 +9,12 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.cachedIn
 import com.jinscompany.saveurl.domain.model.FilterParams
+import com.jinscompany.saveurl.domain.model.TrashItem
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.domain.repository.CategoryRepository
+import com.jinscompany.saveurl.domain.repository.TrashRepository
 import com.jinscompany.saveurl.domain.repository.UrlRepository
+import com.jinscompany.saveurl.domain.usecase.DeleteWithTrashUseCase
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.APP_SETTING
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.EDIT_CATEGORY
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SAVE_LINK
@@ -25,7 +28,8 @@ import javax.inject.Inject
 @HiltViewModel
 class MainListViewModel @Inject constructor(
     private val urlRepository: UrlRepository,
-    private val categoryRepository: CategoryRepository
+    private val categoryRepository: CategoryRepository,
+    private val deleteWithTrashUseCase: DeleteWithTrashUseCase,
 ) : ViewModel() {
 
     var mainListUiState by mutableStateOf<MainListUiState>(MainListUiState.Idle)
@@ -102,7 +106,7 @@ class MainListViewModel @Inject constructor(
 
     private fun deleteLinkItem(data: UrlData) {
         viewModelScope.launch {
-            urlRepository.removeUrl(data)
+            deleteWithTrashUseCase.execute(data)
         }
     }
 

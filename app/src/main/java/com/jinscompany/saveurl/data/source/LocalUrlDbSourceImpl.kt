@@ -5,6 +5,7 @@ import androidx.room.withTransaction
 import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.room.BaseSaveUrlDao
 import com.jinscompany.saveurl.data.room.CategoryDao
+import com.jinscompany.saveurl.data.room.TrashDao
 import com.jinscompany.saveurl.domain.model.FilterParams
 import com.jinscompany.saveurl.domain.model.UrlData
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +16,7 @@ class LocalUrlDbSourceImpl @Inject constructor(
     private val baseSaveUrlDao: BaseSaveUrlDao,
     private val categoryDao: CategoryDao,
     private val db: AppDatabase,
+    private val trashDao: TrashDao,
 ): LocalUrlDBSource {
 
     override fun getLocalSaveDBUrlList(params: FilterParams?): PagingSource<Int, UrlData> {
@@ -116,6 +118,12 @@ class LocalUrlDbSourceImpl @Inject constructor(
 
     override suspend fun getSiteNameList(): List<String> = withContext(Dispatchers.IO) {
         return@withContext baseSaveUrlDao.getDistinctNonEmptySiteNames()
+    }
+
+    override suspend fun saveUrlDataList(list: List<UrlData>) {
+        withContext(Dispatchers.IO) {
+            baseSaveUrlDao.insertAll(*list.toTypedArray())
+        }
     }
 
     override fun searchAll(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchAll(keyword)

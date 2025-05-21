@@ -10,6 +10,7 @@ interface UrlRepository {
     fun searchByTitle(keyword: String): PagingSource<Int, UrlData>
     fun searchByDescription(keyword: String): PagingSource<Int, UrlData>
     fun searchByTag(keyword: String): PagingSource<Int, UrlData>
+    suspend fun saveUrlDataList(list: List<UrlData>)
     suspend fun removeUrl(data: UrlData): Boolean
     suspend fun saveUrl(data: UrlData): Boolean
     suspend fun parserUrl(url: String): UrlData

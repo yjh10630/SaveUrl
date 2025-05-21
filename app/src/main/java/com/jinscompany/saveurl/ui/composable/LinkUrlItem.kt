@@ -46,7 +46,7 @@ fun LinkUrlItem(
     data: UrlData,
     onClick: (String) -> Unit,
     longOnClick: (UrlData) -> Unit,
-    tagRemoveClick: (String) -> Unit,
+    tagRemoveClick: (String) -> Unit = {},
     tagEditMode: Boolean = false,
 ) {
     val haptic = LocalHapticFeedback.current

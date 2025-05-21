@@ -24,6 +24,9 @@ import com.jinscompany.saveurl.ui.save_screen.LinkSaveUiEffect
 import com.jinscompany.saveurl.ui.save_screen.LinkSaveViewModel
 import com.jinscompany.saveurl.ui.search.SearchScreen
 import com.jinscompany.saveurl.ui.setting.AppSettingScreen
+import com.jinscompany.saveurl.ui.trash.TrashScreen
+import com.jinscompany.saveurl.ui.trash.TrashUiEffect
+import com.jinscompany.saveurl.ui.trash.TrashViewModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterIsInstance
 
@@ -134,6 +137,17 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         composable(route = Navigation.Routes.APP_SETTING) {
             AppSettingScreen(navController)
         }
+        composable(route = Navigation.Routes.TRASH) {
+            val viewModel = hiltViewModel<TrashViewModel>()
+            LaunchedEffect(Unit) {
+                viewModel.uiEffect.filterIsInstance<TrashUiEffect.GotoNextScreen>().collectLatest {
+                    navController.popBackStack()
+                }
+            }
+            TrashScreen(state = viewModel.uiState, uiEffect = viewModel.uiEffect, event = { intent ->
+                viewModel.onIntent(intent)
+            })
+        }
     }
 }
 
@@ -143,7 +157,8 @@ object Navigation {
         const val MAIN = "mainScreen"
         const val SAVE_LINK = "saveLinkScreen"
         const val SEARCH = "searchScreen"
-        const val EDIT_CATEGORY = "editCategoty"
+        const val EDIT_CATEGORY = "editCategory"
+        const val TRASH = "trashScreen"
     }
 }
 
@@ -170,4 +185,8 @@ fun NavController.navigateToSearch() {
 
 fun NavController.navigateToAppSetting() {
     navigate(route = "${Navigation.Routes.APP_SETTING}")
+}
+
+fun NavController.navigateToTrash() {
+    navigate(route = "${Navigation.Routes.TRASH}")
 }

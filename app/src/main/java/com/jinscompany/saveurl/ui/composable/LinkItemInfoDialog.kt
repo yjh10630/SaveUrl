@@ -129,7 +129,7 @@ fun LinkItemInfoDialog(
                 tint = Color.Red
             )
             Spacer(modifier = Modifier.width(6.dp))
-            Text(text = "삭제하기", fontWeight = FontWeight.Bold, color = Color.Red)
+            Text(text = "휴지통으로 이동", fontWeight = FontWeight.Bold, color = Color.Red)
         }
     }
 }

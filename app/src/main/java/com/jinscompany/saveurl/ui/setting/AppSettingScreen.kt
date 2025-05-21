@@ -44,6 +44,8 @@ import androidx.transition.Visibility
 import com.jinscompany.saveurl.MainActivity
 import com.jinscompany.saveurl.SaveUrlApplication
 import com.jinscompany.saveurl.SharedViewModel
+import com.jinscompany.saveurl.ui.navigation.navigateToAppSetting
+import com.jinscompany.saveurl.ui.navigation.navigateToTrash
 import com.jinscompany.saveurl.utils.getCurrentAppVersion
 
 
@@ -91,6 +93,9 @@ fun AppSettingScreen(
                 if (intent.resolveActivity(context.packageManager) != null)
                     context.startActivity(intent)
             },
+            trashClick = {
+                navController.navigateToTrash()
+            },
             currentAppVersion = getCurrentAppVersion(context),
             isUpdatable = sharedViewModel.isFlexibleUpdatable
         )
@@ -128,8 +133,8 @@ fun AppSettingScreen(
         item { Divider() }
         item { SettingItem(onClick = shareMyApp, text = "친구 초대") }
         item { Divider() }
-        /*item { SettingItem(onClick = trashClick, text = "휴지통") } //todo 휴지통 기능 추가 예정 ( 저장 기간은 최대 한달 )
-        item { Divider() }*/
+        item { SettingItem(onClick = trashClick, text = "휴지통") }
+        item { Divider() }
         item { AppVersionItem(onClick = updateClick, currentVersion = currentAppVersion, isUpdateAble = isUpdatable) }
         //todo 인앱 결제 추가 예정
         //todo 구글 드라이브를 이용해여 백업 및 가져오기 기능 추가 예정
