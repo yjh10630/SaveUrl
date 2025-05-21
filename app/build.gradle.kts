@@ -17,8 +17,8 @@ android {
         applicationId = "com.jinscompany.saveurl"
         minSdk = 24
         targetSdk = 34
-        versionCode = 27
-        versionName = "1.0.2"
+        versionCode = 28
+        versionName = "1.0.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -30,10 +30,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
     compileOptions {
