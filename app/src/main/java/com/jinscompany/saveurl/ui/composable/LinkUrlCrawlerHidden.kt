@@ -2,6 +2,7 @@ package com.jinscompany.saveurl.ui.composable
 
 import android.view.View
 import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
@@ -33,11 +34,7 @@ fun LinkUrlCrawlerHidden(
             settings.domStorageEnabled = true
             settings.loadWithOverviewMode = true
             settings.useWideViewPort = true
-            settings.userAgentString =
-                when {
-                    url.contains("kko.kakao.com") -> "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
-                    else -> "Mozilla/5.0 (Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.5993.90 Mobile Safari/537.36"
-                }
+            settings.userAgentString = WebSettings.getDefaultUserAgent(context)
 
             // 딥 링크 처리
             webViewClient = object : WebViewClient() {

@@ -3,6 +3,7 @@ package com.jinscompany.saveurl.data.source
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import com.jinscompany.saveurl.domain.model.UrlData
@@ -37,7 +38,7 @@ class UrlParserSourceImpl @Inject constructor(
         lateinit var data: UrlData
         try {
             val response = Jsoup.connect(url).followRedirects(true).execute().url().toExternalForm()
-            val document = Jsoup.connect(response).timeout(30000).userAgent(userAgents.random())
+            val document = Jsoup.connect(response).timeout(30000).userAgent(WebSettings.getDefaultUserAgent(context))
                 .referrer("https://www.google.com/")
                 .ignoreHttpErrors(true)
                 .ignoreContentType(true).get()
