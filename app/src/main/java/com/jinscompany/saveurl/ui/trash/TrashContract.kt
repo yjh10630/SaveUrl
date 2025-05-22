@@ -13,14 +13,7 @@ data class TrashUiState (
 
 sealed class TrashIntent {
     data object MoreClick: TrashIntent()
-    data class EnableTheTrashFunction(val isEnable: Boolean): TrashIntent()
-    data class TrashItemForceDelete(val item: TrashItem): TrashIntent()
-    data class TrashItemForceRestore(val item: TrashItem): TrashIntent()
-    data object TrashItemAllDelete: TrashIntent()
     data class AskTrashState(val isEnable: Boolean): TrashIntent()
-    data object AskTrashItemAllDelete: TrashIntent()
-    data class AskFromUserTrashItemDelete(val item: TrashItem): TrashIntent()
-    data class AskFromUserTrashItemRestore(val item: TrashItem): TrashIntent()
     data class AskFromUserLinkLongClickShowAlert(val item: TrashItem): TrashIntent()
     data object GoToPopBackStack: TrashIntent()
 }

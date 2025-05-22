@@ -35,13 +35,6 @@ class TrashViewModel @Inject constructor(
 
     fun onIntent(intent: TrashIntent) {
         when (intent) {
-            is TrashIntent.AskFromUserTrashItemDelete -> {}
-            is TrashIntent.AskFromUserTrashItemRestore -> {}
-            TrashIntent.AskTrashItemAllDelete -> {}
-            is TrashIntent.EnableTheTrashFunction -> {}
-            TrashIntent.TrashItemAllDelete -> {}
-            is TrashIntent.TrashItemForceDelete -> {}
-            is TrashIntent.TrashItemForceRestore -> {}
             is TrashIntent.AskTrashState -> makeAlertDataModel(AlertType.TrashState)
             TrashIntent.GoToPopBackStack -> popBackStack()
             TrashIntent.MoreClick -> makeMoreMenu()

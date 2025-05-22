@@ -3,18 +3,21 @@ package com.jinscompany.saveurl.ui.main
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.cachedIn
 import com.jinscompany.saveurl.domain.model.FilterParams
-import com.jinscompany.saveurl.domain.model.TrashItem
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.domain.repository.CategoryRepository
 import com.jinscompany.saveurl.domain.repository.TrashRepository
 import com.jinscompany.saveurl.domain.repository.UrlRepository
 import com.jinscompany.saveurl.domain.usecase.DeleteWithTrashUseCase
+import com.jinscompany.saveurl.ui.composable.SimpleMenuModel
+import com.jinscompany.saveurl.ui.main.MainListIntent
+import com.jinscompany.saveurl.ui.main.MainListUiEffect.*
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.APP_SETTING
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.EDIT_CATEGORY
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SAVE_LINK
@@ -30,6 +33,7 @@ class MainListViewModel @Inject constructor(
     private val urlRepository: UrlRepository,
     private val categoryRepository: CategoryRepository,
     private val deleteWithTrashUseCase: DeleteWithTrashUseCase,
+    private val trashRepository: TrashRepository,
 ) : ViewModel() {
 
     var mainListUiState by mutableStateOf<MainListUiState>(MainListUiState.Idle)
@@ -51,41 +55,41 @@ class MainListViewModel @Inject constructor(
                 is MainListIntent.GoToOutLinkWebSite -> {
                     _mainListEffect.emit(
                         if (intent.url.isNullOrEmpty()) {
-                            MainListUiEffect.ShowToast("Url 정보가 누락 되어 이동할 수 없습니다.")
+                            ShowToast("Url 정보가 누락 되어 이동할 수 없습니다.")
                         } else {
-                            MainListUiEffect.OutLinkWebSite(intent.url)
+                            OutLinkWebSite(intent.url)
                         }
                     )
                 }
                 is MainListIntent.GotoOutShareUrl -> {
                     _mainListEffect.emit(
                         if (intent.url.isNullOrEmpty()) {
-                            MainListUiEffect.ShowToast("Url 정보가 누락 되어 이동할 수 없습니다.")
+                            ShowToast("Url 정보가 누락 되어 이동할 수 없습니다.")
                         } else {
-                            MainListUiEffect.UrlShare(intent.url)
+                            UrlShare(intent.url)
                         }
                     )
                 }
                 is MainListIntent.GoToLinkEditScreen -> {
                     _mainListEffect.emit(
-                        MainListUiEffect.NavigateToResult(route = SAVE_LINK, urlData = intent.urlData)
+                        NavigateToResult(route = SAVE_LINK, urlData = intent.urlData)
                     )
                 }
                 is MainListIntent.DeleteLinkItem -> deleteLinkItem(intent.urlData)
                 MainListIntent.GoToCategorySettingScreen -> {
-                    _mainListEffect.emit(MainListUiEffect.NavigateToResult(route = EDIT_CATEGORY))
+                    _mainListEffect.emit(NavigateToResult(route = EDIT_CATEGORY))
                 }
                 is MainListIntent.GoToLinkInsertScreen -> {
-                    _mainListEffect.emit(MainListUiEffect.NavigateToResult(route = SAVE_LINK, url = intent.url))
+                    _mainListEffect.emit(NavigateToResult(route = SAVE_LINK, url = intent.url))
                 }
                 MainListIntent.GoToSearchScreen -> {
-                    _mainListEffect.emit(MainListUiEffect.NavigateToResult(route = SEARCH))
+                    _mainListEffect.emit(NavigateToResult(route = SEARCH))
                 }
 
                 MainListIntent.FetchCategoryData -> {}
                 is MainListIntent.ClipboardUrlCheck -> clipboardUrlCheckToSnackBar(intent.url)
                 MainListIntent.GoToAppSetting -> {
-                    _mainListEffect.emit(MainListUiEffect.NavigateToResult(route = APP_SETTING))
+                    _mainListEffect.emit(NavigateToResult(route = APP_SETTING))
                 }
                 is MainListIntent.NewFilterData -> {
                     viewModelScope.launch {
@@ -93,7 +97,43 @@ class MainListViewModel @Inject constructor(
                         getLinkList(filterSelectedItems)
                     }
                 }
+
+                is MainListIntent.ShowLinkInfoDialog -> showLinkInfoDialog(intent.data)
             }
+        }
+    }
+
+    private fun showLinkInfoDialog(data: UrlData) {
+        viewModelScope.launch {
+            val isTrashEnable = trashRepository.getTrashState()
+            val list = listOf<SimpleMenuModel.MenuModel>(
+                SimpleMenuModel.MenuModel(txt = "공유하기", txtColor = Color.LightGray, event = {
+                    viewModelScope.launch {
+                        onIntent(MainListIntent.GotoOutShareUrl(data.url))
+                    }
+                }),
+                SimpleMenuModel.MenuModel(txt = "수정하기", txtColor = Color.LightGray, isBold = true, event = {
+                    viewModelScope.launch {
+                        onIntent(MainListIntent.GoToLinkEditScreen(data))
+                    }
+                }),
+                SimpleMenuModel.MenuModel(
+                    txt = if (isTrashEnable) "휴지통으로 이동" else "삭제하기",
+                    txtColor = Color.Red,
+                    isBold = true,
+                    event = {
+                        viewModelScope.launch {
+                            if (isTrashEnable) {
+                                onIntent(MainListIntent.DeleteLinkItem(data))
+                            } else {
+                                urlRepository.removeUrl(data)
+                            }
+                        }
+                    }
+                )
+            )
+            val model = SimpleMenuModel(menuList = list)
+            _mainListEffect.emit(MainListUiEffect.ShowLinkInfoDialog(model))
         }
     }
 

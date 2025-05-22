@@ -49,12 +49,21 @@ import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.UrlData
+import com.jinscompany.saveurl.ui.composable.CommonSimpleMenuBottomSheet
 import com.jinscompany.saveurl.ui.composable.FilterSelectedList
-import com.jinscompany.saveurl.ui.composable.LinkItemInfoDialog
 import com.jinscompany.saveurl.ui.composable.LinkUrlListSection
 import com.jinscompany.saveurl.ui.composable.MainHeaderSection
+import com.jinscompany.saveurl.ui.composable.SimpleMenuModel
 import com.jinscompany.saveurl.ui.filter.FilterScreenBottomSheet
-import com.jinscompany.saveurl.ui.filter.FilterUiState
+import com.jinscompany.saveurl.ui.main.MainListIntent.ClipboardUrlCheck
+import com.jinscompany.saveurl.ui.main.MainListIntent.FetchCategoryData
+import com.jinscompany.saveurl.ui.main.MainListIntent.GoToAppSetting
+import com.jinscompany.saveurl.ui.main.MainListIntent.GoToCategorySettingScreen
+import com.jinscompany.saveurl.ui.main.MainListIntent.GoToLinkInsertScreen
+import com.jinscompany.saveurl.ui.main.MainListIntent.GoToOutLinkWebSite
+import com.jinscompany.saveurl.ui.main.MainListIntent.GoToSearchScreen
+import com.jinscompany.saveurl.ui.main.MainListIntent.NewFilterData
+import com.jinscompany.saveurl.ui.main.MainListIntent.ShowLinkInfoDialog
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.APP_SETTING
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.EDIT_CATEGORY
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SAVE_LINK
@@ -87,8 +96,8 @@ fun MainListScreen(
     }
     
     val uiEffect = viewModel.mainListEffect
-    var linkItemEditDialog by remember { mutableStateOf<UrlData?>(null) }
     var filterDialog by remember { mutableStateOf<String?>(null) }
+    var linkInfoDialog by remember { mutableStateOf<SimpleMenuModel?>(null) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -98,7 +107,7 @@ fun MainListScreen(
                     clipboard.primaryClip?.getItemAt(0)?.text?.let {
                         val url = extractUrlFromText(it.toString())
                         if (url?.isNotEmpty() == true) {
-                            viewModel.onIntent(MainListIntent.ClipboardUrlCheck(url))
+                            viewModel.onIntent(ClipboardUrlCheck(url))
                         }
                     }
                 }
@@ -111,7 +120,7 @@ fun MainListScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.onIntent(MainListIntent.FetchCategoryData)
+        viewModel.onIntent(FetchCategoryData)
         uiEffect.collectLatest { effect ->
             when (effect) {
                 is MainListUiEffect.NavigateToResult -> {
@@ -157,12 +166,14 @@ fun MainListScreen(
                             )
                         when (result) {
                             SnackbarResult.ActionPerformed -> {
-                                viewModel.onIntent(MainListIntent.GoToLinkInsertScreen(effect.url))
+                                viewModel.onIntent(GoToLinkInsertScreen(effect.url))
                             }
                             SnackbarResult.Dismissed -> {}
                         }
                     }
                 }
+
+                is MainListUiEffect.ShowLinkInfoDialog -> { linkInfoDialog = effect.model }
             }
         }
     }
@@ -189,7 +200,7 @@ fun MainListScreen(
                             url = extractUrlFromText(it.toString()) ?: ""
                         }
                     }
-                    viewModel.onIntent(MainListIntent.GoToLinkInsertScreen(url))
+                    viewModel.onIntent(GoToLinkInsertScreen(url))
                 },
                 containerColor = Brown,
                 contentColor = Color.White,
@@ -207,40 +218,29 @@ fun MainListScreen(
                 dismiss = { filterDialog = null },
                 initSelectedData = viewModel.filterSelectedItems,
                 onConfirm = { categories, sort, site ->
-                    viewModel.onIntent(MainListIntent.NewFilterData(category = categories, sort = sort, site = site))
+                    viewModel.onIntent(NewFilterData(category = categories, sort = sort, site = site))
                     filterDialog = null
                 },
                 goToCategorySetting = {
-                    viewModel.onIntent(MainListIntent.GoToCategorySettingScreen )
+                    viewModel.onIntent(GoToCategorySettingScreen)
                     filterDialog = null
                 }
             )
         }
-        linkItemEditDialog?.let { urlData ->
-            LinkItemInfoDialog(
-                onClickShare = {
-                    linkItemEditDialog = null
-                    viewModel.onIntent(MainListIntent.GotoOutShareUrl(urlData.url))
-                },
-                onClickEdit = {
-                    linkItemEditDialog = null
-                    viewModel.onIntent(MainListIntent.GoToLinkEditScreen(urlData = urlData))
-                },
-                onClickDelete = {
-                    linkItemEditDialog = null
-                    viewModel.onIntent(MainListIntent.DeleteLinkItem(urlData))
-                },
-                dismiss = { linkItemEditDialog = null }
+        linkInfoDialog?.let {
+            CommonSimpleMenuBottomSheet(
+                model = it,
+                dismiss = { linkInfoDialog = null }
             )
         }
 
         MainListScreen(
             mainListPagingData = mainListPagingData,
             paddingValues = paddingValues,
-            onSearchClick = { viewModel.onIntent(MainListIntent.GoToSearchScreen) },
-            onAppSettingClick = { viewModel.onIntent(MainListIntent.GoToAppSetting) },
-            onLinkItemClick = { url -> viewModel.onIntent(MainListIntent.GoToOutLinkWebSite(url))},
-            onLinkItemLongClick = { urlData: UrlData -> linkItemEditDialog = urlData },
+            onSearchClick = { viewModel.onIntent(GoToSearchScreen) },
+            onAppSettingClick = { viewModel.onIntent(GoToAppSetting) },
+            onLinkItemClick = { url -> viewModel.onIntent(GoToOutLinkWebSite(url))},
+            onLinkItemLongClick = { urlData: UrlData -> viewModel.onIntent(ShowLinkInfoDialog(urlData)) },
             onFilterOpen = { filterDialog = "" },
             filterSelectedData = viewModel.filterSelectedItems.getMainSelectedList(),
             listState = listState,

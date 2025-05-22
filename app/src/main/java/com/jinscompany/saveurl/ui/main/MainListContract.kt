@@ -5,6 +5,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.paging.PagingData
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.UrlData
+import com.jinscompany.saveurl.ui.composable.SimpleMenuModel
 import kotlinx.coroutines.flow.Flow
 
 sealed class MainListUiState {
@@ -26,6 +27,7 @@ sealed class MainListIntent {
     data class DeleteLinkItem(val urlData: UrlData): MainListIntent()
     data class ClipboardUrlCheck(val url: String): MainListIntent()
     data class NewFilterData(val category: List<String>, val sort: String, val site: List<String>): MainListIntent()
+    data class ShowLinkInfoDialog(val data: UrlData): MainListIntent()
 }
 
 sealed class MainListUiEffect {
@@ -35,6 +37,7 @@ sealed class MainListUiEffect {
     data class UrlShare(val url: String): MainListUiEffect()
     data class ShowSnackBarSaveUrl(val url: String): MainListUiEffect()
     data object ListRefresh: MainListUiEffect()
+    data class ShowLinkInfoDialog(val model: SimpleMenuModel): MainListUiEffect()
 }
 
 sealed class FilterState {
