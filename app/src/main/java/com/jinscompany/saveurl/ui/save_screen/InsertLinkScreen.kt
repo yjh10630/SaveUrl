@@ -13,15 +13,18 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddLink
@@ -75,22 +78,22 @@ import com.jinscompany.saveurl.ui.composable.PreviewContentEditBottomSheet
 import com.jinscompany.saveurl.ui.composable.PreviewLinkUrlItem
 import com.jinscompany.saveurl.ui.composable.category.CategorySelectorDialog
 import com.jinscompany.saveurl.ui.composable.filterNotIsInstance
-import com.jinscompany.saveurl.ui.composable.noRippleClickable
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
-fun LinkSaveScreen(
+fun InsertLinkScreen(
     state: StateFlow<LinkSaveUiState>,
     uiEffect: SharedFlow<LinkSaveUiEffect>,
     event: (LinkSaveIntent) -> Unit
 ) {
-    val context: Context = LocalContext.current
     val uiState by state.collectAsState()
     var startCrawlerUrl by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
+    val listState: LazyListState = rememberLazyListState()
+
     var openCategorySelector by remember { mutableStateOf<List<CategoryModel>?>(null) }
     var openPreviewContentEditor by remember { mutableStateOf<UrlData?>(null) }
 
@@ -111,7 +114,8 @@ fun LinkSaveScreen(
             }
     }
 
-    Scaffold { paddingValues ->
+    Scaffold { paddingValue ->
+
         if (openPreviewContentEditor != null) {
             PreviewContentEditBottomSheet(
                 dismiss = { openPreviewContentEditor = null },
@@ -138,7 +142,6 @@ fun LinkSaveScreen(
         }
 
         if (startCrawlerUrl.isNotEmpty()) {
-            //event.invoke(LinkSaveIntent.CrawlerLoading(startCrawlerUrl))
             LinkUrlCrawlerHidden(
                 url = startCrawlerUrl,
                 onSuccess = {
@@ -152,19 +155,17 @@ fun LinkSaveScreen(
                 }
             )
         }
-        Box(
+
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.DarkGray)
-                .noRippleClickable { focusManager.clearFocus() }
+                .background(color = Color.DarkGray)
+                .padding(paddingValue)
+                .imePadding(),
+            state = listState
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(paddingValues),
-            ) {
-                BackIcon(backPress = {event.invoke(LinkSaveIntent.ScreenBackPress)})
+            item { BackIcon(backPress = { event.invoke(LinkSaveIntent.ScreenBackPress) }) }
+            item {
                 HeaderUserInputEditText(
                     url = uiState.userInputUrl,
                     userInputStartCrawler = {
@@ -172,144 +173,55 @@ fun LinkSaveScreen(
                     },
                     focusClear = { focusManager.clearFocus() },
                 )
-                Spacer(modifier = Modifier.height(12.dp))
-                Box (
-                    modifier = Modifier.padding(horizontal = 24.dp)
-                ) {
-                    val data = uiState.linkUrlPreviewUiState as? LinkUrlPreviewUiState.LinkUrlData
-                    val isItemOn =
-                        uiState.linkUrlPreviewUiState == LinkUrlPreviewUiState.Loading || uiState.linkUrlPreviewUiState == LinkUrlPreviewUiState.Idle
-                    PreviewLinkUrlItem(
-                        modifier = Modifier.alpha(if (isItemOn) 0f else 1f),
-                        data = data?.urlData ?: UrlData()
-                    )
-                    if (uiState.linkUrlPreviewUiState is LinkUrlPreviewUiState.Loading) {
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .background(Color.Transparent)
-                                .clickable(enabled = false) {},
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                            IconButton(
-                                modifier = Modifier.align(Alignment.TopEnd),
-                                onClick = { event.invoke(LinkSaveIntent.UserForcedEndCrawling) }
-                            ) {
-                                Icon(
-                                    modifier = Modifier
-                                        .padding(8.dp), // 여백 주기
-                                    imageVector = Icons.Rounded.Close,
-                                    contentDescription = "close",
-                                    tint = Color.LightGray,
-                                )
-                            }
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                LinkUrlTagList(modifier = Modifier.padding(24.dp), tagList = uiState.tagList, editMode = true, removeClick = { event.invoke(LinkSaveIntent.UserRemoveTag(it)) })
-                Spacer(modifier = Modifier.height(12.dp))
-                Row (
-                    modifier = Modifier.padding(horizontal = 12.dp),
-                    horizontalArrangement = Arrangement.Absolute.Left
-                ) {
-                    OutlinedButton(
-                        onClick = { event.invoke(LinkSaveIntent.BookMarkToggle(!uiState.isBookMark)) },
-                        modifier = Modifier
-                            .wrapContentSize()
-                            .padding(horizontal = 10.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(Color.Transparent),
-                        contentPadding = PaddingValues(
-                            horizontal = 10.dp,
-                            vertical = 4.dp
-                        ),
-                    ) {
-                        Icon(
-                            imageVector = if (uiState.isBookMark) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                            contentDescription = "bookmark",
-                            tint = Color.LightGray
-                        )
-                    }
-                    OutlinedButton(
-                        onClick = { event.invoke(LinkSaveIntent.OpenCategorySelector(uiState.categoryName)) },
-                        modifier = Modifier
-                            .wrapContentSize()
-                            .weight(1f, fill = false)
-                            .padding(horizontal = 4.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(Color.Transparent),
-                        contentPadding = PaddingValues(
-                            horizontal = 10.dp,
-                            vertical = 4.dp
-                        ),
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                uiState.categoryName,
-                                color = Color.LightGray,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Icon(
-                                modifier = Modifier.size(25.dp),
-                                imageVector = Icons.Default.KeyboardArrowUp,
-                                contentDescription = "categorySelect",
-                                tint = Color.LightGray
-                            )
-                        }
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            if (uiState.linkUrlPreviewUiState is LinkUrlPreviewUiState.LinkUrlData) {
-                                event.invoke(LinkSaveIntent.OpenPreviewContentEdit)
-                            } else {
-                                Toast.makeText(context, "URL 확인이 완료 된 후 수정이 가능 합니다.", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        modifier = Modifier
-                            .wrapContentSize()
-                            .padding(horizontal = 4.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(Color.Transparent),
-                        contentPadding = PaddingValues(
-                            horizontal = 10.dp,
-                            vertical = 4.dp
-                        ),
-                    ) {
-                        Text("수정", color = Color.LightGray)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowUp,
-                            contentDescription = "categorySelect",
-                            tint = Color.LightGray
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                UserInputTagEditText(
-                    focusClear = {focusManager.clearFocus()},
-                    onInsertTagTxt = { event.invoke(LinkSaveIntent.UserInputTag(it)) }
+            }
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+            item {
+                PreviewSection(
+                    state = uiState.linkUrlPreviewUiState,
+                    event = { event.invoke(LinkSaveIntent.UserForcedEndCrawling) },
                 )
-                Spacer(modifier = Modifier.weight(1f))
+            }
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+            item {
+                LinkUrlTagList(
+                    modifier = Modifier.padding(24.dp),
+                    tagList = uiState.tagList,
+                    editMode = true,
+                    removeClick = { event.invoke(LinkSaveIntent.UserRemoveTag(it)) })
+            }
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+            item {
+                LinkOptionsSection(
+                    state = uiState.linkUrlPreviewUiState,
+                    isBookMark = uiState.isBookMark,
+                    categoryName = uiState.categoryName,
+                    bookMarkClick = { event.invoke(LinkSaveIntent.BookMarkToggle(it)) },
+                    categoryClick = { event.invoke(LinkSaveIntent.OpenCategorySelector(it)) },
+                    editorClick = { event.invoke(LinkSaveIntent.OpenPreviewContentEdit) }
+                )
+            }
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+            item {
+                UserInputTagEditText(
+                    focusClear = { focusManager.clearFocus() },
+                    onInsertTagTxt = { event.invoke(LinkSaveIntent.UserInputTag(it)) })
+            }
+            item { Spacer(modifier = Modifier.height(32.dp)) }
+            item {
                 CommonPositiveButton(
                     onClick = { event.invoke(LinkSaveIntent.SaveLink) },
                     enabled = uiState.linkUrlPreviewUiState is LinkUrlPreviewUiState.LinkUrlData,
                     text = if (uiState.isEditScreen) "수정" else "저장",
                 )
-
-                Spacer(modifier = Modifier.height(24.dp))
             }
+            item { Spacer(modifier = Modifier.height(24.dp)) }
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UserInputTagEditText(
+fun LazyItemScope.UserInputTagEditText(
     focusClear: () -> Unit,
     onInsertTagTxt: (List<String>) -> Unit,
 ) {
@@ -380,11 +292,140 @@ fun UserInputTagEditText(
         ),
         supportingText = { Text("콤마 ( , ) 를 사용해서 여러개 등록 가능해요!", color = Color.Gray) }
     )
+}
 
+
+@Composable
+fun LazyItemScope.LinkOptionsSection(
+    state: LinkUrlPreviewUiState,
+    isBookMark: Boolean,
+    categoryName: String,
+    bookMarkClick: (Boolean) -> Unit,
+    categoryClick: (String) -> Unit,
+    editorClick: () -> Unit
+) {
+    val context: Context = LocalContext.current
+    Row(
+        modifier = Modifier.padding(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.Absolute.Left
+    ) {
+        OutlinedButton(
+            onClick = { bookMarkClick.invoke(!isBookMark) },
+            modifier = Modifier
+                .wrapContentSize()
+                .padding(horizontal = 10.dp),
+            shape = RoundedCornerShape(10.dp),
+            colors = ButtonDefaults.buttonColors(Color.Transparent),
+            contentPadding = PaddingValues(
+                horizontal = 10.dp,
+                vertical = 4.dp
+            ),
+        ) {
+            Icon(
+                imageVector = if (isBookMark) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                contentDescription = "bookmark",
+                tint = Color.LightGray
+            )
+        }
+        OutlinedButton(
+            onClick = { categoryClick.invoke(categoryName) },
+            modifier = Modifier
+                .wrapContentSize()
+                .weight(1f, fill = false)
+                .padding(horizontal = 4.dp),
+            shape = RoundedCornerShape(10.dp),
+            colors = ButtonDefaults.buttonColors(Color.Transparent),
+            contentPadding = PaddingValues(
+                horizontal = 10.dp,
+                vertical = 4.dp
+            ),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    categoryName,
+                    color = Color.LightGray,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Icon(
+                    modifier = Modifier.size(25.dp),
+                    imageVector = Icons.Default.KeyboardArrowUp,
+                    contentDescription = "categorySelect",
+                    tint = Color.LightGray
+                )
+            }
+        }
+        OutlinedButton(
+            onClick = {
+                if (state is LinkUrlPreviewUiState.LinkUrlData) {
+                    editorClick.invoke()
+                } else {
+                    Toast.makeText(context, "URL 확인이 완료 된 후 수정이 가능 합니다.", Toast.LENGTH_SHORT).show()
+                }
+            },
+            modifier = Modifier
+                .wrapContentSize()
+                .padding(horizontal = 4.dp),
+            shape = RoundedCornerShape(10.dp),
+            colors = ButtonDefaults.buttonColors(Color.Transparent),
+            contentPadding = PaddingValues(
+                horizontal = 10.dp,
+                vertical = 4.dp
+            ),
+        ) {
+            Text("수정", color = Color.LightGray)
+            Spacer(modifier = Modifier.width(6.dp))
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowUp,
+                contentDescription = "categorySelect",
+                tint = Color.LightGray
+            )
+        }
+    }
 }
 
 @Composable
-fun BackIcon(backPress: () -> Unit) {
+fun LazyItemScope.PreviewSection(state: LinkUrlPreviewUiState, event: () -> Unit) {
+    Box(
+        modifier = Modifier.padding(horizontal = 24.dp)
+    ) {
+        val data = state as? LinkUrlPreviewUiState.LinkUrlData
+        val isItemOn =
+            state == LinkUrlPreviewUiState.Loading || state == LinkUrlPreviewUiState.Idle
+        PreviewLinkUrlItem(
+            modifier = Modifier.alpha(if (isItemOn) 0f else 1f),
+            data = data?.urlData ?: UrlData()
+        )
+        if (state is LinkUrlPreviewUiState.Loading) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(Color.Transparent)
+                    .clickable(enabled = false) {},
+            ) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                IconButton(
+                    modifier = Modifier.align(Alignment.TopEnd),
+                    onClick = { event.invoke() }
+                ) {
+                    Icon(
+                        modifier = Modifier
+                            .padding(8.dp), // 여백 주기
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = "close",
+                        tint = Color.LightGray,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LazyItemScope.BackIcon(backPress: () -> Unit) {
     IconButton(onClick = backPress) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -396,7 +437,7 @@ fun BackIcon(backPress: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HeaderUserInputEditText(
+fun LazyItemScope.HeaderUserInputEditText(
     url: String,
     userInputStartCrawler: (String) -> Unit,
     focusClear: () -> Unit,
@@ -408,7 +449,7 @@ fun HeaderUserInputEditText(
     Column(
         modifier = Modifier.padding(horizontal = 24.dp)
     ) {
-        Text("링크 저장하기", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.LightGray,)
+        Text("링크 저장하기", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.LightGray)
         Text(
             "저장할 웹 사이트 의 링크(URL)를 입력해 주세요.",
             fontSize = 14.sp, color = Color.Gray
@@ -466,25 +507,27 @@ fun HeaderUserInputEditText(
     }
 }
 
+
 @Composable
-@Preview(showBackground = true, backgroundColor = 0xFF444444)
-fun LinkSaveScreenPreview() {
+@Preview(showBackground = true, backgroundColor = 0XFF444444)
+fun InsertLinkScreenPreview() {
     val dummyEffect = object : SharedFlow<LinkSaveUiEffect> {
         override val replayCache: List<LinkSaveUiEffect> = emptyList()
         override suspend fun collect(collector: FlowCollector<LinkSaveUiEffect>): Nothing {
             throw UnsupportedOperationException("Not supported in preview")
         }
     }
-    val dummyUiState = object: StateFlow<LinkSaveUiState> {
+    val dummyUiState = object : StateFlow<LinkSaveUiState> {
         override val replayCache: List<LinkSaveUiState>
             get() = emptyList()
         override val value: LinkSaveUiState
             get() = LinkSaveUiState(linkUrlPreviewUiState = LinkUrlPreviewUiState.Loading)
+
         override suspend fun collect(collector: FlowCollector<LinkSaveUiState>): Nothing {
             throw UnsupportedOperationException("Not supported in preview")
         }
     }
-    LinkSaveScreen(
+    InsertLinkScreen(
         state = dummyUiState,
         uiEffect = dummyEffect,
         event = {}

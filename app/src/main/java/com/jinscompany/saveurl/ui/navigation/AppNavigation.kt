@@ -19,7 +19,7 @@ import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.ui.add_category.EditCategoryScreen
 import com.jinscompany.saveurl.ui.main.MainListScreen
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SAVE_LINK
-import com.jinscompany.saveurl.ui.save_screen.LinkSaveScreen
+import com.jinscompany.saveurl.ui.save_screen.InsertLinkScreen
 import com.jinscompany.saveurl.ui.save_screen.LinkSaveUiEffect
 import com.jinscompany.saveurl.ui.save_screen.LinkSaveViewModel
 import com.jinscompany.saveurl.ui.search.SearchScreen
@@ -122,11 +122,11 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                     }
                 }
             }
-
-            LinkSaveScreen(
+            InsertLinkScreen(
                 state = viewModel.uiState,
                 uiEffect = viewModel.uiEffect,
-                event = { intent -> viewModel.onIntent(intent)} )
+                event = { intent -> viewModel.onIntent(intent)}
+            )
         }
         composable(route = Navigation.Routes.SEARCH) {
             SearchScreen(popBackStack = { navController.popBackStack() })
