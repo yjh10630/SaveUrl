@@ -21,6 +21,9 @@ interface TrashDao {
     @Delete
     suspend fun delete(link: TrashItem): Int
 
+    @Delete
+    suspend fun deleteItems(items: List<TrashItem>): Int // 제거된 행의 갯수를 리턴
+
     @Query("DELETE FROM trash WHERE deleteDate < :expireTime")
     suspend fun deleteOldLinks(expireTime: Long)
 

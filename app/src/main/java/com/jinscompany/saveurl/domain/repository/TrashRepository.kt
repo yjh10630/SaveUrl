@@ -11,4 +11,5 @@ interface TrashRepository {
     suspend fun insertTrashItem(item: TrashItem): Boolean
     suspend fun getAllItemsAfterDeleteAll(): List<TrashItem>
     suspend fun deleteTrashItem(item: TrashItem): Boolean
+    suspend fun deleteItemsPastEndDate(): Boolean
 }

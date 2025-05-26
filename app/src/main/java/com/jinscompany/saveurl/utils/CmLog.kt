@@ -5,7 +5,7 @@ import com.jinscompany.saveurl.SaveUrlApplication.Companion.DEBUG
 
 object CmLog {
 
-    private val TAG = "AutoDiaryTag"
+    private val TAG = "SaveKinkTag"
 
     /** Log Level Error  */
     fun e(message: String?) {

@@ -129,8 +129,6 @@ fun MainListScreen(
                         SAVE_LINK -> {
                             if (effect.url?.isNotEmpty() == true) {
                                 navController.navigateToSaveLink(url = effect.url)
-                            } else if (effect.urlData != null) {
-                                navController.navigateToSaveLink(data = effect.urlData)
                             } else {
                                 navController.navigateToSaveLink()
                             }

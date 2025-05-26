@@ -47,6 +47,13 @@ class MainListViewModel @Inject constructor(
 
     init {
         getLinkList()
+        deleteExpiredTrash()
+    }
+
+    private fun deleteExpiredTrash() {
+        viewModelScope.launch {
+            trashRepository.deleteItemsPastEndDate()
+        }
     }
 
     fun onIntent(intent: MainListIntent) {
@@ -72,7 +79,7 @@ class MainListViewModel @Inject constructor(
                 }
                 is MainListIntent.GoToLinkEditScreen -> {
                     _mainListEffect.emit(
-                        NavigateToResult(route = SAVE_LINK, urlData = intent.urlData)
+                        NavigateToResult(route = SAVE_LINK, url = intent.url)
                     )
                 }
                 is MainListIntent.DeleteLinkItem -> deleteLinkItem(intent.urlData)
@@ -114,7 +121,7 @@ class MainListViewModel @Inject constructor(
                 }),
                 SimpleMenuModel.MenuModel(txt = "수정하기", txtColor = Color.LightGray, isBold = true, event = {
                     viewModelScope.launch {
-                        onIntent(MainListIntent.GoToLinkEditScreen(data))
+                        onIntent(MainListIntent.GoToLinkEditScreen(url = data.url ?: ""))
                     }
                 }),
                 SimpleMenuModel.MenuModel(

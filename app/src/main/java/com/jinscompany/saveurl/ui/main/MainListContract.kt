@@ -21,7 +21,7 @@ sealed class MainListIntent {
     data object GoToAppSetting: MainListIntent()
     data object GoToCategorySettingScreen: MainListIntent()
     data class GoToLinkInsertScreen(val url: String): MainListIntent()
-    data class GoToLinkEditScreen(val urlData: UrlData): MainListIntent()
+    data class GoToLinkEditScreen(val url: String): MainListIntent()
     data class GoToOutLinkWebSite(val url: String?): MainListIntent()
     data class GotoOutShareUrl(val url: String?): MainListIntent()
     data class DeleteLinkItem(val urlData: UrlData): MainListIntent()
@@ -31,7 +31,7 @@ sealed class MainListIntent {
 }
 
 sealed class MainListUiEffect {
-    data class NavigateToResult(val route: String, val urlData: UrlData? = null, val url: String? = null): MainListUiEffect()
+    data class NavigateToResult(val route: String, val url: String? = null): MainListUiEffect()
     data class OutLinkWebSite(val url: String): MainListUiEffect()
     data class ShowToast(val message: String): MainListUiEffect()
     data class UrlShare(val url: String): MainListUiEffect()

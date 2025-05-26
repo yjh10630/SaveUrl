@@ -12,6 +12,7 @@ import com.jinscompany.saveurl.data.source.UrlParserSource
 import com.jinscompany.saveurl.domain.repository.CategoryRepository
 import com.jinscompany.saveurl.domain.repository.TrashRepository
 import com.jinscompany.saveurl.domain.repository.UrlRepository
+import com.jinscompany.saveurl.utils.PreferencesManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -39,8 +40,8 @@ class RepositoryModule {
     @Provides
     @Singleton
     fun provideAppSettingRepository(
-        @ApplicationContext context: Context,
         trashDao: TrashDao,
-        db: AppDatabase
-    ): TrashRepository = TrashRepositoryImpl(context, trashDao, db)
+        db: AppDatabase,
+        preferencesManager: PreferencesManager
+    ): TrashRepository = TrashRepositoryImpl(trashDao, db, preferencesManager)
 }

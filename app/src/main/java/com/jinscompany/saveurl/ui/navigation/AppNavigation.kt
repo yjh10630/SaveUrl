@@ -14,8 +14,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.google.gson.Gson
-import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.ui.add_category.EditCategoryScreen
 import com.jinscompany.saveurl.ui.main.MainListScreen
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SAVE_LINK
@@ -88,7 +86,6 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             )
         ) { backStackEntry ->
             val url = backStackEntry.arguments?.getString("url")
-            val urlData = backStackEntry.arguments?.getString("urlData")
             val viewModel = hiltViewModel<LinkSaveViewModel>()
             val activity = LocalActivity.current
             LaunchedEffect(Unit) {
@@ -107,19 +104,13 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             // 앱 외부에서 공유하기 다이렉트로 들어왔을 경우에만 해당 되는 로직
             LaunchedEffect(Unit) {
                 val intent = activity?.intent
-
-                if (!urlData.isNullOrEmpty()) {
-                    val data = Gson().fromJson<UrlData>(urlData, UrlData::class.java)
-                    viewModel.userSelectLinkEditMode(data)
-                } else {
-                    val linkUrl = if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
-                        intent.getStringExtra(Intent.EXTRA_TEXT).toString()
-                    } else if (url?.isNotEmpty() == true) {
-                        url
-                    } else ""
-                    if (linkUrl.isNotEmpty()) {
-                        viewModel.startCrawling(url ?: "")
-                    }
+                val linkUrl = if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
+                    intent.getStringExtra(Intent.EXTRA_TEXT).toString()
+                } else if (url?.isNotEmpty() == true) {
+                    url
+                } else ""
+                if (linkUrl.isNotEmpty()) {
+                    viewModel.startCrawling(url ?: "")
                 }
             }
             InsertLinkScreen(
@@ -169,9 +160,8 @@ fun NavController.navigateToMain(currentScreen: String, scrollToTop: Boolean = f
     }
 }
 
-fun NavController.navigateToSaveLink(url: String? = null, data: UrlData? = null) {
-    val urlData = if (data != null) Gson().toJson(data) else ""
-    val route = "${Navigation.Routes.SAVE_LINK}?url=$url&urlData=$urlData"
+fun NavController.navigateToSaveLink(url: String? = null,) {
+    val route = "${Navigation.Routes.SAVE_LINK}?url=$url"
     navigate(route)
 }
 
