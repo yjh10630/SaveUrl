@@ -47,4 +47,4 @@ jobs:
           releaseFile: app/build/outputs/bundle/release/app-release.aab
           track: alpha
           status: completed
-          whatsNewDirectory: release/
+          whatsNewDirectory: release-note/
