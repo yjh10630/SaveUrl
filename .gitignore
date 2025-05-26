@@ -53,3 +53,4 @@ proguard-project.txt
 app/jsk/saveurlkey.jks
 app/release
 app/google-services.json
+app/jsk/saveurlkey.txt
