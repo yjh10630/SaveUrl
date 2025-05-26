@@ -1,0 +1,49 @@
+name: Deploy to Play Store (Alpha)
+
+on:
+  push:
+    tags:
+      - 'v*'  # v로 시작하는 태그가 푸시될 때만 실행
+
+jobs:
+  build:
+    name: Build & Deploy AAB to Play Store
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Decode Keystore File
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > my-release-key.jks
+
+      - name: Save Play Store Credentials JSON
+        run: |
+          echo "${{ secrets.CREDENTIAL_FILE_CONTENT }}" > play-upload-key.json
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+
+      - name: Build AAB (Release)
+        run: ./gradlew clean bundleRelease \
+          -PversionCode=${{ github.run_number }} \
+          -PversionName=${GITHUB_REF_NAME} \
+          -PKEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }} \
+          -PKEY_ALIAS=${{ secrets.KEY_ALIAS }} \
+          -PKEY_PASSWORD=${{ secrets.KEY_PASSWORD }}
+
+      - name: Upload to Google Play (Alpha)
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJson: play-upload-key.json
+          packageName: com.jinscompany.saveurl
+          releaseFile: app/build/outputs/bundle/release/app-release.aab
+          track: alpha
+          status: completed
