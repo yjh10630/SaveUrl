@@ -3,7 +3,7 @@ name: Android Release Build and Firebase App Distribution
 on:
   push:
     tags:
-      - onlyBuild
+      - 'FBv*' # FBv로 시작하는 태그가 푸시될 때만 실행 ex ) FBv1.0.4
 
 jobs:
   build:
