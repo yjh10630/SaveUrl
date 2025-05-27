@@ -49,9 +49,9 @@ jobs:
         run: |
           echo "$FIREBASE_SERVICE_ACCOUNT" > ${{ github.workspace }}/service-account.json
 
-      - name: Upload AAB to Firebase App Distribution
+      - name: Upload APK to Firebase App Distribution
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
         run: |
-          firebase appdistribution:distribute app/build/outputs/bundle/release/app-release.aab \
+          firebase appdistribution:distribute app/build/outputs/apk/release/app-release.apk \
             --app ${{ secrets.FIREBASE_APP_ID }}
