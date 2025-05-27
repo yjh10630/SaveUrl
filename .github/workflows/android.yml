@@ -41,7 +41,7 @@ jobs:
         run: ./gradlew clean bundleRelease
 
       - name: Install Firebase CLI
-        run: curl -sL https://firebase.tools | bash
+        run: npm install -g firebase-tools
 
       - name: Save Firebase Service Account JSON
         env:
