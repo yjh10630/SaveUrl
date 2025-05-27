@@ -1,4 +1,4 @@
-name: Android Release Build
+name: Android Release Build and Firebase App Distribution
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Build Release APK
+    name: Build Release APK and Upload to Firebase App Distribution
     runs-on: ubuntu-latest
 
     steps:
@@ -39,3 +39,17 @@ jobs:
             -PKEYSTORE_PASSWORD=${{ secrets.RELEASE_KEYSTORE_PASSWORD }} \
             -PKEY_ALIAS=${{ secrets.RELEASE_KEYSTORE_ALIAS }} \
             -PKEY_PASSWORD=${{ secrets.RELEASE_KEY_PASSWORD }}
+
+      - name: Install Firebase CLI
+        run: curl -sL https://firebase.tools | bash
+
+      - name: Authenticate Firebase CLI
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: echo "$FIREBASE_SERVICE_ACCOUNT" > service-account.json
+
+      - name: Upload AAB to Firebase App Distribution
+        run: |
+          firebase appdistribution:distribute app/build/outputs/bundle/release/app-release.aab \
+            --app YOUR_FIREBASE_APP_ID \
+            --service-account service-account.json
