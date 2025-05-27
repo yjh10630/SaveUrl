@@ -19,7 +19,7 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
-      
+
       - name: Decode keystore.jks
         run: |
           mkdir -p app/jks
@@ -34,11 +34,11 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build Release APK
-        run: |
-          ./gradlew clean bundleRelease \
-            -PKEYSTORE_PASSWORD=${{ secrets.RELEASE_KEYSTORE_PASSWORD }} \
-            -PKEY_ALIAS=${{ secrets.RELEASE_KEYSTORE_ALIAS }} \
-            -PKEY_PASSWORD=${{ secrets.RELEASE_KEY_PASSWORD }}
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEYSTORE_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: ./gradlew clean bundleRelease
 
       - name: Install Firebase CLI
         run: curl -sL https://firebase.tools | bash
