@@ -1,0 +1,62 @@
+name: Android Release Build and Upload to Play Alpha
+
+on:
+  push:
+    tags:
+      - 'UPAv*' # UPAv로 시작하는 태그가 푸시될 때만 실행
+
+jobs:
+  build:
+    name: Build Release AAB and Upload to Google Play Alpha
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Decode keystore.jks
+        run: |
+          mkdir -p app/jks
+          echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > app/jks/saveurlkey.jks
+
+      - name: Decode google-services.json
+        run: |
+          mkdir -p app
+          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
+
+      - name: Grant execute permission to gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build Release AAB
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEYSTORE_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: ./gradlew clean bundleRelease
+
+      - name: Decode Play Store Service Account
+        run: |
+          echo "${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}" | base64 -d > service-account.json
+
+      - name: Extract versionName from build.gradle
+        id: version
+        run: |
+          VERSION_NAME=$(grep versionName app/build.gradle | head -n 1 | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "name=v$VERSION_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload AAB to Google Play (Alpha Track)
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJson: service-account.json
+          packageName: com.jinscompany.saveurl
+          releaseFile: app/build/outputs/bundle/release/app-release.aab
+          releaseNotesFile: app/release-note/releaseNote_ko-KR.txt
+          releaseName: ${{ steps.version.outputs.name }}
+          track: alpha
+          status: draft
