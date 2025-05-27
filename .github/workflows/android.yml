@@ -1,13 +1,15 @@
-name: Deploy to Play Store (Alpha)
+name: Android Release Build
 
 on:
   push:
     tags:
-      - 'v*'
+      - onlyBuild
+    branches:
+      - develop
 
 jobs:
   build:
-    name: Build & Deploy AAB to Play Store
+    name: Build Release APK
     runs-on: ubuntu-latest
 
     steps:
@@ -20,29 +22,20 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Decode Keystore File
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > saveurlkey.jks
+      - name: Decode keystore.jks
+        run: |
+          echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
 
-      - name: Save Play Store Credentials JSON
-        run: echo "${{ secrets.CREDENTIAL_FILE_CONTENT }}" > play-upload-key.json
-
-      - name: Create google-services.json
+      - name: Decode google-services.json
         run: |
           mkdir -p app
-          echo "${{ secrets.GOOGLE_SERVICE_JSON }}" | base64 -d > app/google-services.json
+          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
 
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
+      - name: Grant execute permission to gradlew
+        run: chmod +x ./gradlew
 
-      - name: Build AAB (Release)
-        run: ./gradlew clean bundleRelease -PversionCode=${{ github.run_number }} -PversionName=${GITHUB_REF_NAME} -PKEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }} -PKEY_ALIAS=${{ secrets.KEY_ALIAS }} -PKEY_PASSWORD=${{ secrets.KEY_PASSWORD }}
-
-      - name: Upload to Google Play (Alpha)
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJson: play-upload-key.json
-          packageName: com.jinscompany.saveurl
-          releaseFile: app/build/outputs/bundle/release/app-release.aab
-          track: alpha
-          status: completed
-          whatsNewDirectory: release-note/
+      - name: Build Release APK
+        run: ./gradlew clean bundleRelease \
+          -PKEYSTORE_PASSWORD=${{ secrets.RELEASE_KEYSTORE_PASSWORD }} \
+          -PKEY_ALIAS=${{ secrets.RELEASE_KEYSTORE_ALIAS }} \
+          -PKEY_PASSWORD=${{ secrets.RELEASE_KEY_PASSWORD }}
