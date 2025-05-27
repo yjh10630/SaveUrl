@@ -43,13 +43,15 @@ jobs:
       - name: Install Firebase CLI
         run: curl -sL https://firebase.tools | bash
 
-      - name: Authenticate Firebase CLI
+      - name: Save Firebase Service Account JSON
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: echo "$FIREBASE_SERVICE_ACCOUNT" > service-account.json
+        run: |
+          echo "$FIREBASE_SERVICE_ACCOUNT" > ${{ github.workspace }}/service-account.json
 
       - name: Upload AAB to Firebase App Distribution
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
         run: |
           firebase appdistribution:distribute app/build/outputs/bundle/release/app-release.aab \
-            --app YOUR_FIREBASE_APP_ID \
-            --service-account service-account.json
+            --app ${{ secrets.FIREBASE_APP_ID }}
