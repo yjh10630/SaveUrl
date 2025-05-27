@@ -32,12 +32,7 @@ jobs:
         uses: gradle/gradle-build-action@v2
 
       - name: Build AAB (Release)
-        run: ./gradlew clean bundleRelease \
-          -PversionCode=${{ github.run_number }} \
-          -PversionName=${GITHUB_REF_NAME} \
-          -PKEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }} \
-          -PKEY_ALIAS=${{ secrets.KEY_ALIAS }} \
-          -PKEY_PASSWORD=${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew clean bundleRelease -PversionCode=${{ github.run_number }} -PversionName=${GITHUB_REF_NAME} -PKEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }} -PKEY_ALIAS=${{ secrets.KEY_ALIAS }} -PKEY_PASSWORD=${{ secrets.KEY_PASSWORD }}
 
       - name: Upload to Google Play (Alpha)
         uses: r0adkll/upload-google-play@v1
