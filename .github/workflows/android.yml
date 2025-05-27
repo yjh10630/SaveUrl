@@ -19,10 +19,11 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
-
+      
       - name: Decode keystore.jks
         run: |
-          echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+          mkdir -p app/jks
+          echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > app/jks/saveurlkey.jks
 
       - name: Decode google-services.json
         run: |
