@@ -22,16 +22,14 @@ jobs:
 
       - name: Decode Keystore File
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > my-release-key.jks
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > saveurlkey.jks
 
       - name: Save Play Store Credentials JSON
         run: |
           echo "${{ secrets.CREDENTIAL_FILE_CONTENT }}" > play-upload-key.json
 
-      - name: Decode google-services.json
-        run: |
-          mkdir -p app/src/release
-          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/src/release/google-services.json
+      - name: Create google-services.json
+        run: echo "${{ secrets.GOOGLE_SERVICE_JSON  }}" > app/google-services.json
 
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
