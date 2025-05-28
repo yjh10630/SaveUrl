@@ -68,4 +68,4 @@ jobs:
           whatsNewDirectory: distribution/whatsnew                             # 릴리스 노트 경로
           releaseName: ${{ steps.version.outputs.name }}                   # versionName 기반 릴리스 이름 (예: v1.0.4)
           track: alpha                                                     # 배포 트랙 (alpha)
-          status: draft                                                    # 배포 상태 (임시 저장, 직접 승인 필요)
+          status: completed                                                    # 배포 상태 (completed - 자동 배포,  draft - 임시 저장, 직접 승인 필요, inProgress - 점진적 배포 userFraction: 0.2  # 20% 사용자에게만 배포 )
