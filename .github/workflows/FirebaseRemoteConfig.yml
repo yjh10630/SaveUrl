@@ -1,0 +1,48 @@
+name: Firebase Remote Config Update
+
+on:
+  push:
+    tags:
+      - 'VerUpdate'  # 'VerUpdate' 태그가 푸시될 때만 실행됨
+
+jobs:
+  update-remote-config:
+    name: Update Remote Config
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. GitHub 저장소에서 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. Node.js 설치 (Firebase CLI 필요)
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      # 3. Firebase CLI 설치
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      # 4. Firebase Admin SDK JSON 디코딩
+      - name: Decode Firebase Admin SDK
+        run: |
+          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" | base64 -d > firebase-adminsdk.json
+
+      # 5. Remote Config 업데이트
+      - name: Upload Remote Config JSON
+        run: |
+          firebase remoteconfig:set \
+            --project ${{ secrets.FIREBASE_APP_ID }} \
+            --template ./firebase/remote-config.json
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ./firebase-adminsdk.json
+
+      # 6. Remote Config 개시 (Publish)
+      - name: Publish Remote Config
+        run: |
+          firebase remoteconfig:publish \
+            --project ${{ secrets.FIREBASE_APP_ID }}
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ./firebase-adminsdk.json
