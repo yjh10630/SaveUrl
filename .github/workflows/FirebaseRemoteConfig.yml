@@ -1,38 +1,45 @@
-name: Firebase Remote Config Update
+name: Update Firebase Remote Config
 
 on:
   push:
     tags:
-      - 'VerUpdate*'  # 태그가 VerUpdate로 시작할 때만 실행
+      - 'VerUpdate*' # 태그가 VerUpdate로 시작할 때만 트리거됨
 
 jobs:
   update-remote-config:
+    name: Validate & Publish Firebase Remote Config
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Install latest Firebase CLI
-        run: npm install -g firebase-tools
-
-      - name: Decode Firebase Service Account JSON
+      # 1. Firebase 서비스 계정 키 디코딩 (Secrets에서 가져옴)
+      - name: Decode Firebase Admin SDK JSON
         run: |
           echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" | base64 -d > firebase-adminsdk.json
 
-      - name: Validate Firebase Remote Config template
+      # 2. Firebase CLI 설치
+      - name: Install Firebase CLI
         run: |
-          firebase remoteconfig:template:validate ./firebase/remote-config.json --project $(jq -r '.project_id' firebase-adminsdk.json)
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-adminsdk.json
+          curl -sL https://firebase.tools | bash
 
-      - name: Publish Firebase Remote Config template
+      # 3. GOOGLE_APPLICATION_CREDENTIALS 환경변수 설정
+      - name: Set GOOGLE_APPLICATION_CREDENTIALS
+        run: echo "GOOGLE_APPLICATION_CREDENTIALS=$PWD/firebase-adminsdk.json" >> $GITHUB_ENV
+
+      # 4. Remote Config 템플릿 유효성 검사
+      - name: Validate Remote Config template
         run: |
-          firebase remoteconfig:template:publish ./firebase/remote-config.json --project $(jq -r '.project_id' firebase-adminsdk.json)
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-adminsdk.json
+          PROJECT_ID=$(jq -r '.project_id' firebase-adminsdk.json)
+          firebase remoteconfig:template:validate \
+            --project "$PROJECT_ID" \
+            --template ./firebase/remote-config.json
+
+      # 5. Remote Config 템플릿 개시 (배포)
+      - name: Publish Remote Config template
+        run: |
+          PROJECT_ID=$(jq -r '.project_id' firebase-adminsdk.json)
+          firebase remoteconfig:template:publish \
+            --project "$PROJECT_ID" \
+            --template ./firebase/remote-config.json
