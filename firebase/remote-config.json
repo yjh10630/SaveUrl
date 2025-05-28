@@ -1,0 +1,11 @@
+{
+  "parameters": {
+    "app_info": {
+      "defaultValue": {
+        "value": "{\"latest_version\":29,\"min_version\":29}"
+      }
+    }
+  },
+  "parameterGroups": {},
+  "conditions": []
+}
