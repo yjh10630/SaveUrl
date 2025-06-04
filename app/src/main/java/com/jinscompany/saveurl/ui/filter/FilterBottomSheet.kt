@@ -1,10 +1,11 @@
 package com.jinscompany.saveurl.ui.filter
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -37,28 +37,29 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabPosition
+import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.debugInspectorInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jinscompany.saveurl.domain.model.FilterParams
 import com.jinscompany.saveurl.ui.composable.category.CategoryItem
 import com.jinscompany.saveurl.ui.main.FilterState
@@ -71,7 +72,7 @@ import kotlinx.coroutines.launch
 fun FilterScreenBottomSheet(
     dismiss: () -> Unit,
     initSelectedData: FilterParams,
-    onConfirm: (List<String>, String, List<String>) -> Unit,
+    onConfirm: (List<String>, String, List<String>, List<String>) -> Unit,
     viewModel: FilterViewModel = hiltViewModel<FilterViewModel>(),
     goToCategorySetting: () -> Unit,
 ) {
@@ -89,7 +90,7 @@ fun FilterScreenBottomSheet(
                     scope.launch {
                         modalBottomSheetState.hide()
                     }.invokeOnCompletion {
-                        onConfirm.invoke(effect.category, effect.sort, effect.site)
+                        onConfirm.invoke(effect.category, effect.sort, effect.site, effect.tag)
                     }
                 }
                 FilterUiEffect.GoToCategorySetting -> {
@@ -123,6 +124,7 @@ fun FilterScreenBottomSheet(
                 onClickSort = { viewModel.onIntent(FilterIntent.ToggleSort(it)) },
                 onClickSite = { viewModel.onIntent(FilterIntent.ToggleSite(it)) },
                 onClickClear = { viewModel.onIntent(FilterIntent.Clear) },
+                onClickTag = { viewModel.onIntent(FilterIntent.ToggleTag(it)) },
                 goToCategorySetting = { viewModel.onIntent(FilterIntent.GoToCategorySetting) },
             )
         }
@@ -136,78 +138,21 @@ fun FilterScreenBottomSheet(
     onClickCategory: (String) -> Unit = {},
     onClickSort: (String) -> Unit = {},
     onClickSite: (String) -> Unit = {},
+    onClickTag: (String) -> Unit = {},
     onClickClear: () -> Unit = {},
     data: FilterUiState,
     goToCategorySetting: () -> Unit = {}
 ) {
-
     var selectedTabIndex by remember { mutableStateOf(0) }
-    val textWidths = remember { mutableStateMapOf<Int, Int>() }
-    val indicatorWidth by animateDpAsState(
-        targetValue = with(LocalDensity.current) {
-            textWidths[selectedTabIndex]?.toDp() ?: 0.dp
-        },
-        label = "Indicator Width"
-    )
-    var tabPositions: List<TabPosition> by remember { mutableStateOf(emptyList()) }
-    val indicatorOffset by animateDpAsState(
-        targetValue = run {
-            val tabPosition = data.categoryState.options.getOrNull(selectedTabIndex)?.let {
-                textWidths[selectedTabIndex]?.let { widthPx ->
-                    tabPositions[selectedTabIndex].left + (tabPositions[selectedTabIndex].width - with(
-                        LocalDensity.current
-                    ) { widthPx.toDp() }) / 2
-                }
-            } ?: 0.dp
-            tabPosition
-        },
-        label = "Indicator Offset"
-    )
 
     Column (modifier = modifier.fillMaxSize()) {
-        ScrollableTabRow(
+        CustomScrollableTabRow(
+            tabs = FilterTab.entries.map { it.label },
             selectedTabIndex = selectedTabIndex,
-            edgePadding = 0.dp,
-            containerColor = Color.DarkGray,
-            contentColor = Color.LightGray,
-            indicator = { positions ->
-                tabPositions = positions
-
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .wrapContentSize(Alignment.BottomStart)
-                        .offset(x = indicatorOffset)
-                        .width(indicatorWidth)
-                        .height(3.dp)
-                        .background(Color.LightGray, RoundedCornerShape(1.5.dp))
-                )
-            },
-            divider = {},
-        ) {
-            FilterTab.entries.forEachIndexed { index, filterTab ->
-                Tab(
-                    modifier = Modifier.padding(horizontal = 0.dp),
-                    selected = selectedTabIndex == index,
-                    onClick = { selectedTabIndex = index },
-                    selectedContentColor = Color.LightGray,
-                    unselectedContentColor = Color.Gray,
-                    text = {
-                        Row (verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = filterTab.label,
-                                fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal,
-                                modifier = Modifier
-                                    .onGloballyPositioned { coordinates ->
-                                        textWidths[index] = coordinates.size.width + 20 // ( 텍스트 보다 조금더 크게 .. )
-                                    }
-                            )
-                        }
-                    }
-                )
+            onTabClick = { tabIndex ->
+                selectedTabIndex = tabIndex
             }
-        }
-
+        )
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -237,6 +182,13 @@ fun FilterScreenBottomSheet(
                             data = data.siteState.options.toMutableList(),
                             selectedContentList = data.siteState.selected,
                             click = { onClickSite.invoke(it) }
+                        )
+                    }
+                    FilterTab.TAG -> {
+                        TabContent(
+                            data = data.tagState.options.toMutableList(),
+                            selectedContentList = data.tagState.selected,
+                            click = { onClickTag.invoke(it) }
                         )
                     }
                 }
@@ -291,6 +243,77 @@ fun FilterScreenBottomSheet(
             }
         }
     }
+}
+
+@Composable
+fun CustomScrollableTabRow(
+    tabs: List<String>,
+    selectedTabIndex: Int,
+    onTabClick: (Int) -> Unit
+) {
+    val density = LocalDensity.current
+    val tabWidths = remember {
+        val tabWidthStateList = mutableStateListOf<Dp>()
+        repeat(tabs.size) {
+            tabWidthStateList.add(0.dp)
+        }
+        tabWidthStateList
+    }
+    ScrollableTabRow(
+        selectedTabIndex = selectedTabIndex,
+        containerColor = Color.DarkGray,
+        edgePadding = 0.dp,
+        indicator = { tabPositions ->
+            TabRowDefaults.SecondaryIndicator(
+                modifier = Modifier
+                    .customTabIndicatorOffset(currentTabPosition = tabPositions[selectedTabIndex], tabWidth = tabWidths[selectedTabIndex],),
+                color = Color.LightGray
+            )
+        },
+        divider = {},
+    ) {
+        tabs.forEachIndexed { tabIndex, tab ->
+            Tab(
+                selected = selectedTabIndex == tabIndex,
+                onClick = { onTabClick(tabIndex) },
+                selectedContentColor = Color.LightGray,
+                unselectedContentColor = Color.Gray,
+                text = {
+                    Text(
+                        modifier = Modifier.padding(horizontal = 0.dp),
+                        text = tab,
+                        fontWeight = if (selectedTabIndex == tabIndex) FontWeight.Bold else FontWeight.Normal,
+                        onTextLayout = { textLayoutResult ->
+                            tabWidths[tabIndex] = with(density) { textLayoutResult.size.width.toDp() }
+                        }
+                    )
+                }
+            )
+        }
+    }
+}
+
+fun Modifier.customTabIndicatorOffset(
+    currentTabPosition: TabPosition,
+    tabWidth: Dp
+): Modifier = composed(
+    inspectorInfo = debugInspectorInfo {
+        name = "customTabIndicatorOffset"
+        value = currentTabPosition
+    }
+) {
+    val currentTabWidth by animateDpAsState(
+        targetValue = tabWidth,
+        animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)
+    )
+    val indicatorOffset by animateDpAsState(
+        targetValue = ((currentTabPosition.left + currentTabPosition.right - tabWidth) / 2),
+        animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)
+    )
+    fillMaxWidth()
+        .wrapContentSize(Alignment.BottomStart)
+        .offset(x = indicatorOffset)
+        .width(currentTabWidth)
 }
 
 @OptIn(ExperimentalLayoutApi::class)

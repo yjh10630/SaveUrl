@@ -45,8 +45,19 @@ class FilterViewModel @Inject constructor(
                     }
                 }
                 is FilterIntent.ToggleSite -> toggleSite(intent.site)
+                is FilterIntent.ToggleTag -> toggleTag(intent.tag)
             }
         }
+    }
+
+    private fun toggleTag(value: String) {
+        val selected = uiState.tagState.selected
+        val updated = selected.toMutableList().apply {
+            if (contains(value)) remove(value) else add(value)
+        }
+        uiState = uiState.copy(
+            tagState = uiState.tagState.copy(selected = SnapshotStateList<String>().apply { addAll(updated) })
+        )
     }
 
     private fun confirm() {
@@ -54,7 +65,8 @@ class FilterViewModel @Inject constructor(
             val category = uiState.categoryState.selected
             val sort = uiState.sortState.selected.value
             val site = uiState.siteState.selected
-            _uiEffect.emit(FilterUiEffect.Confirm(category, sort, site))
+            val tag = uiState.tagState.selected
+            _uiEffect.emit(FilterUiEffect.Confirm(category, sort, site, tag))
         }
     }
 
@@ -97,7 +109,8 @@ class FilterViewModel @Inject constructor(
             uiState = uiState.copy(
                 categoryState = uiState.categoryState.copy(selected = mutableStateListOf("전체")),
                 sortState = uiState.sortState.copy(selected = mutableStateOf("최신순")),
-                siteState = uiState.siteState.copy(selected = mutableStateListOf())
+                siteState = uiState.siteState.copy(selected = mutableStateListOf()),
+                tagState = uiState.tagState.copy(selected = mutableStateListOf())
             )
         }
     }
@@ -106,6 +119,7 @@ class FilterViewModel @Inject constructor(
         viewModelScope.launch {
             val categories = listOf("북마크", "전체") + categoryRepository.get().map { it.name }
             val siteList = urlRepository.getSiteNameList()
+            val tagList = urlRepository.getTagList()
             uiState = uiState.copy(
                 categoryState = FilterState.MultiSelect(
                     options = categories,
@@ -122,7 +136,13 @@ class FilterViewModel @Inject constructor(
                     selected = mutableStateListOf<String>().apply {
                         addAll(params.siteList)
                     }
-                )
+                ),
+                tagState = FilterState.MultiSelect(
+                    options = tagList,
+                    selected = mutableStateListOf<String>().apply {
+                        addAll(params.tagList)
+                    }
+                ),
             )
         }
     }

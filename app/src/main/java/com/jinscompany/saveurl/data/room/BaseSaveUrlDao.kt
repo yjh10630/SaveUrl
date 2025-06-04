@@ -85,6 +85,9 @@ interface BaseSaveUrlDao {
     @Query("SELECT * FROM BaseSaveUrl WHERE tagList LIKE '%' || :keyword || '%'")
     fun searchByTag(keyword: String): PagingSource<Int, UrlData>
 
+    @Query("SELECT tagList FROM BaseSaveUrl WHERE tagList IS NOT NULL")
+    suspend fun getAllTagListJson(): List<String>
+
     @Query("SELECT DISTINCT siteName FROM BaseSaveUrl WHERE siteName IS NOT NULL AND TRIM(siteName) != ''")
     suspend fun getDistinctNonEmptySiteNames(): List<String>
 

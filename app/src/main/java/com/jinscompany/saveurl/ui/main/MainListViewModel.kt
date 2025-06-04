@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.cachedIn
+import androidx.paging.filter
 import com.jinscompany.saveurl.domain.model.FilterParams
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.domain.repository.CategoryRepository
@@ -25,6 +26,7 @@ import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SEARCH
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -42,7 +44,7 @@ class MainListViewModel @Inject constructor(
     private val _mainListEffect = MutableSharedFlow<MainListUiEffect>()
     val mainListEffect = _mainListEffect.asSharedFlow()
 
-    var filterSelectedItems by mutableStateOf<FilterParams>(FilterParams(categories = listOf("전체"), sort = "최신순", siteList = listOf()))
+    var filterSelectedItems by mutableStateOf<FilterParams>(FilterParams(categories = listOf("전체"), sort = "최신순", siteList = listOf(), tagList = listOf()))
         private set
 
     init {
@@ -100,7 +102,7 @@ class MainListViewModel @Inject constructor(
                 }
                 is MainListIntent.NewFilterData -> {
                     viewModelScope.launch {
-                        filterSelectedItems = FilterParams(categories = intent.category, sort = intent.sort, siteList = intent.site)
+                        filterSelectedItems = FilterParams(categories = intent.category, sort = intent.sort, siteList = intent.site, tagList = intent.tag)
                         getLinkList(filterSelectedItems)
                     }
                 }
@@ -168,6 +170,16 @@ class MainListViewModel @Inject constructor(
                 ),
                 pagingSourceFactory = { urlRepository.getUrlList(params) }
             ).flow.cachedIn(viewModelScope)
+                .map { pagingData ->
+                    params?.tagList?.let { tagList ->
+                        if (tagList.isEmpty()) pagingData
+                        else {
+                            pagingData.filter {
+                                it.tagList?.any { it in tagList } == true
+                            }
+                        }
+                    } ?: run { pagingData }
+                }
             mainListUiState = MainListUiState.Success(urlFlowState = dataFlow)
         }
     }

@@ -18,4 +18,5 @@ interface UrlRepository {
     suspend fun findUrlData(url: String): UrlData?
     suspend fun updateUrl(data: UrlData): Boolean
     suspend fun getSiteNameList(): List<String>
+    suspend fun getTagList(): List<String>
 }

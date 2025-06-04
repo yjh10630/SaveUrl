@@ -2,6 +2,8 @@ package com.jinscompany.saveurl.data.source
 
 import androidx.paging.PagingSource
 import androidx.room.withTransaction
+import com.google.common.reflect.TypeToken
+import com.google.gson.Gson
 import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.room.BaseSaveUrlDao
 import com.jinscompany.saveurl.data.room.CategoryDao
@@ -124,6 +126,21 @@ class LocalUrlDbSourceImpl @Inject constructor(
         withContext(Dispatchers.IO) {
             baseSaveUrlDao.insertAll(*list.toTypedArray())
         }
+    }
+
+    override suspend fun getTagList(): List<String> = withContext(Dispatchers.IO) {
+        val gson = Gson()
+        val type = object : TypeToken<List<String>>() {}.type
+        return@withContext baseSaveUrlDao.getAllTagListJson().flatMap { json ->
+            try {
+                gson.fromJson<List<String>>(json, type)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
     }
 
     override fun searchAll(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchAll(keyword)

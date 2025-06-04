@@ -30,6 +30,7 @@ class UrlRepositoryImpl @Inject constructor(
     override suspend fun findUrlData(url: String): UrlData? = localUrlDBSource.findLocalDBUrlData(url)
     override suspend fun updateUrl(data: UrlData): Boolean = localUrlDBSource.updateLocalDBUrlData(data)
     override suspend fun getSiteNameList(): List<String> = localUrlDBSource.getSiteNameList()
+    override suspend fun getTagList(): List<String> = localUrlDBSource.getTagList()
     override fun searchAll(keyword: String): PagingSource<Int, UrlData> = localUrlDBSource.searchAll(keyword)
     override fun searchByTitle(keyword: String): PagingSource<Int, UrlData> = localUrlDBSource.searchByTitle(keyword)
     override fun searchByDescription(keyword: String): PagingSource<Int, UrlData> = localUrlDBSource.searchByDescription(keyword)

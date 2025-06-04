@@ -26,7 +26,7 @@ sealed class MainListIntent {
     data class GotoOutShareUrl(val url: String?): MainListIntent()
     data class DeleteLinkItem(val urlData: UrlData): MainListIntent()
     data class ClipboardUrlCheck(val url: String): MainListIntent()
-    data class NewFilterData(val category: List<String>, val sort: String, val site: List<String>): MainListIntent()
+    data class NewFilterData(val category: List<String>, val sort: String, val site: List<String>, val tag: List<String>): MainListIntent()
     data class ShowLinkInfoDialog(val data: UrlData): MainListIntent()
 }
 

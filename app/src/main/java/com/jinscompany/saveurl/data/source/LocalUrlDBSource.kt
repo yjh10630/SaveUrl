@@ -17,5 +17,5 @@ interface LocalUrlDBSource {
     suspend fun updateLocalDBUrlData(data: UrlData): Boolean
     suspend fun getSiteNameList(): List<String>
     suspend fun saveUrlDataList(list: List<UrlData>)
-
+    suspend fun getTagList(): List<String>
 }
