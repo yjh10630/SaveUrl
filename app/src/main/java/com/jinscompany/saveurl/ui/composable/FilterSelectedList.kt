@@ -36,7 +36,7 @@ fun FilterSelectedList(data: List<String>, onClick: () -> Unit = {}) {
         item { Spacer(modifier = Modifier.width(8.dp)) }
         item {
             OutlinedButton(
-                onClick = { onClick.invoke() },
+                onClick = singleClick { onClick.invoke() },
                 modifier = Modifier
                     .animateItem()
                     .wrapContentSize()

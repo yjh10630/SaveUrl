@@ -54,7 +54,7 @@ fun LinkUrlItem(
         modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
-                onClick = { onClick(data.url ?: "") },
+                onClick = singleClick { onClick(data.url ?: "") },
                 onLongClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     longOnClick(data)

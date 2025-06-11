@@ -30,7 +30,7 @@ fun MainHeaderSection(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.End
     ) {
-        IconButton(onClick = searchIconClick) {
+        IconButton(onClick = singleClick { searchIconClick.invoke() }) {
             Icon(
                 modifier = Modifier.size(32.dp),
                 imageVector = Icons.Filled.Search,
@@ -38,7 +38,7 @@ fun MainHeaderSection(
                 tint = Color.LightGray
             )
         }
-        IconButton(onClick = appSettingClick) {
+        IconButton(onClick = singleClick { appSettingClick.invoke() }) {
             Icon(
                 modifier = Modifier.size(32.dp),
                 imageVector = Icons.Filled.Settings,

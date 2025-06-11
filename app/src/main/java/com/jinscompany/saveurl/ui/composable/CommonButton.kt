@@ -24,7 +24,7 @@ fun CommonPositiveButton(
     text: String,
 ) {
     Button(
-        onClick = onClick,
+        onClick = singleClick { onClick.invoke() },
         enabled = enabled,
         modifier = modifier
             .fillMaxWidth()

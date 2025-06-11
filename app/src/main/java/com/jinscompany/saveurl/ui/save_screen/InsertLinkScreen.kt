@@ -81,6 +81,7 @@ import com.jinscompany.saveurl.ui.composable.PreviewContentEditBottomSheet
 import com.jinscompany.saveurl.ui.composable.PreviewLinkUrlItem
 import com.jinscompany.saveurl.ui.composable.category.CategorySelectorDialog
 import com.jinscompany.saveurl.ui.composable.filterNotIsInstance
+import com.jinscompany.saveurl.ui.composable.singleClick
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -321,7 +322,7 @@ fun LazyItemScope.LinkOptionsSection(
         horizontalArrangement = Arrangement.Absolute.Left
     ) {
         OutlinedButton(
-            onClick = { bookMarkClick.invoke(!isBookMark) },
+            onClick = singleClick { bookMarkClick.invoke(!isBookMark) },
             modifier = Modifier
                 .wrapContentSize()
                 .padding(horizontal = 10.dp),
@@ -339,7 +340,7 @@ fun LazyItemScope.LinkOptionsSection(
             )
         }
         OutlinedButton(
-            onClick = { categoryClick.invoke(categoryName) },
+            onClick = singleClick { categoryClick.invoke(categoryName) },
             modifier = Modifier
                 .wrapContentSize()
                 .weight(1f, fill = false)
@@ -370,7 +371,7 @@ fun LazyItemScope.LinkOptionsSection(
             }
         }
         OutlinedButton(
-            onClick = {
+            onClick = singleClick {
                 if (state is LinkUrlPreviewUiState.LinkUrlData) {
                     editorClick.invoke()
                 } else {

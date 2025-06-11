@@ -44,6 +44,7 @@ import androidx.transition.Visibility
 import com.jinscompany.saveurl.MainActivity
 import com.jinscompany.saveurl.SaveUrlApplication
 import com.jinscompany.saveurl.SharedViewModel
+import com.jinscompany.saveurl.ui.composable.singleClick
 import com.jinscompany.saveurl.ui.navigation.navigateToAppSetting
 import com.jinscompany.saveurl.ui.navigation.navigateToTrash
 import com.jinscompany.saveurl.utils.getCurrentAppVersion
@@ -162,7 +163,7 @@ fun SettingItem(
             .padding(horizontal = 12.dp)
             .wrapContentHeight()
             .combinedClickable(
-                onClick = onClick,
+                onClick = singleClick { onClick.invoke() },
             )
     ) {
         Row (

@@ -56,6 +56,7 @@ import com.jinscompany.saveurl.ui.composable.FilterSelectedList
 import com.jinscompany.saveurl.ui.composable.LinkUrlListSection
 import com.jinscompany.saveurl.ui.composable.MainHeaderSection
 import com.jinscompany.saveurl.ui.composable.SimpleMenuModel
+import com.jinscompany.saveurl.ui.composable.singleClick
 import com.jinscompany.saveurl.ui.filter.FilterScreenBottomSheet
 import com.jinscompany.saveurl.ui.main.MainListIntent.ClipboardUrlCheck
 import com.jinscompany.saveurl.ui.main.MainListIntent.FetchCategoryData
@@ -198,7 +199,7 @@ fun MainListScreen(
         floatingActionButtonPosition = FabPosition.End,
         floatingActionButton = {
             FloatingActionButton(
-                onClick = {
+                onClick = singleClick {
                     var url = ""
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     if (clipboard.hasPrimaryClip() && (clipboard.primaryClip?.itemCount ?: 0) > 0) {
