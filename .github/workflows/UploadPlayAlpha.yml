@@ -41,8 +41,8 @@ jobs:
     # local.properties 파일 생성 (AdMob API 키 포함)
       - name: Create local.properties
         run: |
-          echo "ADMOB_APP_ID=${{ secrets.ADMOB_APP_ID }}" >> local.properties
-          echo "ADMOB_UNIT_ID=${{ secrets.ADMOB_UNIT_ID }}" >> local.properties
+          echo "ADMOB_APP_ID=${{ secrets.ADMOB_APP_ID }}" >> ./local.properties
+          echo "ADMOB_UNIT_ID=${{ secrets.ADMOB_UNIT_ID }}" >> ./local.properties
 
     # Release AAB 빌드 (앱 번들 생성), keystore 정보는 환경변수로 전달
       - name: Build Release AAB
