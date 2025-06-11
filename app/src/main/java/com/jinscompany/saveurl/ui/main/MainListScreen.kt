@@ -47,8 +47,10 @@ import androidx.navigation.NavHostController
 import androidx.paging.PagingData
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
+import com.google.android.gms.ads.AdView
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.UrlData
+import com.jinscompany.saveurl.ui.composable.AdMobBannerAd
 import com.jinscompany.saveurl.ui.composable.CommonSimpleMenuBottomSheet
 import com.jinscompany.saveurl.ui.composable.FilterSelectedList
 import com.jinscompany.saveurl.ui.composable.LinkUrlListSection
@@ -98,6 +100,12 @@ fun MainListScreen(
     val uiEffect = viewModel.mainListEffect
     var filterDialog by remember { mutableStateOf<String?>(null) }
     var linkInfoDialog by remember { mutableStateOf<SimpleMenuModel?>(null) }
+
+    val adView = remember { AdView(context) }
+
+    DisposableEffect(Unit) {
+        onDispose { adView.destroy() }
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -242,6 +250,7 @@ fun MainListScreen(
             onFilterOpen = { filterDialog = "" },
             filterSelectedData = viewModel.filterSelectedItems.getMainSelectedList(),
             listState = listState,
+            adView = adView
         )
     }
 }
@@ -257,6 +266,7 @@ fun MainListScreen(
     onFilterOpen: () -> Unit = {},
     filterSelectedData: List<String> = listOf(),
     listState: LazyListState = rememberLazyListState(),
+    adView: AdView
 ) {
     Column(
         modifier = Modifier
@@ -269,6 +279,7 @@ fun MainListScreen(
             data = filterSelectedData,
             onClick = onFilterOpen
         )
+        AdMobBannerAd(adView = adView)
         Spacer(modifier = Modifier.size(12.dp))
         mainListPagingData?.let {
             LinkUrlListSection(
@@ -285,6 +296,7 @@ fun MainListScreen(
 @Composable
 @Preview(showBackground = true, backgroundColor = 0xFF444444)
 fun MainListScreenPreview() {
+    val context = LocalContext.current
     val fakeData = listOf(
         UrlData(id = 1, url = "https://google.com", title = "Google", tagList = listOf("검색")),
         UrlData(id = 2, url = "https://youtube.com", title = "YouTube", tagList = listOf("영상")),
@@ -299,5 +311,6 @@ fun MainListScreenPreview() {
     val pagingItems = flowOf(PagingData.from(fakeData)).collectAsLazyPagingItems()
     MainListScreen(
         mainListPagingData = pagingItems,
+        adView = AdView(context)
     )
 }

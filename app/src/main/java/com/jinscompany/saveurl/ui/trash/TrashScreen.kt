@@ -28,6 +28,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,6 +44,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.paging.compose.collectAsLazyPagingItems
+import com.google.android.gms.ads.AdView
+import com.jinscompany.saveurl.ui.composable.AdMobBannerAd
 import com.jinscompany.saveurl.ui.composable.CommonSimpleBottomSheet
 import com.jinscompany.saveurl.ui.composable.CommonSimpleMenuBottomSheet
 import com.jinscompany.saveurl.ui.composable.CustomSwitchButton
@@ -66,6 +69,11 @@ fun TrashScreen(
     var showAlert by remember { mutableStateOf<TrashViewModel.AlertDataModel?>(null) }
     var showMenuAlert by remember { mutableStateOf<SimpleMenuModel?>(null) }
     val snackBarHostState = remember { SnackbarHostState() }
+    val adView = remember { AdView(context) }
+
+    DisposableEffect(Unit) {
+        onDispose { adView.destroy() }
+    }
 
     LaunchedEffect(Unit) {
         uiEffect.filterNotIsInstance<TrashUiEffect.GotoNextScreen>().collectLatest { effect ->
@@ -132,6 +140,8 @@ fun TrashScreen(
             )
             TrashTitle()
             Spacer(modifier = Modifier.size(24.dp))
+            AdMobBannerAd(adView = adView)
+            Spacer(modifier = Modifier.size(12.dp))
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -141,7 +151,7 @@ fun TrashScreen(
             ) {
                 itemsIndexed(
                     items = items.itemSnapshotList,
-                    key = { index, item -> item?.id ?: 0}
+                    key = { index, item -> item?.id ?: 0 }
                 ) { index, item ->
                     item?.let {
                         val data = item.mapperToUrlData()

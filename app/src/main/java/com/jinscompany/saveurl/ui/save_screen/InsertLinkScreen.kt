@@ -46,6 +46,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -67,10 +68,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.android.gms.ads.AdView
 import com.google.firebase.crashlytics.ktx.crashlytics
 import com.google.firebase.ktx.Firebase
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.UrlData
+import com.jinscompany.saveurl.ui.composable.AdMobBannerAd
 import com.jinscompany.saveurl.ui.composable.CommonPositiveButton
 import com.jinscompany.saveurl.ui.composable.LinkUrlCrawlerHidden
 import com.jinscompany.saveurl.ui.composable.LinkUrlTagList
@@ -89,6 +92,7 @@ fun InsertLinkScreen(
     uiEffect: SharedFlow<LinkSaveUiEffect>,
     event: (LinkSaveIntent) -> Unit
 ) {
+    val context = LocalContext.current
     val uiState by state.collectAsState()
     var startCrawlerUrl by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
@@ -96,6 +100,12 @@ fun InsertLinkScreen(
 
     var openCategorySelector by remember { mutableStateOf<List<CategoryModel>?>(null) }
     var openPreviewContentEditor by remember { mutableStateOf<UrlData?>(null) }
+
+    val adView = remember { AdView(context) }
+
+    DisposableEffect(Unit) {
+        onDispose { adView.destroy() }
+    }
 
     LaunchedEffect(Unit) {
         uiEffect.filterNotIsInstance<LinkSaveUiEffect.GotoNextScreen>()
@@ -174,7 +184,8 @@ fun InsertLinkScreen(
                     focusClear = { focusManager.clearFocus() },
                 )
             }
-            item { Spacer(modifier = Modifier.height(12.dp)) }
+            item { AdMobBannerAd(adView = adView) }
+            item { Spacer(modifier = Modifier.height(6.dp)) }
             item {
                 PreviewSection(
                     state = uiState.linkUrlPreviewUiState,

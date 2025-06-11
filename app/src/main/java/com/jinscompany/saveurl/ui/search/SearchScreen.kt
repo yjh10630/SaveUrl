@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -31,7 +32,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
+import com.google.android.gms.ads.AdView
 import com.jinscompany.saveurl.domain.model.UrlData
+import com.jinscompany.saveurl.ui.composable.AdMobBannerAd
 import com.jinscompany.saveurl.ui.composable.FullScreenLoading
 import com.jinscompany.saveurl.ui.composable.LinkUrlListSection
 import com.jinscompany.saveurl.ui.composable.SearchFilterBottomSheet
@@ -42,12 +45,19 @@ import com.jinscompany.saveurl.ui.composable.SearchResultSimpleText
 @Composable
 fun SearchScreen(viewModel: SearchViewModel = hiltViewModel(), popBackStack: () -> Unit) {
 
+    val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
     var filterTxt by remember { mutableStateOf<String>(viewModel.filterList[0]) }
     val filterOptions = viewModel.filterList
     var filterShowBottomSheet by remember { mutableStateOf(false) }
     val searchResult = viewModel.searchResultFlow?.collectAsLazyPagingItems()
     val itemCnt = searchResult?.itemCount ?: 0
+
+    val adView = remember { AdView(context) }
+
+    DisposableEffect(Unit) {
+        onDispose { adView.destroy() }
+    }
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -77,7 +87,8 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel(), popBackStack: () 
             siteTypeList = listOf(),
             searchResult = searchResult,
             filterTxt = filterTxt,
-            searchKeyword = { keyword, filter -> viewModel.search(keyword, filter) }
+            searchKeyword = { keyword, filter -> viewModel.search(keyword, filter) },
+            adView = adView,
         )
     }
 }
@@ -97,6 +108,7 @@ fun SearchScreen(
     filterTxt: String = "전체",
     searchResult: LazyPagingItems<UrlData>? = null,
     searchKeyword: (String, String) -> Unit,
+    adView: AdView,
 ) {
     val focusManager = LocalFocusManager.current
     Column(
@@ -114,6 +126,7 @@ fun SearchScreen(
             selectedFilterTxt = filterTxt,
             siteTypeList = siteTypeList
         )
+        AdMobBannerAd(adView = adView)
         HorizontalDivider(
             modifier = Modifier.padding(top = 12.dp),
             color = Color.Gray,
@@ -158,8 +171,10 @@ fun SearchScreen(
     showBackground = true, backgroundColor = 0xFF444444,
 )
 private fun SearchScreenPreview() {
+    val context = LocalContext.current
     SearchScreen(
         popBackStack = {},
         siteTypeList = listOf("YouTube", "Naver"),
-        searchKeyword = { keyword, filter -> })
+        searchKeyword = { keyword, filter -> },
+        adView = AdView(context))
 }

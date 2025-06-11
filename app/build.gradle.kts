@@ -1,3 +1,6 @@
+import java.util.Properties
+import kotlin.apply
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -8,6 +11,13 @@ plugins {
     id("com.google.firebase.crashlytics")
 
 }
+
+val localProperties = Properties().apply {
+    load(rootProject.file("local.properties").inputStream())
+}
+val adsId = localProperties.getProperty("ADS_ID")
+val adsFixedSizeBannerUnitId = localProperties.getProperty("ADS_FIXED_SIZE_BANNER_UNIT_ID")
+val adsFixedSizeBannerUnitIdDubug = localProperties.getProperty("ADS_FIXED_SIZE_BANNER_UNIT_ID_DEBUG")
 
 android {
     namespace = "com.jinscompany.saveurl"
@@ -21,6 +31,10 @@ android {
         versionName = "1.0.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders["AdMobId"] = adsId
+        buildConfigField("String", "AdMobId", "\"$adsId\"")
+        buildConfigField("String", "AdMobBannerUnitId", "\"$adsFixedSizeBannerUnitId\"")
+        buildConfigField("String", "AdMobBannerIdDubug", "\"$adsFixedSizeBannerUnitIdDubug\"")
     }
 
     signingConfigs {
@@ -41,6 +55,8 @@ android {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+        debug {
         }
     }
     compileOptions {
@@ -117,6 +133,8 @@ dependencies {
 
     implementation("androidx.datastore:datastore-preferences:1.1.6")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+
+    implementation("com.google.android.gms:play-services-ads:24.3.0")
 
     testImplementation(libs.junit)
 
