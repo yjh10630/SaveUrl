@@ -17,11 +17,18 @@ class PreferencesManager @Inject constructor(
     private val Context.dataStore by preferencesDataStore(name = "settings")
 
     private val TRASH_ENABLE = booleanPreferencesKey("trash_enable")
+    private val INIT_FIRST_RUN = booleanPreferencesKey("init_first_run")    // 앱 최초 시작 여부
 
     val autoDeleteEnabled: Flow<Boolean> = context.dataStore.data
         .map { it[TRASH_ENABLE] ?: true }
 
+    val isInitFirstRun: Flow<Boolean> = context.dataStore.data.map { it[INIT_FIRST_RUN] ?: false }
+
     suspend fun setAutoDeleteEnabled(enabled: Boolean) {
         context.dataStore.edit { it[TRASH_ENABLE] = enabled }
+    }
+
+    suspend fun setInitFirstRun(isRun: Boolean) {
+        context.dataStore.edit { it[INIT_FIRST_RUN] = isRun }
     }
 }

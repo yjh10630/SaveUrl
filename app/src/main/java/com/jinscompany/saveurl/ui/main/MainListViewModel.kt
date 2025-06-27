@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.ui.main
 
+import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -23,9 +24,12 @@ import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.APP_SETTING
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.EDIT_CATEGORY
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SAVE_LINK
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SEARCH
+import com.jinscompany.saveurl.utils.PreferencesManager
+import com.jinscompany.saveurl.utils.tutorialUrl
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -36,6 +40,7 @@ class MainListViewModel @Inject constructor(
     private val categoryRepository: CategoryRepository,
     private val deleteWithTrashUseCase: DeleteWithTrashUseCase,
     private val trashRepository: TrashRepository,
+    private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
 
     var mainListUiState by mutableStateOf<MainListUiState>(MainListUiState.Idle)
@@ -115,7 +120,7 @@ class MainListViewModel @Inject constructor(
     private fun showLinkInfoDialog(data: UrlData) {
         viewModelScope.launch {
             val isTrashEnable = trashRepository.getTrashState()
-            val list = listOf<SimpleMenuModel.MenuModel>(
+            val list = mutableListOf<SimpleMenuModel.MenuModel>(
                 SimpleMenuModel.MenuModel(txt = "공유하기", txtColor = Color.LightGray, event = {
                     viewModelScope.launch {
                         onIntent(MainListIntent.GotoOutShareUrl(data.url))
@@ -141,15 +146,18 @@ class MainListViewModel @Inject constructor(
                     }
                 )
             )
+
+            if (data.url == tutorialUrl) list.removeAll { it.txt == "수정하기" }    // 튜토리얼은 수정하기 방지
+
             val model = SimpleMenuModel(menuList = list)
-            _mainListEffect.emit(MainListUiEffect.ShowLinkInfoDialog(model))
+            _mainListEffect.emit(ShowLinkInfoDialog(model))
         }
     }
 
     private fun clipboardUrlCheckToSnackBar(url: String) {
         viewModelScope.launch {
             val isSaved = urlRepository.isSavedUrl(url)
-            if (!isSaved) _mainListEffect.emit(MainListUiEffect.ShowSnackBarSaveUrl(url))
+            if (!isSaved) _mainListEffect.emit(ShowSnackBarSaveUrl(url))
         }
     }
 
@@ -162,6 +170,24 @@ class MainListViewModel @Inject constructor(
     private fun getLinkList(params: FilterParams? = null) {
         viewModelScope.launch {
             mainListUiState = MainListUiState.Loading
+
+            val isInitRunApp = preferencesManager.isInitFirstRun.first()
+            if (!isInitRunApp) {
+                // 앱 최초 시작 시 튜토리얼 링크 추가
+                val isSaved = urlRepository.saveUrl(
+                    UrlData(
+                        title = "이렇게 사용하세요!",
+                        imgUrl = "https://github.com/yjh10630/MyWeb/blob/main/assets/images/help.png?raw=true",
+                        url = tutorialUrl,
+                        description = "사용방법을 숙지 하셨다면 튜토리얼을 제거하셔도 됩니다. :) ",
+                        siteName = "튜토리얼",
+                        isBookMark = true,
+                        tagList = listOf("사용방법", "튜토리얼")
+                    )
+                )
+                if (isSaved) preferencesManager.setInitFirstRun(true)   // 우선 튜토리얼 저장이 완료 되면 플래그, 다른 용도가 있을 경우 변경 필요
+            }
+
             val dataFlow = Pager(
                 config = PagingConfig(
                     pageSize = 10,

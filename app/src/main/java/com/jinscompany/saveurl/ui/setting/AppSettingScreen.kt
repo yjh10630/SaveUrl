@@ -48,6 +48,8 @@ import com.jinscompany.saveurl.ui.composable.singleClick
 import com.jinscompany.saveurl.ui.navigation.navigateToAppSetting
 import com.jinscompany.saveurl.ui.navigation.navigateToTrash
 import com.jinscompany.saveurl.utils.getCurrentAppVersion
+import com.jinscompany.saveurl.utils.tutorialUrl
+import androidx.core.net.toUri
 
 
 @Composable
@@ -97,6 +99,10 @@ fun AppSettingScreen(
             trashClick = {
                 navController.navigateToTrash()
             },
+            tutorialClick = {
+                val intent = Intent(Intent.ACTION_VIEW, tutorialUrl.toUri())
+                context.startActivity(intent)
+            },
             currentAppVersion = getCurrentAppVersion(context),
             isUpdatable = sharedViewModel.isFlexibleUpdatable
         )
@@ -111,6 +117,7 @@ fun AppSettingScreen(
     shareMyApp: () -> Unit = {},
     updateClick: () -> Unit = {},
     emailClick: () -> Unit = {},
+    tutorialClick: () -> Unit = {},
     trashClick: () -> Unit = {},
     isUpdatable: Boolean = true
 ) {
@@ -130,6 +137,8 @@ fun AppSettingScreen(
             }
         }
         item { Spacer(modifier = Modifier.height(12.dp)) }
+        item { SettingItem(onClick = tutorialClick, text = "튜토리얼") }
+        item { Divider() }
         item { SettingItem(onClick = emailClick, text = "앱 오류 신고") }
         item { Divider() }
         item { SettingItem(onClick = shareMyApp, text = "친구 초대") }

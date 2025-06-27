@@ -7,6 +7,8 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 
+const val tutorialUrl = "https://yjh10630.github.io/MyWeb/#/SaveUrlTutorial"
+
 fun extractUrlFromText(text: String): String? {
     val urlRegex = Regex(
         "(https?://[a-zA-Z0-9./?=_-]+)",
