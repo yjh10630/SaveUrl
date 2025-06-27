@@ -33,6 +33,7 @@ sealed class MainListIntent {
 sealed class MainListUiEffect {
     data class NavigateToResult(val route: String, val url: String? = null): MainListUiEffect()
     data class OutLinkWebSite(val url: String): MainListUiEffect()
+    data class StaticWebOpen(val url: String): MainListUiEffect()
     data class ShowToast(val message: String): MainListUiEffect()
     data class UrlShare(val url: String): MainListUiEffect()
     data class ShowSnackBarSaveUrl(val url: String): MainListUiEffect()

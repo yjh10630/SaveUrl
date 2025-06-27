@@ -25,8 +25,10 @@ import com.jinscompany.saveurl.ui.setting.AppSettingScreen
 import com.jinscompany.saveurl.ui.trash.TrashScreen
 import com.jinscompany.saveurl.ui.trash.TrashUiEffect
 import com.jinscompany.saveurl.ui.trash.TrashViewModel
+import com.jinscompany.saveurl.ui.webview.StaticWebScreen
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterIsInstance
+import java.net.URLDecoder
 
 @Composable
 fun AppNavigation(navController: NavHostController = rememberNavController()) {
@@ -139,6 +141,20 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 viewModel.onIntent(intent)
             })
         }
+        composable(
+            route = "${Navigation.Routes.STATIC_WEB}?url={url}",
+            arguments = listOf(
+                navArgument("url") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            )
+        ) { backStackEntry ->
+            val encodingUrl = backStackEntry.arguments?.getString("url") ?: ""
+            val url = URLDecoder.decode(encodingUrl, "UTF-8")
+            StaticWebScreen(navController = navController, url = url)
+        }
     }
 }
 
@@ -150,7 +166,12 @@ object Navigation {
         const val SEARCH = "searchScreen"
         const val EDIT_CATEGORY = "editCategory"
         const val TRASH = "trashScreen"
+        const val STATIC_WEB = "staticWebScreen"
     }
+}
+
+fun NavController.navigateToStaticWeb(url: String) {
+    navigate(route = "${Navigation.Routes.STATIC_WEB}?url=$url")
 }
 
 fun NavController.navigateToMain(currentScreen: String, scrollToTop: Boolean = false) {

@@ -70,6 +70,8 @@ class MainListViewModel @Inject constructor(
                     _mainListEffect.emit(
                         if (intent.url.isNullOrEmpty()) {
                             ShowToast("Url 정보가 누락 되어 이동할 수 없습니다.")
+                        } else if (intent.url == tutorialUrl) {
+                            StaticWebOpen(intent.url)
                         } else {
                             OutLinkWebSite(intent.url)
                         }

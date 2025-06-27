@@ -50,6 +50,8 @@ import com.jinscompany.saveurl.ui.navigation.navigateToTrash
 import com.jinscompany.saveurl.utils.getCurrentAppVersion
 import com.jinscompany.saveurl.utils.tutorialUrl
 import androidx.core.net.toUri
+import com.jinscompany.saveurl.ui.navigation.navigateToStaticWeb
+import java.net.URLEncoder
 
 
 @Composable
@@ -100,8 +102,8 @@ fun AppSettingScreen(
                 navController.navigateToTrash()
             },
             tutorialClick = {
-                val intent = Intent(Intent.ACTION_VIEW, tutorialUrl.toUri())
-                context.startActivity(intent)
+                val encodedUrl = URLEncoder.encode(tutorialUrl, "UTF-8")
+                navController.navigateToStaticWeb(encodedUrl)
             },
             currentAppVersion = getCurrentAppVersion(context),
             isUpdatable = sharedViewModel.isFlexibleUpdatable

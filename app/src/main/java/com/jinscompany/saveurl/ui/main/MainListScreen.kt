@@ -75,12 +75,15 @@ import com.jinscompany.saveurl.ui.navigation.navigateToAppSetting
 import com.jinscompany.saveurl.ui.navigation.navigateToEditCategory
 import com.jinscompany.saveurl.ui.navigation.navigateToSaveLink
 import com.jinscompany.saveurl.ui.navigation.navigateToSearch
+import com.jinscompany.saveurl.ui.navigation.navigateToStaticWeb
 import com.jinscompany.saveurl.ui.theme.Brown
 import com.jinscompany.saveurl.utils.extractUrlFromText
+import com.jinscompany.saveurl.utils.tutorialUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
 
 @Composable
 fun MainListScreen(
@@ -181,6 +184,10 @@ fun MainListScreen(
                 }
 
                 is MainListUiEffect.ShowLinkInfoDialog -> { linkInfoDialog = effect.model }
+                is MainListUiEffect.StaticWebOpen -> {
+                    val encodedUrl = URLEncoder.encode(effect.url, "UTF-8")
+                    navController.navigateToStaticWeb(encodedUrl)
+                }
             }
         }
     }
