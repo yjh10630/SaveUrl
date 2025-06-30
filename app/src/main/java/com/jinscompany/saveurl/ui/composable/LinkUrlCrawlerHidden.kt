@@ -65,6 +65,13 @@ fun LinkUrlCrawlerHidden(
                                 .replace("\\", "")
                             val doc = Jsoup.parse(realHtml)
 
+                            val realUrl = doc.selectFirst("meta[property=og:url]")?.attr("content").let {
+                                if (it.isNullOrEmpty()) {
+                                    val canonicalUrl = doc.select("link[rel=canonical]").attr("href")
+                                    if (canonicalUrl.isNullOrEmpty()) url else canonicalUrl
+                                } else it
+                            }
+
                             val title = doc.select("meta[property=og:title]").attr("content")
                             val description = doc.select("meta[property=og:description]").attr("content")
                             val imageUrl = doc.select("meta[property=og:image]").attr("content")
@@ -74,7 +81,7 @@ fun LinkUrlCrawlerHidden(
                                 hasFinished.value = true
                                 onSuccess(
                                     UrlData(
-                                        url = url,
+                                        url = realUrl,
                                         imgUrl = imageUrl,
                                         siteName = siteName,
                                         title = title,

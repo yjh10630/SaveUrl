@@ -43,13 +43,20 @@ class UrlParserSourceImpl @Inject constructor(
                 .ignoreHttpErrors(true)
                 .ignoreContentType(true).get()
             ensureActive()
+            val realUrl = document.selectFirst("meta[property=og:url]")?.attr("content").let {
+                if (it.isNullOrEmpty()) {
+                    val canonicalUrl = document.select("link[rel=canonical]").attr("href")
+                    if (canonicalUrl.isNullOrEmpty()) url else canonicalUrl
+                } else it
+            }
+
             val title = document.selectFirst("meta[property=og:title]")?.attr("content")
             val description = document.selectFirst("meta[property=og:description]")?.attr("content")
             val imageUrl = document.selectFirst("meta[property=og:image]")?.attr("content")
             val siteName = document.selectFirst("meta[property=og:site_name]")?.attr("content")
 
             data = UrlData(
-                url = url,
+                url = realUrl,
                 imgUrl = imageUrl ?: "",
                 siteName = siteName ?: "",
                 title = title ?: "",
@@ -117,7 +124,7 @@ class UrlParserSourceImpl @Inject constructor(
                 settings.domStorageEnabled = true
                 settings.loadWithOverviewMode = true
                 settings.useWideViewPort = true
-                settings.userAgentString = userAgents.random()
+                settings.userAgentString = WebSettings.getDefaultUserAgent(context)
 
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView?, url: String?) {
@@ -139,6 +146,13 @@ class UrlParserSourceImpl @Inject constructor(
                                 val cleanHtml = StringEscapeUtils.unescapeHtml4(decodedHtml)
                                 val doc = Jsoup.parse(cleanHtml)
 
+                                val realUrl = doc.selectFirst("meta[property=og:url]")?.attr("content").let {
+                                    if (it.isNullOrEmpty()) {
+                                        val canonicalUrl = doc.select("link[rel=canonical]").attr("href")
+                                        if (canonicalUrl.isNullOrEmpty()) url else canonicalUrl
+                                    } else it
+                                }
+
                                 val title = doc.select("meta[property=og:title]").attr("content")
                                 val imageUrl = doc.select("meta[property=og:image]").attr("content")
                                 val description =
@@ -149,7 +163,7 @@ class UrlParserSourceImpl @Inject constructor(
                                     UrlData(
                                         title = title,
                                         imgUrl = imageUrl,
-                                        url = article.uri,
+                                        url = realUrl,
                                         description = "$descriptionSub $description",
                                         siteName = Uri.parse(article.uri).host ?: ""
                                     )
