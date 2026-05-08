@@ -38,6 +38,8 @@ fun PreviewContentEditBottomSheet(
     dismiss: () -> Unit = {},
     data: UrlData = UrlData(),
     saveData: (UrlData) -> Unit,
+    title: String = "링크 수정하기",
+    subtitle: String = "수정할 웹 사이트 의 링크정보를 입력해 주세요.",
 ) {
     var urlData by remember { mutableStateOf(data) }
     val modalBottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -68,11 +70,8 @@ fun PreviewContentEditBottomSheet(
                         .fillMaxSize()
                         .padding(horizontal = 24.dp)
                 ) {
-                    Text("링크 수정하기", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.LightGray)
-                    Text(
-                        "수정할 웹 사이트 의 링크정보를 입력해 주세요.",
-                        fontSize = 14.sp, color = Color.Gray
-                    )
+                    Text(title, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.LightGray)
+                    Text(subtitle, fontSize = 14.sp, color = Color.Gray)
                     Spacer(modifier = Modifier.height(6.dp))
                     SingleLineEditText(
                         txt = urlData.siteName ?: "",

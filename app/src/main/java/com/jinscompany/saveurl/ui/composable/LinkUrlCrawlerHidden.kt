@@ -108,11 +108,11 @@ fun LinkUrlCrawlerHidden(
         if (url.isNotBlank()) {
             webView.loadUrl(url)
         }
-        delay(20000)
+        delay(10000)
         if (!hasFinished.value) {
             hasFinished.value = true
             onError()
         }
     }
-    AndroidView(factory = { webView }, update = { it.loadUrl(url) })
+    AndroidView(factory = { webView }, update = {})
 }

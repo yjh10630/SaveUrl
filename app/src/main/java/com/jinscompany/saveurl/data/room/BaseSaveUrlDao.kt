@@ -97,6 +97,9 @@ interface BaseSaveUrlDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(data: UrlData): Long
 
+    @Query("UPDATE BaseSaveUrl SET isRead = 1 WHERE url = :url")
+    suspend fun markAsRead(url: String)
+
     @Delete
     suspend fun delete(data: UrlData): Int
 

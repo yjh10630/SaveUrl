@@ -14,25 +14,28 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.TrashItem
 import com.jinscompany.saveurl.domain.model.UrlData
+import com.jinscompany.saveurl.data.room.DomainCategoryEntity
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.Executors
 
 //todo 마이그레이션을 시도해야 한다 포크를 이용해서 현재 적용되어 있는거 스태시로 옮기고 처음부터 다시 앱 설치 후 링크 저장 몇개 하고 마이그레이션 테스트 진행 해야함... !!!
 
 @Database(
-    entities = [UrlData::class, CategoryModel::class, TrashItem::class],
-    version = 2,
+    entities = [UrlData::class, CategoryModel::class, TrashItem::class, DomainCategoryEntity::class],
+    version = 3,
     exportSchema = true,
     autoMigrations = [
-        AutoMigration(from = 1, to = 2)
+        AutoMigration(from = 1, to = 2),
+        AutoMigration(from = 2, to = 3),
     ]
 )
 @TypeConverters(value = [ListTypeConverter::class])
-abstract class AppDatabase: RoomDatabase() { 
+abstract class AppDatabase: RoomDatabase() {
 
     abstract fun baseSaveUrlDao(): BaseSaveUrlDao
     abstract fun categoryDao(): CategoryDao
     abstract fun trashDao(): TrashDao
+    abstract fun domainCategoryDao(): DomainCategoryDao
 
     companion object {
         lateinit var INSTANCE: AppDatabase

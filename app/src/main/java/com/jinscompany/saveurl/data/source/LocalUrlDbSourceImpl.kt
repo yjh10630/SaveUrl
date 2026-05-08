@@ -144,6 +144,14 @@ class LocalUrlDbSourceImpl @Inject constructor(
             .distinct()
     }
 
+    override suspend fun markAsRead(url: String) = withContext(Dispatchers.IO) {
+        baseSaveUrlDao.markAsRead(url)
+    }
+
+    override suspend fun getAllUrlData(): List<UrlData> = withContext(Dispatchers.IO) {
+        baseSaveUrlDao.get()
+    }
+
     override fun searchAll(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchAll(keyword)
     override fun searchByTitle(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchByTitle(keyword)
     override fun searchByDescription(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchByDescription(keyword)

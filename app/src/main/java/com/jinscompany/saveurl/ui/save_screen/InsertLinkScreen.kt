@@ -64,6 +64,7 @@ fun InsertLinkScreen(
 
     var openCategorySelector by remember { mutableStateOf<List<CategoryModel>?>(null) }
     var openPreviewContentEditor by remember { mutableStateOf<UrlData?>(null) }
+    var showCrawlFailedDialog by remember { mutableStateOf<UrlData?>(null) }
 
     val adView = remember { AdView(context) }
 
@@ -78,11 +79,27 @@ fun InsertLinkScreen(
                     is LinkSaveUiEffect.StartCrawling -> startCrawlerUrl = it.url
                     is LinkSaveUiEffect.OpenCategorySelector -> openCategorySelector = it.categories
                     is LinkSaveUiEffect.OpenPreviewContentEdit -> openPreviewContentEditor = it.urlData
+                    is LinkSaveUiEffect.ShowCrawlFailedDialog -> {
+                        showCrawlFailedDialog = UrlData(url = it.url, description = it.url)
+                    }
                 }
             }
     }
 
     Scaffold { paddingValue ->
+
+        if (showCrawlFailedDialog != null) {
+            PreviewContentEditBottomSheet(
+                dismiss = { showCrawlFailedDialog = null },
+                data = showCrawlFailedDialog ?: UrlData(),
+                saveData = {
+                    event.invoke(LinkSaveIntent.PreviewContentEditData(it))
+                    showCrawlFailedDialog = null
+                },
+                title = "자동 분석 실패",
+                subtitle = "링크 정보를 직접 입력해 주세요.",
+            )
+        }
 
         if (openPreviewContentEditor != null) {
             PreviewContentEditBottomSheet(

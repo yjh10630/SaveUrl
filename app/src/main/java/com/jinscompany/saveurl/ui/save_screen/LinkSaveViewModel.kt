@@ -5,8 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.domain.usecase.FindUrlDataUseCase
 import com.jinscompany.saveurl.domain.usecase.GetCategoriesUseCase
+import com.jinscompany.saveurl.domain.usecase.LearnDomainCategoryUseCase
 import com.jinscompany.saveurl.domain.usecase.ParseUrlUseCase
 import com.jinscompany.saveurl.domain.usecase.SaveUrlUseCase
+import com.jinscompany.saveurl.domain.usecase.SuggestCategoryUseCase
 import com.jinscompany.saveurl.domain.usecase.UpdateUrlUseCase
 import com.google.firebase.crashlytics.ktx.crashlytics
 import com.google.firebase.ktx.Firebase
@@ -30,6 +32,8 @@ class LinkSaveViewModel @Inject constructor(
     private val findUrlDataUseCase: FindUrlDataUseCase,
     private val parseUrlUseCase: ParseUrlUseCase,
     private val getCategoriesUseCase: GetCategoriesUseCase,
+    private val suggestCategoryUseCase: SuggestCategoryUseCase,
+    private val learnDomainCategoryUseCase: LearnDomainCategoryUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LinkSaveUiState())
@@ -39,6 +43,7 @@ class LinkSaveViewModel @Inject constructor(
     val uiEffect = _uiEffect.asSharedFlow()
 
     private var parseJob: Job? = null
+    private var suggestedCategory: String? = null
 
     fun onIntent(intent: LinkSaveIntent) {
         when (intent) {
@@ -102,11 +107,15 @@ class LinkSaveViewModel @Inject constructor(
 
     private fun saveLink() {
         viewModelScope.launch {
-            _uiState.value.getSaveData()?.let {
+            _uiState.value.getSaveData()?.let { urlData ->
                 if (_uiState.value.isEditScreen) {
-                    updateUrlUseCase(it)
+                    updateUrlUseCase(urlData)
                 } else {
-                    saveUrlUseCase(it)
+                    saveUrlUseCase(urlData)
+                }
+                val finalCategory = urlData.category
+                if (!finalCategory.isNullOrEmpty() && finalCategory != suggestedCategory) {
+                    learnDomainCategoryUseCase(urlData.url ?: "", finalCategory)
                 }
                 _uiEffect.emit(LinkSaveUiEffect.GotoNextScreen())
             }
@@ -147,15 +156,25 @@ class LinkSaveViewModel @Inject constructor(
         viewModelScope.launch {
             val isStateLoading = _uiState.value.linkUrlPreviewUiState == LinkUrlPreviewUiState.Loading
             if (!isStateLoading) return@launch
-            _uiState.update { current ->
-                current.copy(
-                    linkUrlPreviewUiState = data?.let {
-                        LinkUrlPreviewUiState.LinkUrlData(it)
-                    } ?: LinkUrlPreviewUiState.LinkUrlData(
-                        urlData = UrlData(url = _uiState.value.userInputUrl, description = _uiState.value.userInputUrl)
-                    ),
-                    isEditScreen = false
-                )
+
+            if (data != null) {
+                _uiState.update { current ->
+                    current.copy(
+                        linkUrlPreviewUiState = LinkUrlPreviewUiState.LinkUrlData(data),
+                        isEditScreen = false
+                    )
+                }
+            } else {
+                // WebView도 실패 → 수동 입력 다이얼로그
+                _uiEffect.emit(LinkSaveUiEffect.ShowCrawlFailedDialog(_uiState.value.userInputUrl))
+                _uiState.update { current ->
+                    current.copy(
+                        linkUrlPreviewUiState = LinkUrlPreviewUiState.LinkUrlData(
+                            urlData = UrlData(url = current.userInputUrl, description = current.userInputUrl)
+                        ),
+                        isEditScreen = false
+                    )
+                }
             }
         }
     }
@@ -186,10 +205,17 @@ class LinkSaveViewModel @Inject constructor(
                             _uiEffect.emit(LinkSaveUiEffect.StartCrawling(url))
                         } else {
                             val checkData = findUrlDataUseCase(data.url ?: "")
+                            val suggested = suggestCategoryUseCase(
+                                url = data.url ?: realUrl,
+                                title = data.title,
+                                description = data.description,
+                            )
+                            suggestedCategory = suggested
                             _uiState.update { current ->
                                 current.copy(
                                     isEditScreen = data.title == (checkData?.title ?: ""),
                                     userInputUrl = realUrl,
+                                    categoryName = suggested ?: current.categoryName,
                                     linkUrlPreviewUiState = LinkUrlPreviewUiState.LinkUrlData(urlData = data)
                                 )
                             }

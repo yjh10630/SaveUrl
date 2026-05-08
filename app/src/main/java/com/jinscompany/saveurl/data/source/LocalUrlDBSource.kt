@@ -18,4 +18,6 @@ interface LocalUrlDBSource {
     suspend fun getSiteNameList(): List<String>
     suspend fun saveUrlDataList(list: List<UrlData>)
     suspend fun getTagList(): List<String>
+    suspend fun markAsRead(url: String)
+    suspend fun getAllUrlData(): List<UrlData>
 }

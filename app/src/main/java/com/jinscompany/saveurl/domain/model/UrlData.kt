@@ -19,6 +19,7 @@ data class UrlData(
     @ColumnInfo(name = "addDate") val addDate: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "category") var category: String? = null,
     @ColumnInfo(name = "isBookMark") var isBookMark: Boolean = false,
+    @ColumnInfo(name = "isRead", defaultValue = "0") var isRead: Boolean = false,
 ) {
     fun getDate(): String {
         val currentTime = Calendar.getInstance()

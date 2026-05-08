@@ -50,4 +50,5 @@ sealed class LinkSaveUiEffect {
     data class OpenCategorySelector(val categories: List<CategoryModel>): LinkSaveUiEffect()
     data class OpenPreviewContentEdit(val urlData: UrlData): LinkSaveUiEffect()
     data class StartCrawling(val url: String): LinkSaveUiEffect()
+    data class ShowCrawlFailedDialog(val url: String): LinkSaveUiEffect()
 }

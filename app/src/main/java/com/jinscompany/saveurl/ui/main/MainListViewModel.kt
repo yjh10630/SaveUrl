@@ -13,6 +13,7 @@ import com.jinscompany.saveurl.domain.usecase.DeleteWithTrashUseCase
 import com.jinscompany.saveurl.domain.usecase.GetTrashStateUseCase
 import com.jinscompany.saveurl.domain.usecase.GetUrlListUseCase
 import com.jinscompany.saveurl.domain.usecase.IsSavedUrlUseCase
+import com.jinscompany.saveurl.domain.usecase.MarkAsReadUseCase
 import com.jinscompany.saveurl.domain.usecase.RemoveUrlUseCase
 import com.jinscompany.saveurl.domain.usecase.SaveUrlUseCase
 import com.jinscompany.saveurl.R
@@ -50,6 +51,7 @@ class MainListViewModel @Inject constructor(
     private val trashRepository: TrashRepository,
     private val preferencesManager: PreferencesManager,
     private val clipboardReader: ClipboardReader,
+    private val markAsReadUseCase: MarkAsReadUseCase,
 ) : ViewModel() {
 
     private val _mainListUiState = MutableStateFlow<MainListUiState>(MainListUiState.Idle)
@@ -78,6 +80,7 @@ class MainListViewModel @Inject constructor(
         viewModelScope.launch {
             when (intent) {
                 is MainListIntent.GoToOutLinkWebSite -> {
+                    if (!intent.url.isNullOrEmpty()) markAsReadUseCase(intent.url)
                     _mainListEffect.emit(
                         if (intent.url.isNullOrEmpty()) {
                             ShowToast(R.string.error_url_missing)

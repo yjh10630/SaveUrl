@@ -37,6 +37,11 @@ class UrlParserSourceImpl @Inject constructor(
     )
 
     override suspend fun jsoupUrlParser(url: String): UrlData = withContext(Dispatchers.IO) {
+        // YouTube는 oEmbed로 먼저 시도
+        if (YouTubeOEmbedParser.isYouTubeUrl(url)) {
+            YouTubeOEmbedParser.parse(url)?.let { return@withContext it }
+        }
+
         lateinit var data: UrlData
         try {
             val response = Jsoup.connect(url).followRedirects(true).execute().url().toExternalForm()
@@ -67,49 +72,59 @@ class UrlParserSourceImpl @Inject constructor(
         } catch (e: HttpStatusException) {
             Log.e("UriParserSourceImpl", "Error > ${e.printStackTrace()}")
             Firebase.crashlytics.recordException(e)
-            val realUrl = getExceptionUrl(e.message ?: "") ?: ""
+            val realUrl = e.url ?: url
             data = if (containsSmartstore(realUrl)) {
-                UrlData(
-                    url = url,
-                    imgUrl = "",
-                    siteName = "네이버 쇼핑",
-                    title = "",
-                    description = realUrl,
-                )
+                UrlData(url = url, imgUrl = "", siteName = "네이버 쇼핑", title = "", description = realUrl)
             } else {
-                UrlData(
-                    url = url,
-                    imgUrl = "",
-                    siteName = "",
-                    title = "",
-                    description = realUrl.ifEmpty { url },
-                )
+                UrlData(url = url, imgUrl = "", siteName = "", title = "", description = realUrl.ifEmpty { url })
             }
-
         } catch (e: Exception) {
             Log.e("UriParserSourceImpl", "Error > ${e.printStackTrace()}")
             Firebase.crashlytics.recordException(e)
             val realUrl = getExceptionUrl(e.message ?: "") ?: ""
             data = if (containsSmartstore(realUrl)) {
-                UrlData(
-                    url = url,
-                    imgUrl = "",
-                    siteName = "네이버 쇼핑",
-                    title = "",
-                    description = realUrl,
-                )
+                UrlData(url = url, imgUrl = "", siteName = "네이버 쇼핑", title = "", description = realUrl)
             } else {
-                UrlData(
-                    url = url,
-                    imgUrl = "",
-                    siteName = "",
-                    title = "",
-                    description = realUrl.ifEmpty { url },
-                )
+                UrlData(url = url, imgUrl = "", siteName = "", title = "", description = realUrl.ifEmpty { url })
             }
         }
 
+        // catch 블록에서 title이 없는 경우 모바일 UA로 재시도
+        if (data.title.isNullOrEmpty()) {
+            ensureActive()
+            data = retryWithMobileUserAgent(url) ?: data
+        }
+
         return@withContext data
+    }
+
+    private suspend fun retryWithMobileUserAgent(url: String): UrlData? = withContext(Dispatchers.IO) {
+        try {
+            val mobileUa = "Mozilla/5.0 (Linux; Android 12; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+            val document = Jsoup.connect(url)
+                .timeout(15000)
+                .userAgent(mobileUa)
+                .referrer("https://www.google.com/")
+                .ignoreHttpErrors(true)
+                .ignoreContentType(true)
+                .get()
+
+            val realUrl = document.selectFirst("meta[property=og:url]")?.attr("content").let {
+                if (it.isNullOrEmpty()) url else it
+            }
+            val title = document.selectFirst("meta[property=og:title]")?.attr("content")
+            if (title.isNullOrEmpty()) return@withContext null
+
+            UrlData(
+                url = realUrl,
+                imgUrl = document.selectFirst("meta[property=og:image]")?.attr("content") ?: "",
+                siteName = document.selectFirst("meta[property=og:site_name]")?.attr("content") ?: "",
+                title = title,
+                description = document.selectFirst("meta[property=og:description]")?.attr("content") ?: "",
+            )
+        } catch (e: Exception) {
+            null
+        }
     }
 
     fun getExceptionUrl(error: String): String? {

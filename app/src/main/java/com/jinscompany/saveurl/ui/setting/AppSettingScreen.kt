@@ -3,7 +3,10 @@ package com.jinscompany.saveurl.ui.setting
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -30,6 +33,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -42,31 +46,57 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
-import androidx.transition.Visibility
 import com.jinscompany.saveurl.MainActivity
-import com.jinscompany.saveurl.SaveUrlApplication
 import com.jinscompany.saveurl.SharedViewModel
 import com.jinscompany.saveurl.ui.composable.singleClick
-import com.jinscompany.saveurl.ui.navigation.navigateToAppSetting
 import com.jinscompany.saveurl.ui.navigation.navigateToTrash
 import com.jinscompany.saveurl.utils.getCurrentAppVersion
 import com.jinscompany.saveurl.utils.tutorialUrl
-import androidx.core.net.toUri
 import com.jinscompany.saveurl.ui.navigation.navigateToStaticWeb
 import java.net.URLEncoder
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 
 @Composable
 fun AppSettingScreen(
     navController: NavHostController,
     sharedViewModel: SharedViewModel = hiltViewModel(LocalActivity.current as MainActivity),
+    settingViewModel: AppSettingViewModel = hiltViewModel(),
 ) {
+    val darkModePref by sharedViewModel.darkModeEnabled.collectAsState()
     val context = LocalContext.current
     val isFlexibleUpdatable by sharedViewModel.isFlexibleUpdatable.collectAsState()
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri -> uri?.let { settingViewModel.exportCsv(it) } }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let { settingViewModel.importCsv(it) } }
+
+    LaunchedEffect(Unit) {
+        settingViewModel.effect.collect { effect ->
+            when (effect) {
+                is AppSettingEffect.ShowToast ->
+                    Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     Scaffold { paddingValue ->
         AppSettingScreen(
             paddingValues = paddingValue,
             popBackStack = { navController.popBackStack() },
+            exportCsvClick = {
+                val dateStr = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                exportLauncher.launch("savelink_backup_$dateStr.csv")
+            },
+            importCsvClick = {
+                importLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "*/*"))
+            },
             shareMyApp = {
                 val sendIntent = Intent().apply {
                     action = Intent.ACTION_SEND
@@ -109,7 +139,9 @@ fun AppSettingScreen(
                 navController.navigateToStaticWeb(encodedUrl)
             },
             currentAppVersion = getCurrentAppVersion(context),
-            isUpdatable = isFlexibleUpdatable
+            isUpdatable = isFlexibleUpdatable,
+            darkModePref = darkModePref,
+            onDarkModeChange = { sharedViewModel.setDarkMode(it) },
         )
     }
 }
@@ -124,6 +156,10 @@ fun AppSettingScreen(
     emailClick: () -> Unit = {},
     tutorialClick: () -> Unit = {},
     trashClick: () -> Unit = {},
+    exportCsvClick: () -> Unit = {},
+    importCsvClick: () -> Unit = {},
+    darkModePref: Boolean? = null,
+    onDarkModeChange: (Boolean?) -> Unit = {},
     isUpdatable: Boolean = true
 ) {
     LazyColumn(
@@ -150,9 +186,13 @@ fun AppSettingScreen(
         item { Divider() }
         item { SettingItem(onClick = trashClick, text = "휴지통") }
         item { Divider() }
+        item { SettingItem(onClick = exportCsvClick, text = "데이터 백업 (CSV)") }
+        item { Divider() }
+        item { SettingItem(onClick = importCsvClick, text = "데이터 가져오기 (CSV)") }
+        item { Divider() }
+        item { DarkModeItem(darkModePref = darkModePref, onChange = onDarkModeChange) }
+        item { Divider() }
         item { AppVersionItem(onClick = updateClick, currentVersion = currentAppVersion, isUpdateAble = isUpdatable) }
-        //todo 인앱 결제 추가 예정
-        //todo 구글 드라이브를 이용해여 백업 및 가져오기 기능 추가 예정
     }
 }
 
@@ -243,6 +283,50 @@ fun AppVersionItem(onClick: () -> Unit, currentVersion: String, isUpdateAble: Bo
                         contentDescription = "update",
                         tint = Color.Red
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DarkModeItem(darkModePref: Boolean?, onChange: (Boolean?) -> Unit) {
+    val label = when (darkModePref) {
+        true -> "다크 모드"
+        false -> "라이트 모드"
+        null -> "화면 모드 (시스템 설정)"
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+            .wrapContentHeight()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                modifier = Modifier.padding(start = 12.dp),
+                text = label,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Normal,
+                color = Color.LightGray,
+            )
+            Row {
+                listOf("시스템" to null, "다크" to true, "라이트" to false).forEach { (text, value) ->
+                    val selected = darkModePref == value
+                    androidx.compose.material3.TextButton(onClick = { onChange(value) }) {
+                        Text(
+                            text = text,
+                            color = if (selected) Color(0xFF4FC3F7) else Color.Gray,
+                            fontSize = 13.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                        )
+                    }
                 }
             }
         }

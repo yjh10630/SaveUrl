@@ -1,13 +1,17 @@
 package com.jinscompany.saveurl.ui.composable
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
@@ -65,6 +69,14 @@ fun PreviewLinkUrlItem(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (!data.isRead) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .background(Color(0xFF4FC3F7), CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
                 if (data.isBookMark) {
                     Icon(
                         modifier = Modifier.size(14.dp),
