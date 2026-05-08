@@ -67,7 +67,7 @@ fun EditCategoryScreen(navController: NavHostController) {
     }
 
     LaunchedEffect(Unit) {
-        viewModel.getCategoryList()
+        viewModel.onIntent(EditCategoryIntent.Load)
         focusRequester.requestFocus()
     }
 
@@ -213,7 +213,7 @@ fun EditCategoryScreen(navController: NavHostController) {
                             }
                         },
                         deleteClick = {
-                            viewModel.deleteCategory(it)
+                            viewModel.onIntent(EditCategoryIntent.Delete(it))
                             clearEditText.invoke()
                         }
                     )
@@ -239,12 +239,9 @@ fun handleCategorySubmit(
 ) {
     focusManager.clearFocus()
     if (selectItem.isEmpty()) {
-        viewModel.insertCategory(categoryName)
+        viewModel.onIntent(EditCategoryIntent.Insert(categoryName))
     } else {
-        viewModel.updateCategoryName(
-            oldName = selectItem,
-            newName = categoryName
-        )
+        viewModel.onIntent(EditCategoryIntent.Update(oldName = selectItem, newName = categoryName))
     }
     clearEditText()
 }

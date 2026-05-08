@@ -17,17 +17,4 @@ data class TrashItem(
     @ColumnInfo(name = "category") val category: String,
     @ColumnInfo(name = "isBookMark") val isBookMark: Boolean,
     @ColumnInfo(name = "deleteDate") val deleteDate: Long = System.currentTimeMillis()
-) {
-    fun mapperToUrlData(): UrlData = UrlData(
-        id = id,
-        url = url,
-        imgUrl = imgUrl,
-        siteName = siteName,
-        title = title,
-        description = description,
-        tagList = tagList,
-        addDate = addDate,
-        category = category,
-        isBookMark = isBookMark
-    )
-}
+)

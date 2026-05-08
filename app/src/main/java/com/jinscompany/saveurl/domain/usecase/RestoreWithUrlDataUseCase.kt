@@ -1,21 +1,21 @@
 package com.jinscompany.saveurl.domain.usecase
 
-import androidx.room.withTransaction
-import com.jinscompany.saveurl.data.room.AppDatabase
+import com.jinscompany.saveurl.data.mapper.toUrlData
 import com.jinscompany.saveurl.domain.model.TrashItem
 import com.jinscompany.saveurl.domain.repository.TrashRepository
 import com.jinscompany.saveurl.domain.repository.UrlRepository
+import com.jinscompany.saveurl.domain.transaction.TransactionRunner
 import javax.inject.Inject
 
 class RestoreWithUrlDataUseCase @Inject constructor(
-    private val database: AppDatabase,
+    private val transactionRunner: TransactionRunner,
     private val trashRepository: TrashRepository,
     private val urlRepository: UrlRepository
 ) {
     suspend fun execute(item: TrashItem) {
-        database.withTransaction {
+        transactionRunner.run {
             trashRepository.deleteTrashItem(item)
-            urlRepository.saveUrl(item.mapperToUrlData())
+            urlRepository.saveUrl(item.toUrlData())
         }
     }
 }

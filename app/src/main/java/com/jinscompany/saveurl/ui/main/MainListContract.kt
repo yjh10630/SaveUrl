@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.ui.main
 
+import androidx.annotation.StringRes
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.paging.PagingData
@@ -25,7 +26,7 @@ sealed class MainListIntent {
     data class GoToOutLinkWebSite(val url: String?): MainListIntent()
     data class GotoOutShareUrl(val url: String?): MainListIntent()
     data class DeleteLinkItem(val urlData: UrlData): MainListIntent()
-    data class ClipboardUrlCheck(val url: String): MainListIntent()
+    data object ReadClipboard: MainListIntent()
     data class NewFilterData(val category: List<String>, val sort: String, val site: List<String>, val tag: List<String>): MainListIntent()
     data class ShowLinkInfoDialog(val data: UrlData): MainListIntent()
 }
@@ -34,7 +35,7 @@ sealed class MainListUiEffect {
     data class NavigateToResult(val route: String, val url: String? = null): MainListUiEffect()
     data class OutLinkWebSite(val url: String): MainListUiEffect()
     data class StaticWebOpen(val url: String): MainListUiEffect()
-    data class ShowToast(val message: String): MainListUiEffect()
+    data class ShowToast(@StringRes val messageRes: Int): MainListUiEffect()
     data class UrlShare(val url: String): MainListUiEffect()
     data class ShowSnackBarSaveUrl(val url: String): MainListUiEffect()
     data object ListRefresh: MainListUiEffect()

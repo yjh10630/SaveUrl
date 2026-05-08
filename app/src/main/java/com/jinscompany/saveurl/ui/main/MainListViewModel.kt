@@ -1,9 +1,5 @@
 package com.jinscompany.saveurl.ui.main
 
-import android.net.Uri
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,44 +9,59 @@ import androidx.paging.cachedIn
 import androidx.paging.filter
 import com.jinscompany.saveurl.domain.model.FilterParams
 import com.jinscompany.saveurl.domain.model.UrlData
-import com.jinscompany.saveurl.domain.repository.CategoryRepository
-import com.jinscompany.saveurl.domain.repository.TrashRepository
-import com.jinscompany.saveurl.domain.repository.UrlRepository
 import com.jinscompany.saveurl.domain.usecase.DeleteWithTrashUseCase
+import com.jinscompany.saveurl.domain.usecase.GetTrashStateUseCase
+import com.jinscompany.saveurl.domain.usecase.GetUrlListUseCase
+import com.jinscompany.saveurl.domain.usecase.IsSavedUrlUseCase
+import com.jinscompany.saveurl.domain.usecase.RemoveUrlUseCase
+import com.jinscompany.saveurl.domain.usecase.SaveUrlUseCase
+import com.jinscompany.saveurl.R
+import com.jinscompany.saveurl.ui.FilterDefaults
 import com.jinscompany.saveurl.ui.composable.SimpleMenuModel
-import com.jinscompany.saveurl.ui.main.MainListIntent
 import com.jinscompany.saveurl.ui.main.MainListUiEffect.*
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.APP_SETTING
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.EDIT_CATEGORY
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SAVE_LINK
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SEARCH
+import com.jinscompany.saveurl.domain.repository.TrashRepository
+import com.jinscompany.saveurl.utils.ClipboardReader
 import com.jinscompany.saveurl.utils.PreferencesManager
 import com.jinscompany.saveurl.utils.tutorialUrl
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class MainListViewModel @Inject constructor(
-    private val urlRepository: UrlRepository,
-    private val categoryRepository: CategoryRepository,
+    private val getUrlListUseCase: GetUrlListUseCase,
+    private val saveUrlUseCase: SaveUrlUseCase,
+    private val removeUrlUseCase: RemoveUrlUseCase,
+    private val isSavedUrlUseCase: IsSavedUrlUseCase,
+    private val getTrashStateUseCase: GetTrashStateUseCase,
     private val deleteWithTrashUseCase: DeleteWithTrashUseCase,
     private val trashRepository: TrashRepository,
     private val preferencesManager: PreferencesManager,
+    private val clipboardReader: ClipboardReader,
 ) : ViewModel() {
 
-    var mainListUiState by mutableStateOf<MainListUiState>(MainListUiState.Idle)
-        private set
+    private val _mainListUiState = MutableStateFlow<MainListUiState>(MainListUiState.Idle)
+    val mainListUiState: StateFlow<MainListUiState> = _mainListUiState.asStateFlow()
 
     private val _mainListEffect = MutableSharedFlow<MainListUiEffect>()
     val mainListEffect = _mainListEffect.asSharedFlow()
 
-    var filterSelectedItems by mutableStateOf<FilterParams>(FilterParams(categories = listOf("전체"), sort = "최신순", siteList = listOf(), tagList = listOf()))
-        private set
+    private val _filterSelectedItems = MutableStateFlow(
+        FilterParams(categories = listOf(FilterDefaults.CATEGORY_ALL), sort = FilterDefaults.SORT_LATEST, siteList = listOf(), tagList = listOf())
+    )
+    val filterSelectedItems: StateFlow<FilterParams> = _filterSelectedItems.asStateFlow()
 
     init {
         getLinkList()
@@ -69,7 +80,7 @@ class MainListViewModel @Inject constructor(
                 is MainListIntent.GoToOutLinkWebSite -> {
                     _mainListEffect.emit(
                         if (intent.url.isNullOrEmpty()) {
-                            ShowToast("Url 정보가 누락 되어 이동할 수 없습니다.")
+                            ShowToast(R.string.error_url_missing)
                         } else if (intent.url == tutorialUrl) {
                             StaticWebOpen(intent.url)
                         } else {
@@ -80,16 +91,14 @@ class MainListViewModel @Inject constructor(
                 is MainListIntent.GotoOutShareUrl -> {
                     _mainListEffect.emit(
                         if (intent.url.isNullOrEmpty()) {
-                            ShowToast("Url 정보가 누락 되어 이동할 수 없습니다.")
+                            ShowToast(R.string.error_url_missing)
                         } else {
                             UrlShare(intent.url)
                         }
                     )
                 }
                 is MainListIntent.GoToLinkEditScreen -> {
-                    _mainListEffect.emit(
-                        NavigateToResult(route = SAVE_LINK, url = intent.url)
-                    )
+                    _mainListEffect.emit(NavigateToResult(route = SAVE_LINK, url = intent.url))
                 }
                 is MainListIntent.DeleteLinkItem -> deleteLinkItem(intent.urlData)
                 MainListIntent.GoToCategorySettingScreen -> {
@@ -101,19 +110,17 @@ class MainListViewModel @Inject constructor(
                 MainListIntent.GoToSearchScreen -> {
                     _mainListEffect.emit(NavigateToResult(route = SEARCH))
                 }
-
                 MainListIntent.FetchCategoryData -> {}
-                is MainListIntent.ClipboardUrlCheck -> clipboardUrlCheckToSnackBar(intent.url)
+                MainListIntent.ReadClipboard -> clipboardReader.readUrl()?.let { clipboardUrlCheckToSnackBar(it) }
                 MainListIntent.GoToAppSetting -> {
                     _mainListEffect.emit(NavigateToResult(route = APP_SETTING))
                 }
                 is MainListIntent.NewFilterData -> {
-                    viewModelScope.launch {
-                        filterSelectedItems = FilterParams(categories = intent.category, sort = intent.sort, siteList = intent.site, tagList = intent.tag)
-                        getLinkList(filterSelectedItems)
+                    _filterSelectedItems.update {
+                        FilterParams(categories = intent.category, sort = intent.sort, siteList = intent.site, tagList = intent.tag)
                     }
+                    getLinkList(_filterSelectedItems.value)
                 }
-
                 is MainListIntent.ShowLinkInfoDialog -> showLinkInfoDialog(intent.data)
             }
         }
@@ -121,20 +128,16 @@ class MainListViewModel @Inject constructor(
 
     private fun showLinkInfoDialog(data: UrlData) {
         viewModelScope.launch {
-            val isTrashEnable = trashRepository.getTrashState()
+            val isTrashEnable = getTrashStateUseCase()
             val list = mutableListOf<SimpleMenuModel.MenuModel>(
-                SimpleMenuModel.MenuModel(txt = "공유하기", txtColor = Color.LightGray, event = {
-                    viewModelScope.launch {
-                        onIntent(MainListIntent.GotoOutShareUrl(data.url))
-                    }
+                SimpleMenuModel.MenuModel(txtRes = R.string.main_list_menu_share, txtColor = Color.LightGray, event = {
+                    viewModelScope.launch { onIntent(MainListIntent.GotoOutShareUrl(data.url)) }
                 }),
-                SimpleMenuModel.MenuModel(txt = "수정하기", txtColor = Color.LightGray, isBold = true, event = {
-                    viewModelScope.launch {
-                        onIntent(MainListIntent.GoToLinkEditScreen(url = data.url ?: ""))
-                    }
+                SimpleMenuModel.MenuModel(txtRes = R.string.main_list_menu_edit, txtColor = Color.LightGray, isBold = true, event = {
+                    viewModelScope.launch { onIntent(MainListIntent.GoToLinkEditScreen(url = data.url ?: "")) }
                 }),
                 SimpleMenuModel.MenuModel(
-                    txt = if (isTrashEnable) "휴지통으로 이동" else "삭제하기",
+                    txtRes = if (isTrashEnable) R.string.trash_move_label else R.string.main_list_menu_delete,
                     txtColor = Color.Red,
                     isBold = true,
                     event = {
@@ -142,14 +145,14 @@ class MainListViewModel @Inject constructor(
                             if (isTrashEnable) {
                                 onIntent(MainListIntent.DeleteLinkItem(data))
                             } else {
-                                urlRepository.removeUrl(data)
+                                removeUrlUseCase(data)
                             }
                         }
                     }
                 )
             )
 
-            if (data.url == tutorialUrl) list.removeAll { it.txt == "수정하기" }    // 튜토리얼은 수정하기 방지
+            if (data.url == tutorialUrl) list.removeAll { it.txtRes == R.string.main_list_menu_edit }
 
             val model = SimpleMenuModel(menuList = list)
             _mainListEffect.emit(ShowLinkInfoDialog(model))
@@ -158,7 +161,7 @@ class MainListViewModel @Inject constructor(
 
     private fun clipboardUrlCheckToSnackBar(url: String) {
         viewModelScope.launch {
-            val isSaved = urlRepository.isSavedUrl(url)
+            val isSaved = isSavedUrlUseCase(url)
             if (!isSaved) _mainListEffect.emit(ShowSnackBarSaveUrl(url))
         }
     }
@@ -171,12 +174,11 @@ class MainListViewModel @Inject constructor(
 
     private fun getLinkList(params: FilterParams? = null) {
         viewModelScope.launch {
-            mainListUiState = MainListUiState.Loading
+            _mainListUiState.value = MainListUiState.Loading
 
             val isInitRunApp = preferencesManager.isInitFirstRun.first()
             if (!isInitRunApp) {
-                // 앱 최초 시작 시 튜토리얼 링크 추가
-                val isSaved = urlRepository.saveUrl(
+                val isSaved = saveUrlUseCase(
                     UrlData(
                         title = "이렇게 사용하세요!",
                         imgUrl = "https://github.com/yjh10630/MyWeb/blob/main/assets/images/help.png?raw=true",
@@ -187,28 +189,20 @@ class MainListViewModel @Inject constructor(
                         tagList = listOf("사용방법", "튜토리얼")
                     )
                 )
-                if (isSaved) preferencesManager.setInitFirstRun(true)   // 우선 튜토리얼 저장이 완료 되면 플래그, 다른 용도가 있을 경우 변경 필요
+                if (isSaved) preferencesManager.setInitFirstRun(true)
             }
 
             val dataFlow = Pager(
-                config = PagingConfig(
-                    pageSize = 10,
-                    prefetchDistance = 5,
-                    enablePlaceholders = false
-                ),
-                pagingSourceFactory = { urlRepository.getUrlList(params) }
+                config = PagingConfig(pageSize = 10, prefetchDistance = 5, enablePlaceholders = false),
+                pagingSourceFactory = { getUrlListUseCase(params) }
             ).flow.cachedIn(viewModelScope)
                 .map { pagingData ->
                     params?.tagList?.let { tagList ->
                         if (tagList.isEmpty()) pagingData
-                        else {
-                            pagingData.filter {
-                                it.tagList?.any { it in tagList } == true
-                            }
-                        }
-                    } ?: run { pagingData }
+                        else pagingData.filter { it.tagList?.any { it in tagList } == true }
+                    } ?: pagingData
                 }
-            mainListUiState = MainListUiState.Success(urlFlowState = dataFlow)
+            _mainListUiState.value = MainListUiState.Success(urlFlowState = dataFlow)
         }
     }
 }

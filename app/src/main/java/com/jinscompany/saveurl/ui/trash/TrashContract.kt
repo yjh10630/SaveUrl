@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.ui.trash
 
+import androidx.annotation.StringRes
 import androidx.paging.PagingData
 import com.jinscompany.saveurl.domain.model.TrashItem
 import com.jinscompany.saveurl.ui.composable.SimpleMenuModel
@@ -26,5 +27,5 @@ sealed class TrashUiEffect {
     data class AskFromUserTrashStateChange(val alertDataModel: TrashViewModel.AlertDataModel): TrashUiEffect()
     data object ForceCommonBottomSheetHide: TrashUiEffect()
     data class ShowMoreBottomSheet(val model: SimpleMenuModel): TrashUiEffect()
-    data class ShowSnackBar(val txt: String): TrashUiEffect()
+    data class ShowSnackBar(val txt: String = "", @StringRes val txtRes: Int? = null, val formatArgs: List<Any> = emptyList()): TrashUiEffect()
 }

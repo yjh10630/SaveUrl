@@ -3,6 +3,7 @@ package com.jinscompany.saveurl
 import android.app.Application
 import com.google.android.gms.ads.MobileAds
 import com.jinscompany.saveurl.utils.CmLog
+import com.jinscompany.saveurl.utils.globalCoroutineExceptionHandler
 import com.jinscompany.saveurl.utils.isDebuggable
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -24,7 +25,7 @@ class SaveUrlApplication: Application() {
     override fun onCreate() {
         super.onCreate()
         DEBUG = isDebuggable(this)
-        CoroutineScope(Dispatchers.IO).launch {
+        CoroutineScope(Dispatchers.IO + globalCoroutineExceptionHandler).launch {
             MobileAds.initialize(this@SaveUrlApplication) {
                 CmLog.d("MobileAds initialize")
             }

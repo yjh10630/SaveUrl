@@ -6,6 +6,8 @@ import com.jinscompany.saveurl.data.room.BaseSaveUrlDao
 import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.room.CategoryDao
 import com.jinscompany.saveurl.data.room.TrashDao
+import com.jinscompany.saveurl.utils.ClipboardReader
+import com.jinscompany.saveurl.utils.ClipboardReaderImpl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -35,6 +37,11 @@ class AppModule {
     fun provideClipboardManager(
         @ApplicationContext context: Context
     ): ClipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+
+    @Singleton
+    @Provides
+    fun provideClipboardReader(clipboardManager: ClipboardManager): ClipboardReader =
+        ClipboardReaderImpl(clipboardManager)
 
     @Singleton
     @Provides

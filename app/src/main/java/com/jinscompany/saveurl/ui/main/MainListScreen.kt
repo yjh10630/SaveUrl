@@ -1,7 +1,5 @@
 package com.jinscompany.saveurl.ui.main
 
-import android.content.ClipboardManager
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -28,6 +26,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,7 +57,6 @@ import com.jinscompany.saveurl.ui.composable.MainHeaderSection
 import com.jinscompany.saveurl.ui.composable.SimpleMenuModel
 import com.jinscompany.saveurl.ui.composable.singleClick
 import com.jinscompany.saveurl.ui.filter.FilterScreenBottomSheet
-import com.jinscompany.saveurl.ui.main.MainListIntent.ClipboardUrlCheck
 import com.jinscompany.saveurl.ui.main.MainListIntent.FetchCategoryData
 import com.jinscompany.saveurl.ui.main.MainListIntent.GoToAppSetting
 import com.jinscompany.saveurl.ui.main.MainListIntent.GoToCategorySettingScreen
@@ -77,7 +75,6 @@ import com.jinscompany.saveurl.ui.navigation.navigateToSaveLink
 import com.jinscompany.saveurl.ui.navigation.navigateToSearch
 import com.jinscompany.saveurl.ui.navigation.navigateToStaticWeb
 import com.jinscompany.saveurl.ui.theme.Brown
-import com.jinscompany.saveurl.utils.extractUrlFromText
 import com.jinscompany.saveurl.utils.tutorialUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
@@ -96,11 +93,14 @@ fun MainListScreen(
     val listState = rememberLazyListState()
     val snackBarHostState = remember { SnackbarHostState() }
 
-    val mainListPagingData = when (val uiState = viewModel.mainListUiState) {
+    val mainListUiState by viewModel.mainListUiState.collectAsState()
+    val filterSelectedItems by viewModel.filterSelectedItems.collectAsState()
+
+    val mainListPagingData = when (val uiState = mainListUiState) {
         is MainListUiState.Success -> uiState.urlFlowState.collectAsLazyPagingItems()
         else -> null
     }
-    
+
     val uiEffect = viewModel.mainListEffect
     var filterDialog by remember { mutableStateOf<String?>(null) }
     var linkInfoDialog by remember { mutableStateOf<SimpleMenuModel?>(null) }
@@ -114,15 +114,7 @@ fun MainListScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                if (clipboard.hasPrimaryClip() && (clipboard.primaryClip?.itemCount ?: 0) > 0) {
-                    clipboard.primaryClip?.getItemAt(0)?.text?.let {
-                        val url = extractUrlFromText(it.toString())
-                        if (url?.isNotEmpty() == true) {
-                            viewModel.onIntent(ClipboardUrlCheck(url))
-                        }
-                    }
-                }
+                viewModel.onIntent(MainListIntent.ReadClipboard)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -154,7 +146,7 @@ fun MainListScreen(
                     context.startActivity(intent)
                 }
                 is MainListUiEffect.ShowToast -> {
-                    Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, effect.messageRes, Toast.LENGTH_SHORT).show()
                 }
                 is MainListUiEffect.UrlShare -> {
                     val sendIntent = Intent().apply {
@@ -162,7 +154,7 @@ fun MainListScreen(
                         putExtra(Intent.EXTRA_TEXT, effect.url)
                         type = "text/plain"
                     }
-                    val shareIntent = Intent.createChooser(sendIntent, "링크를 공유할 앱을 선택하세요")
+                    val shareIntent = Intent.createChooser(sendIntent, context.getString(com.jinscompany.saveurl.R.string.share_app_chooser_title))
                     context.startActivity(shareIntent)
                 }
                 MainListUiEffect.ListRefresh -> mainListPagingData?.refresh()
@@ -170,9 +162,9 @@ fun MainListScreen(
                     coroutineScope.launch {
                         val result = snackBarHostState
                             .showSnackbar(
-                                message = "클립보드에 복사된 링크 저장\n${effect.url}",
+                                message = context.getString(com.jinscompany.saveurl.R.string.clipboard_snackbar_message, effect.url),
                                 duration = SnackbarDuration.Short,
-                                actionLabel = "저장"
+                                actionLabel = context.getString(com.jinscompany.saveurl.R.string.clipboard_snackbar_action)
                             )
                         when (result) {
                             SnackbarResult.ActionPerformed -> {
@@ -207,14 +199,7 @@ fun MainListScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = singleClick {
-                    var url = ""
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    if (clipboard.hasPrimaryClip() && (clipboard.primaryClip?.itemCount ?: 0) > 0) {
-                        clipboard.primaryClip?.getItemAt(0)?.text?.let {
-                            url = extractUrlFromText(it.toString()) ?: ""
-                        }
-                    }
-                    viewModel.onIntent(GoToLinkInsertScreen(url))
+                    viewModel.onIntent(GoToLinkInsertScreen(""))
                 },
                 containerColor = Brown,
                 contentColor = Color.White,
@@ -230,7 +215,7 @@ fun MainListScreen(
         filterDialog?.let {
             FilterScreenBottomSheet(
                 dismiss = { filterDialog = null },
-                initSelectedData = viewModel.filterSelectedItems,
+                initSelectedData = filterSelectedItems,
                 onConfirm = { categories, sort, site, tag ->
                     viewModel.onIntent(NewFilterData(category = categories, sort = sort, site = site, tag = tag))
                     filterDialog = null
@@ -256,7 +241,7 @@ fun MainListScreen(
             onLinkItemClick = { url -> viewModel.onIntent(GoToOutLinkWebSite(url))},
             onLinkItemLongClick = { urlData: UrlData -> viewModel.onIntent(ShowLinkInfoDialog(urlData)) },
             onFilterOpen = { filterDialog = "" },
-            filterSelectedData = viewModel.filterSelectedItems.getMainSelectedList(),
+            filterSelectedData = filterSelectedItems.getMainSelectedList(),
             listState = listState,
             adView = adView
         )

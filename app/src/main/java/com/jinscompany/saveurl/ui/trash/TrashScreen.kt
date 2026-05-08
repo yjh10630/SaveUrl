@@ -1,6 +1,7 @@
 package com.jinscompany.saveurl.ui.trash
 
 import android.widget.Toast
+import com.jinscompany.saveurl.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -51,6 +53,7 @@ import com.jinscompany.saveurl.ui.composable.CommonSimpleMenuBottomSheet
 import com.jinscompany.saveurl.ui.composable.CustomSwitchButton
 import com.jinscompany.saveurl.ui.composable.LinkUrlItem
 import com.jinscompany.saveurl.ui.composable.SimpleMenuModel
+import com.jinscompany.saveurl.data.mapper.toUrlData
 import com.jinscompany.saveurl.ui.composable.filterNotIsInstance
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.SharedFlow
@@ -91,11 +94,12 @@ fun TrashScreen(
                     showMenuAlert = effect.model
                 }
                 is TrashUiEffect.ShowSnackBar -> {
+                    val message = effect.txtRes?.let { context.getString(it, *effect.formatArgs.toTypedArray()) } ?: effect.txt
                     val result = snackBarHostState
                         .showSnackbar(
-                            message = effect.txt,
+                            message = message,
                             duration = SnackbarDuration.Short,
-                            actionLabel = "확인"
+                            actionLabel = context.getString(com.jinscompany.saveurl.R.string.btn_confirm)
                         )
                     when (result) {
                         SnackbarResult.ActionPerformed -> {}
@@ -115,14 +119,14 @@ fun TrashScreen(
                 dismiss = { showMenuAlert = null }
             )
         }
-        showAlert?.let {
+        showAlert?.let { alert ->
             CommonSimpleBottomSheet(
-                title = it.title,
-                description = it.description,
-                confirmTxt = it.confirmTxt,
-                cancelTxt = it.cancelTxt,
-                confirm = it.confirm,
-                cancel = it.cancel
+                title = alert.titleRes?.let { stringResource(it) } ?: alert.title,
+                description = alert.descriptionRes?.let { stringResource(it) } ?: alert.description,
+                confirmTxt = alert.confirmTxtRes?.let { stringResource(it) } ?: alert.confirmTxt,
+                cancelTxt = alert.cancelTxtRes?.let { stringResource(it) } ?: alert.cancelTxt,
+                confirm = alert.confirm,
+                cancel = alert.cancel
             )
         }
 
@@ -154,11 +158,11 @@ fun TrashScreen(
                     key = { index, item -> item?.id ?: 0 }
                 ) { index, item ->
                     item?.let {
-                        val data = item.mapperToUrlData()
+                        val data = item.toUrlData()
                         LinkUrlItem(
                             Modifier.animateItem(),
                             data,
-                            onClick = { Toast.makeText(context, "링크를 열려면 복원해야 합나다.", Toast.LENGTH_SHORT).show() },
+                            onClick = { Toast.makeText(context, R.string.trash_item_open_restore_required, Toast.LENGTH_SHORT).show() },
                             longOnClick = { event.invoke(TrashIntent.AskFromUserLinkLongClickShowAlert(item)) },
                         )
                         if (index < items.itemCount - 1) {

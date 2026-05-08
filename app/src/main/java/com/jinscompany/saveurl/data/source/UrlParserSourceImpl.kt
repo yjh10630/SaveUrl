@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import android.webkit.WebSettings
+import com.google.firebase.crashlytics.ktx.crashlytics
+import com.google.firebase.ktx.Firebase
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import com.jinscompany.saveurl.domain.model.UrlData
@@ -64,6 +66,7 @@ class UrlParserSourceImpl @Inject constructor(
             )
         } catch (e: HttpStatusException) {
             Log.e("UriParserSourceImpl", "Error > ${e.printStackTrace()}")
+            Firebase.crashlytics.recordException(e)
             val realUrl = getExceptionUrl(e.message ?: "") ?: ""
             data = if (containsSmartstore(realUrl)) {
                 UrlData(
@@ -85,6 +88,7 @@ class UrlParserSourceImpl @Inject constructor(
 
         } catch (e: Exception) {
             Log.e("UriParserSourceImpl", "Error > ${e.printStackTrace()}")
+            Firebase.crashlytics.recordException(e)
             val realUrl = getExceptionUrl(e.message ?: "") ?: ""
             data = if (containsSmartstore(realUrl)) {
                 UrlData(

@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.rememberNavController
+import com.jinscompany.saveurl.R
 import com.jinscompany.saveurl.ui.composable.SetStatusBarColor
 import com.jinscompany.saveurl.ui.navigation.AppNavigation
 import com.jinscompany.saveurl.ui.navigation.Navigation
@@ -79,7 +80,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun setupBackPressedHandler() {
-        toast = Toast.makeText(this, "뒤로 버튼을 한 번 더 누르면 종료됩니다", Toast.LENGTH_SHORT)
+        toast = Toast.makeText(this, R.string.back_press_exit_message, Toast.LENGTH_SHORT)
         val callback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 val currentTime = System.currentTimeMillis()

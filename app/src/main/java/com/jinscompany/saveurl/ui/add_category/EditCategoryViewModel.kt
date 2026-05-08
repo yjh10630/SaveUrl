@@ -6,51 +6,63 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jinscompany.saveurl.domain.model.CategoryModel
-import com.jinscompany.saveurl.domain.repository.CategoryRepository
+import com.jinscompany.saveurl.domain.usecase.DeleteCategoryUseCase
+import com.jinscompany.saveurl.domain.usecase.GetCategoriesUseCase
+import com.jinscompany.saveurl.domain.usecase.InsertCategoryUseCase
+import com.jinscompany.saveurl.domain.usecase.UpdateCategoryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class EditCategoryViewModel @Inject constructor(
-    private val categoryRepository: CategoryRepository
-): ViewModel() {
+    private val getCategoriesUseCase: GetCategoriesUseCase,
+    private val insertCategoryUseCase: InsertCategoryUseCase,
+    private val deleteCategoryUseCase: DeleteCategoryUseCase,
+    private val updateCategoryUseCase: UpdateCategoryUseCase,
+) : ViewModel() {
+
     private val _categoryItemsState: MutableState<List<CategoryModel>> = mutableStateOf(listOf())
     val categoryItemsState: State<List<CategoryModel>> = _categoryItemsState
 
-    fun getCategoryList() {
+    fun onIntent(intent: EditCategoryIntent) {
+        when (intent) {
+            EditCategoryIntent.Load -> getCategoryList()
+            is EditCategoryIntent.Insert -> insertCategory(intent.name)
+            is EditCategoryIntent.Delete -> deleteCategory(intent.name)
+            is EditCategoryIntent.Update -> updateCategoryName(intent.oldName, intent.newName)
+        }
+    }
+
+    private fun getCategoryList() {
         viewModelScope.launch {
-            val list = categoryRepository.get().filter { it.isEditable }
+            val list = getCategoriesUseCase().filter { it.isEditable }
             _categoryItemsState.value = list
         }
     }
 
-    fun deleteCategory(name: String) {
+    private fun deleteCategory(name: String) {
         viewModelScope.launch {
-
             val deleteData = _categoryItemsState.value.firstOrNull { it.name == name } ?: return@launch
-            val isDeleted = categoryRepository.delete(deleteData)
+            val isDeleted = deleteCategoryUseCase(deleteData)
             if (isDeleted)
                 _categoryItemsState.value = _categoryItemsState.value.filterNot { it.name == name }
         }
     }
 
-    fun insertCategory(name: String) {
+    private fun insertCategory(name: String) {
         viewModelScope.launch {
-            // 중복 방지: 이미 같은 이름이 있으면 추가 X
             if (_categoryItemsState.value.any { it.name == name }) return@launch
             val newCategory = CategoryModel(name = name)
-            val isAdded = categoryRepository.insert(newCategory)
+            val isAdded = insertCategoryUseCase(newCategory)
             if (isAdded) _categoryItemsState.value += newCategory
         }
     }
 
-    fun updateCategoryName(oldName: String, newName: String) {
+    private fun updateCategoryName(oldName: String, newName: String) {
         viewModelScope.launch {
-            // 이름이 비었거나 중복되면 무시
             if (newName.isBlank() || _categoryItemsState.value.any { it.name == newName }) return@launch
-
-            val isUpdated = categoryRepository.update(oldName, newName)
+            val isUpdated = updateCategoryUseCase(oldName, newName)
             if (isUpdated) {
                 _categoryItemsState.value = _categoryItemsState.value.map {
                     if (it.name == oldName) it.copy(name = newName) else it
@@ -58,5 +70,4 @@ class EditCategoryViewModel @Inject constructor(
             }
         }
     }
-
 }

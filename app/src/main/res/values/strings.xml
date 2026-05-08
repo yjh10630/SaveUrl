@@ -1,3 +1,56 @@
 <resources>
     <string name="app_name">SaveLink</string>
+
+    <!-- 공통 -->
+    <string name="btn_save">저장</string>
+    <string name="btn_edit">수정</string>
+    <string name="btn_cancel">취소</string>
+    <string name="btn_confirm">확인</string>
+    <string name="btn_restore">복원</string>
+    <string name="btn_delete">삭제</string>
+    <string name="btn_restore_all">전체 복원</string>
+    <string name="btn_delete_all">전체 삭제</string>
+    <string name="btn_share">공유하기</string>
+
+    <!-- MainActivity -->
+    <string name="back_press_exit_message">뒤로 버튼을 한 번 더 누르면 종료됩니다</string>
+
+    <!-- 링크 공유/URL -->
+    <string name="error_url_missing">Url 정보가 누락 되어 이동할 수 없습니다.</string>
+    <string name="share_app_chooser_title">링크를 공유할 앱을 선택하세요</string>
+
+    <!-- InsertLinkScreen -->
+    <string name="insert_link_title">링크 저장하기</string>
+    <string name="insert_link_subtitle">저장할 웹 사이트 의 링크(URL)를 입력해 주세요.</string>
+    <string name="insert_link_url_label">링크 주소</string>
+    <string name="insert_link_url_placeholder">URL을 입력해주세요.</string>
+    <string name="insert_link_tag_label">태그 입력</string>
+    <string name="insert_link_tag_placeholder">태그 입력</string>
+    <string name="insert_link_tag_hint">콤마 ( , ) 를 사용해서 여러개 등록 가능해요!</string>
+    <string name="insert_link_edit_unavailable">URL 확인이 완료 된 후 수정이 가능 합니다.</string>
+
+    <!-- 휴지통 -->
+    <string name="trash_menu_title">선택된 링크를 어떻게 할까요?</string>
+    <string name="trash_menu_description">\n아래 메뉴를 선택해 주세요.\n\n- [복원] 을 선택할 경우 원래 있던 자리로 복원 됩니다.\n- [삭제] 를 선택할 경우 복구 할 수 없으니, 신중하게 선택해 주세요.\n</string>
+    <string name="trash_restore_all_title">링크를 모두 복원 하시겠습니까?</string>
+    <string name="trash_restore_all_description">복원된 링크들은 모두 원래 자리로 되돌아 갑니다.</string>
+    <string name="trash_delete_all_title">링크를 모두 삭제 하시겠습니까?</string>
+    <string name="trash_delete_all_description">삭제된 링크들은 복구 할 수 없습니다. 신중하게 선택해 주세요.</string>
+    <string name="trash_disable_title">휴지통 기능을 해제 하시겠습니까?</string>
+    <string name="trash_disable_description">휴지통은 삭제된 시점에서 7일간 보관되며, 실수로 링크를 삭제 했을 때 복원이 가능하여 되도록 사용이 권장되는 영역 입니다.</string>
+    <string name="trash_move_label">휴지통으로 이동</string>
+    <string name="trash_item_restored_format">[%s] 의 링크가 [복원] 되었습니다.</string>
+    <string name="trash_item_deleted_format">[%s] 의 링크가 [삭제] 되었습니다.</string>
+    <string name="trash_all_restored_format">%d개의 링크가 [복원] 되었습니다.</string>
+    <string name="trash_all_deleted_format">%d개의 링크가 [삭제] 되었습니다.</string>
+
+    <!-- 휴지통 아이템 Toast -->
+    <string name="trash_item_open_restore_required">링크를 열려면 복원해야 합니다.</string>
+
+    <!-- 메인 리스트 -->
+    <string name="main_list_menu_share">공유하기</string>
+    <string name="main_list_menu_edit">수정하기</string>
+    <string name="main_list_menu_delete">삭제하기</string>
+    <string name="clipboard_snackbar_message">클립보드에 복사된 링크 저장\n%s</string>
+    <string name="clipboard_snackbar_action">저장</string>
 </resources>

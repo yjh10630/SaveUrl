@@ -11,6 +11,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import com.google.firebase.crashlytics.ktx.crashlytics
+import com.google.firebase.ktx.Firebase
 import com.jinscompany.saveurl.domain.model.UrlData
 import kotlinx.coroutines.delay
 import org.jsoup.Jsoup
@@ -90,6 +92,7 @@ fun LinkUrlCrawlerHidden(
                                 )
                             }
                         } catch (e: Exception) {
+                            Firebase.crashlytics.recordException(e)
                             if (!hasFinished.value) {
                                 hasFinished.value = true
                                 onError()

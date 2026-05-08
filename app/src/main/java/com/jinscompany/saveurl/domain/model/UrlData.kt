@@ -44,16 +44,4 @@ data class UrlData(
         }
     }
 
-    fun mapperUrlDataToTrashItem(): TrashItem = TrashItem(
-        id = id,
-        url = url ?: "",
-        imgUrl = imgUrl ?: "",
-        siteName = siteName ?: "",
-        title = title ?: "",
-        description = description ?: "",
-        tagList = tagList ?: emptyList(),
-        addDate = addDate,
-        category = category ?: "",
-        isBookMark = isBookMark,
-    )
 }

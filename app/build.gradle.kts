@@ -26,7 +26,7 @@ android {
     defaultConfig {
         applicationId = "com.jinscompany.saveurl"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 32
         versionName = "1.0.0"
 
@@ -104,7 +104,7 @@ dependencies {
     implementation("com.github.bumptech.glide:glide:4.15.1")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.22")
 
-    testImplementation("androidx.room:room-testing:2.6.1")
+    androidTestImplementation("androidx.room:room-testing:2.6.1")
 
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
     implementation("io.coil-kt:coil-compose:2.4.0")
@@ -137,6 +137,10 @@ dependencies {
     implementation("com.google.android.gms:play-services-ads:24.3.0")
 
     testImplementation(libs.junit)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    testImplementation("app.cash.turbine:turbine:1.1.0")
+    testImplementation("io.mockk:mockk:1.13.10")
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

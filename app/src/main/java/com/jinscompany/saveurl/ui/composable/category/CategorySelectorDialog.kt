@@ -2,6 +2,7 @@ package com.jinscompany.saveurl.ui.composable.category
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import com.jinscompany.saveurl.ui.FilterDefaults
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -91,7 +92,7 @@ fun CategorySelectorDialog(
                         CategoryItem(
                             text = it,
                             onClick = {
-                                if (selectItem == it) selectItem = "전체"
+                                if (selectItem == it) selectItem = FilterDefaults.CATEGORY_ALL
                                 else selectItem = it
                             },
                             isSelected = selectItem == it

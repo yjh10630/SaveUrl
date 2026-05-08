@@ -6,10 +6,17 @@ import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.cachedIn
+import com.jinscompany.saveurl.data.mapper.toUrlData
 import com.jinscompany.saveurl.domain.model.TrashItem
-import com.jinscompany.saveurl.domain.repository.TrashRepository
-import com.jinscompany.saveurl.domain.repository.UrlRepository
+import androidx.annotation.StringRes
+import com.jinscompany.saveurl.R
+import com.jinscompany.saveurl.domain.usecase.DeleteTrashItemUseCase
+import com.jinscompany.saveurl.domain.usecase.GetAllTrashItemsAfterDeleteAllUseCase
+import com.jinscompany.saveurl.domain.usecase.GetTrashItemsUseCase
+import com.jinscompany.saveurl.domain.usecase.GetTrashStateUseCase
 import com.jinscompany.saveurl.domain.usecase.RestoreWithUrlDataUseCase
+import com.jinscompany.saveurl.domain.usecase.SaveUrlListUseCase
+import com.jinscompany.saveurl.domain.usecase.SetTrashStateUseCase
 import com.jinscompany.saveurl.ui.composable.SimpleMenuModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -22,10 +29,14 @@ import javax.inject.Inject
 
 @HiltViewModel
 class TrashViewModel @Inject constructor(
-    private val urlRepository: UrlRepository,
-    private val trashRepository: TrashRepository,
+    private val getTrashItemsUseCase: GetTrashItemsUseCase,
+    private val getTrashStateUseCase: GetTrashStateUseCase,
+    private val setTrashStateUseCase: SetTrashStateUseCase,
+    private val deleteTrashItemUseCase: DeleteTrashItemUseCase,
+    private val getAllTrashItemsAfterDeleteAllUseCase: GetAllTrashItemsAfterDeleteAllUseCase,
+    private val saveUrlListUseCase: SaveUrlListUseCase,
     private val restoreWithUrlDataUseCase: RestoreWithUrlDataUseCase
-): ViewModel() {
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TrashUiState())
     val uiState: StateFlow<TrashUiState> = _uiState
@@ -49,51 +60,49 @@ class TrashViewModel @Inject constructor(
 
     private fun showMenuAlert(item: TrashItem) {
         viewModelScope.launch {
-            val list = listOf<SimpleMenuModel.MenuModel>(
-                SimpleMenuModel.MenuModel(txt = "복원", txtColor = Color.LightGray, event = {
+            val list = listOf(
+                SimpleMenuModel.MenuModel(txtRes = R.string.btn_restore, txtColor = Color.LightGray, event = {
                     viewModelScope.launch {
                         _uiEffect.emit(TrashUiEffect.ForceCommonBottomSheetHide)
                         restoreWithUrlDataUseCase.execute(item)
-                        _uiEffect.emit(TrashUiEffect.ShowSnackBar(txt = "[${item.title}] 의 링크가 [복원] 되었습니다."))
+                        _uiEffect.emit(TrashUiEffect.ShowSnackBar(txtRes = R.string.trash_item_restored_format, formatArgs = listOf(item.title ?: "")))
                     }
                 }),
-                SimpleMenuModel.MenuModel(txt = "삭제", txtColor = Color.Red, isBold = true, event = {
+                SimpleMenuModel.MenuModel(txtRes = R.string.btn_delete, txtColor = Color.Red, isBold = true, event = {
                     viewModelScope.launch {
                         _uiEffect.emit(TrashUiEffect.ForceCommonBottomSheetHide)
-                        trashRepository.deleteTrashItem(item)
-                        _uiEffect.emit(TrashUiEffect.ShowSnackBar(txt = "[${item.title}] 의 링크가 [삭제] 되었습니다."))
+                        deleteTrashItemUseCase(item)
+                        _uiEffect.emit(TrashUiEffect.ShowSnackBar(txtRes = R.string.trash_item_deleted_format, formatArgs = listOf(item.title ?: "")))
                     }
                 })
             )
             val model = SimpleMenuModel(
-                titleTxt = "선택된 링크를 어떻게 할까요?",
-                descriptionTxt = "\n아래 메뉴를 선택해 주세요.\n\n" +
-                        "- [복원] 을 선택할 경우 원래 있던 자리로 복원 됩니다.\n" +
-                        "- [삭제] 를 선택할 경우 복구 할 수 없으니, 신중하게 선택해 주세요.\n",
-                menuList = list)
+                titleTxtRes = R.string.trash_menu_title,
+                descriptionTxtRes = R.string.trash_menu_description,
+                menuList = list
+            )
             _uiEffect.emit(TrashUiEffect.ShowMoreBottomSheet(model))
         }
     }
 
     private fun makeMoreMenu() {
         viewModelScope.launch {
-
-            val list = mutableListOf<SimpleMenuModel.MenuModel>(
-                SimpleMenuModel.MenuModel(txt = "전체 복원", txtColor = Color.LightGray, event = {
+            val list = mutableListOf(
+                SimpleMenuModel.MenuModel(txtRes = R.string.btn_restore_all, txtColor = Color.LightGray, event = {
                     viewModelScope.launch {
                         val model = AlertDataModel(
-                            title = "링크를 모두 복원 하시겠습니까?" ,
-                            description = "복원된 링크들은 모두 원래 자리로 되돌아 갑니다.",
-                            confirmTxt = "복원",
-                            cancelTxt = "취소",
+                            titleRes = R.string.trash_restore_all_title,
+                            descriptionRes = R.string.trash_restore_all_description,
+                            confirmTxtRes = R.string.btn_restore,
+                            cancelTxtRes = R.string.btn_cancel,
                             confirm = {
                                 viewModelScope.launch {
                                     _uiEffect.emit(TrashUiEffect.ForceCommonBottomSheetHide)
-                                    val list = trashRepository.getAllItemsAfterDeleteAll()
+                                    val list = getAllTrashItemsAfterDeleteAllUseCase()
                                     if (list.isNotEmpty()) {
-                                        urlRepository.saveUrlDataList(list.map { it.mapperToUrlData() })
+                                        saveUrlListUseCase(list.map { it.toUrlData() })
                                     }
-                                    _uiEffect.emit(TrashUiEffect.ShowSnackBar(txt = "${list.size}개의 링크가 [복원] 되었습니다."))
+                                    _uiEffect.emit(TrashUiEffect.ShowSnackBar(txtRes = R.string.trash_all_restored_format, formatArgs = listOf(list.size)))
                                 }
                             },
                             cancel = {}
@@ -101,18 +110,18 @@ class TrashViewModel @Inject constructor(
                         _uiEffect.emit(TrashUiEffect.AskFromUserTrashStateChange(model))
                     }
                 }),
-                SimpleMenuModel.MenuModel(txt = "전체 삭제", txtColor = Color.Red, isBold = true, event = {
+                SimpleMenuModel.MenuModel(txtRes = R.string.btn_delete_all, txtColor = Color.Red, isBold = true, event = {
                     viewModelScope.launch {
                         val model = AlertDataModel(
-                            title = "링크를 모두 삭제 하시겠습니까?" ,
-                            description = "삭제된 링크들은 복구 할 수 없습니다. 신중하게 선택해 주세요.",
-                            confirmTxt = "삭제",
-                            cancelTxt = "취소",
+                            titleRes = R.string.trash_delete_all_title,
+                            descriptionRes = R.string.trash_delete_all_description,
+                            confirmTxtRes = R.string.btn_delete,
+                            cancelTxtRes = R.string.btn_cancel,
                             confirm = {
                                 viewModelScope.launch {
                                     _uiEffect.emit(TrashUiEffect.ForceCommonBottomSheetHide)
-                                    val list = trashRepository.getAllItemsAfterDeleteAll()
-                                    _uiEffect.emit(TrashUiEffect.ShowSnackBar(txt = "${list.size}개의 링크가 [삭제] 되었습니다."))
+                                    val list = getAllTrashItemsAfterDeleteAllUseCase()
+                                    _uiEffect.emit(TrashUiEffect.ShowSnackBar(txtRes = R.string.trash_all_deleted_format, formatArgs = listOf(list.size)))
                                 }
                             },
                             cancel = {}
@@ -121,27 +130,17 @@ class TrashViewModel @Inject constructor(
                     }
                 }),
             )
-
-            val model = SimpleMenuModel(menuList = list)
-            _uiEffect.emit(TrashUiEffect.ShowMoreBottomSheet(model))
+            _uiEffect.emit(TrashUiEffect.ShowMoreBottomSheet(SimpleMenuModel(menuList = list)))
         }
     }
 
     private fun initGetTrashItems() {
         viewModelScope.launch {
             val dataFlow = Pager(
-                config = PagingConfig(
-                    pageSize = 10,
-                    prefetchDistance = 5,
-                    enablePlaceholders = false
-                ),
-                pagingSourceFactory = { trashRepository.getTrashItems() }
+                config = PagingConfig(pageSize = 10, prefetchDistance = 5, enablePlaceholders = false),
+                pagingSourceFactory = { getTrashItemsUseCase() }
             ).flow.cachedIn(viewModelScope)
-            _uiState.update { current ->
-                current.copy(
-                    trashList = dataFlow
-                )
-            }
+            _uiState.update { current -> current.copy(trashList = dataFlow) }
         }
     }
 
@@ -153,12 +152,8 @@ class TrashViewModel @Inject constructor(
 
     private fun initGetTrashStateValue() {
         viewModelScope.launch {
-            val isEnable = trashRepository.getTrashState()
-            _uiState.update { current ->
-                current.copy(
-                    isActivate = isEnable
-                )
-            }
+            val isEnable = getTrashStateUseCase()
+            _uiState.update { current -> current.copy(isActivate = isEnable) }
         }
     }
 
@@ -168,26 +163,20 @@ class TrashViewModel @Inject constructor(
             AlertType.TrashState -> {
                 viewModelScope.launch {
                     val currentState = _uiState.value.isActivate
-
-                    if(!currentState) { // 현재 상태가 false 일 때에는 그냥 활성화 시켜줌
-                        _uiState.update { current ->
-                            current.copy(isActivate = true)
-                        }
-                        trashRepository.setTrashState(isEnable = true)
+                    if (!currentState) {
+                        _uiState.update { current -> current.copy(isActivate = true) }
+                        setTrashStateUseCase(isEnable = true)
                         return@launch
                     }
-
                     val model = AlertDataModel(
-                        title = "휴지통 기능을 해제 하시겠습니까?" ,
-                        description = "휴지통은 삭제된 시점에서 7일간 보관되며, 실수로 링크를 삭제 했을 때 복원이 가능하여 되도록 사용이 권장되는 영역 입니다.",
-                        confirmTxt = "확인",
-                        cancelTxt = "취소",
+                        titleRes = R.string.trash_disable_title,
+                        descriptionRes = R.string.trash_disable_description,
+                        confirmTxtRes = R.string.btn_confirm,
+                        cancelTxtRes = R.string.btn_cancel,
                         confirm = {
                             viewModelScope.launch {
-                                _uiState.update { current ->
-                                    current.copy(isActivate = false)
-                                }
-                                trashRepository.setTrashState(isEnable = false)
+                                _uiState.update { current -> current.copy(isActivate = false) }
+                                setTrashStateUseCase(isEnable = false)
                                 _uiEffect.emit(TrashUiEffect.ForceCommonBottomSheetHide)
                             }
                         },
@@ -201,20 +190,18 @@ class TrashViewModel @Inject constructor(
         }
     }
 
-    enum class AlertType {
-        Idle,
-        TrashState,
-        TrashRestore,
-        TrashDelete
-    }
+    enum class AlertType { Idle, TrashState, TrashRestore, TrashDelete }
+
     data class AlertDataModel(
-        val title: String,
-        val description: String,
-        val confirmTxt: String,
-        val cancelTxt: String,
+        val title: String = "",
+        val description: String = "",
+        val confirmTxt: String = "",
+        val cancelTxt: String = "",
+        @StringRes val titleRes: Int? = null,
+        @StringRes val descriptionRes: Int? = null,
+        @StringRes val confirmTxtRes: Int? = null,
+        @StringRes val cancelTxtRes: Int? = null,
         val confirm: () -> Unit,
         val cancel: () -> Unit
     )
-
-
 }

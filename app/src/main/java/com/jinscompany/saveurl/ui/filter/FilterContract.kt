@@ -3,6 +3,7 @@ package com.jinscompany.saveurl.ui.filter
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import com.jinscompany.saveurl.domain.model.FilterParams
+import com.jinscompany.saveurl.ui.FilterDefaults
 import com.jinscompany.saveurl.ui.main.FilterState
 
 sealed class FilterIntent {
@@ -18,7 +19,7 @@ sealed class FilterIntent {
 
 data class FilterUiState(
     val categoryState: FilterState.MultiSelect<String> = FilterState.MultiSelect(emptyList(), mutableStateListOf()),
-    val sortState: FilterState.SingleSelect<String> = FilterState.SingleSelect(emptyList(), mutableStateOf("최신순")),
+    val sortState: FilterState.SingleSelect<String> = FilterState.SingleSelect(emptyList(), mutableStateOf(FilterDefaults.SORT_LATEST)),
     val siteState: FilterState.MultiSelect<String> = FilterState.MultiSelect(emptyList(), mutableStateListOf()),
     val tagState: FilterState.MultiSelect<String> = FilterState.MultiSelect(emptyList(), mutableStateListOf())
 )

@@ -30,6 +30,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -60,6 +62,7 @@ fun AppSettingScreen(
     sharedViewModel: SharedViewModel = hiltViewModel(LocalActivity.current as MainActivity),
 ) {
     val context = LocalContext.current
+    val isFlexibleUpdatable by sharedViewModel.isFlexibleUpdatable.collectAsState()
     Scaffold { paddingValue ->
         AppSettingScreen(
             paddingValues = paddingValue,
@@ -106,7 +109,7 @@ fun AppSettingScreen(
                 navController.navigateToStaticWeb(encodedUrl)
             },
             currentAppVersion = getCurrentAppVersion(context),
-            isUpdatable = sharedViewModel.isFlexibleUpdatable
+            isUpdatable = isFlexibleUpdatable
         )
     }
 }

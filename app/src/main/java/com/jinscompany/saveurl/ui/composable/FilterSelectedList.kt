@@ -2,6 +2,7 @@ package com.jinscompany.saveurl.ui.composable
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import com.jinscompany.saveurl.ui.FilterDefaults
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -68,7 +69,7 @@ fun FilterSelectedList(data: List<String>, onClick: () -> Unit = {}) {
                 ),
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
             ) {
-                if (txt == "북마크") {
+                if (txt == FilterDefaults.CATEGORY_BOOKMARK) {
                     Icon(
                         modifier = Modifier.size(24.dp),
                         imageVector = Icons.Default.Bookmark,

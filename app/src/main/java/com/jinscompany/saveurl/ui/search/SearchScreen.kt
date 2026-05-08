@@ -87,7 +87,7 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel(), popBackStack: () 
             siteTypeList = listOf(),
             searchResult = searchResult,
             filterTxt = filterTxt,
-            searchKeyword = { keyword, filter -> viewModel.search(keyword, filter) },
+            searchKeyword = { keyword, filter -> viewModel.onIntent(SearchIntent.Search(keyword, filter)) },
             adView = adView,
         )
     }

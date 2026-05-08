@@ -2,12 +2,13 @@ package com.jinscompany.saveurl.ui.save_screen
 
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.UrlData
+import com.jinscompany.saveurl.ui.FilterDefaults
 
 data class LinkSaveUiState (
     val isBookMark: Boolean = false,
     val userInputUrl: String = "",
     val tagList: List<String> = emptyList(),
-    val categoryName: String = "전체",
+    val categoryName: String = FilterDefaults.CATEGORY_ALL,
     val linkUrlPreviewUiState: LinkUrlPreviewUiState = LinkUrlPreviewUiState.Idle,
     val isEditScreen: Boolean = false,  // 수정 모드 일경우 true
 ) {

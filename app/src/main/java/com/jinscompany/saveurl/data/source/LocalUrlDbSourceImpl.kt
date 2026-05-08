@@ -10,6 +10,7 @@ import com.jinscompany.saveurl.data.room.CategoryDao
 import com.jinscompany.saveurl.data.room.TrashDao
 import com.jinscompany.saveurl.domain.model.FilterParams
 import com.jinscompany.saveurl.domain.model.UrlData
+import com.jinscompany.saveurl.ui.FilterDefaults
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -23,12 +24,12 @@ class LocalUrlDbSourceImpl @Inject constructor(
 
     override fun getLocalSaveDBUrlList(params: FilterParams?): PagingSource<Int, UrlData> {
         return with(baseSaveUrlDao) {
-            val categories = params?.categories ?: listOf("전체")
+            val categories = params?.categories ?: listOf(FilterDefaults.CATEGORY_ALL)
             val siteNames = params?.siteList.orEmpty()
-            val sortDesc = (params?.sort ?: "최신순") == "최신순"
+            val sortDesc = (params?.sort ?: FilterDefaults.SORT_LATEST) == FilterDefaults.SORT_LATEST
 
             return when {
-                categories.contains("전체") -> {
+                categories.contains(FilterDefaults.CATEGORY_ALL) -> {
                     if (siteNames.isEmpty()) {
                         if (sortDesc) baseSaveUrlDao.getUrlDataLatest()
                         else baseSaveUrlDao.getUrlDataOldest()
@@ -38,7 +39,7 @@ class LocalUrlDbSourceImpl @Inject constructor(
                     }
                 }
 
-                categories.contains("북마크") -> {
+                categories.contains(FilterDefaults.CATEGORY_BOOKMARK) -> {
                     if (siteNames.isEmpty()) {
                         if (sortDesc) getTargetBookMarkUrlDataLatest()
                         else getTargetBookMarkUrlDataOldest()
@@ -65,8 +66,8 @@ class LocalUrlDbSourceImpl @Inject constructor(
         return@withContext try {
             db.withTransaction {
                 baseSaveUrlDao.insert(data)
-                val categoryName = data.category ?: "전체"
-                if (categoryName == "전체") {
+                val categoryName = data.category ?: FilterDefaults.CATEGORY_ALL
+                if (categoryName == FilterDefaults.CATEGORY_ALL) {
                     true
                 } else if (categoryName.isNotEmpty()) {
                     val category = categoryDao.get(categoryName)

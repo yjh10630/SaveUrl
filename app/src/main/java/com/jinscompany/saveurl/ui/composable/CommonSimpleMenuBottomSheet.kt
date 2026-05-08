@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.ui.composable
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -21,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -47,8 +49,8 @@ fun CommonSimpleMenuBottomSheet(
     ) {
         CommonSimpleMenuView(
             menuList = model.menuList,
-            titleTxt = model.titleTxt,
-            descriptionTxt = model.descriptionTxt,
+            titleTxt = model.titleTxtRes?.let { stringResource(it) } ?: model.titleTxt,
+            descriptionTxt = model.descriptionTxtRes?.let { stringResource(it) } ?: model.descriptionTxt,
             event = { index ->
                 scope.launch {
                     modalBottomSheetState.hide()
@@ -95,7 +97,8 @@ fun CommonSimpleMenuView(
                     contentColor = item.txtColor
                 )
             ) {
-                Text(item.txt, fontWeight = if (item.isBold) FontWeight.Bold else FontWeight.Medium)
+                val label = item.txtRes?.let { stringResource(it) } ?: item.txt
+                Text(label, fontWeight = if (item.isBold) FontWeight.Bold else FontWeight.Medium)
             }
             if (index < menuList.size - 1) {
                 Spacer(modifier = Modifier.height(2.dp))
@@ -111,9 +114,12 @@ data class SimpleMenuModel(
     val menuList: List<MenuModel>,
     val titleTxt: String? = null,
     val descriptionTxt: String? = null,
+    @StringRes val titleTxtRes: Int? = null,
+    @StringRes val descriptionTxtRes: Int? = null,
 ) {
     data class MenuModel(
-        val txt: String,
+        val txt: String = "",
+        @StringRes val txtRes: Int? = null,
         val event: () -> Unit,
         val txtColor: Color,
         val isBold: Boolean = false

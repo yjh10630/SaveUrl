@@ -2,6 +2,7 @@ package com.jinscompany.saveurl.ui.composable
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import com.jinscompany.saveurl.ui.FilterDefaults
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -43,7 +44,7 @@ fun SelectorTextButtonGroup(
     settingOnClick: () -> Unit,
     isEditMode: Boolean = false,
 ) {
-    var selectedOption by remember { mutableStateOf(options.firstOrNull { it.isSelected }?.name ?: "전체") }
+    var selectedOption by remember { mutableStateOf(options.firstOrNull { it.isSelected }?.name ?: FilterDefaults.CATEGORY_ALL) }
     val onSelectionChange = { text: String ->
         selectedOption = text
         clickItem.invoke(text)
