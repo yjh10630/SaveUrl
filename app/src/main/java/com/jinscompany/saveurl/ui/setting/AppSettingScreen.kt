@@ -31,9 +31,12 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.rounded.Autorenew
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -59,9 +62,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.jinscompany.saveurl.MainActivity
 import com.jinscompany.saveurl.SharedViewModel
+import com.jinscompany.saveurl.billing.BillingProducts
+import com.jinscompany.saveurl.billing.BillingUiEffect
 import com.jinscompany.saveurl.ui.composable.singleClick
 import com.jinscompany.saveurl.ui.navigation.navigateToTrash
 import com.jinscompany.saveurl.ui.navigation.navigateToStaticWeb
+import com.jinscompany.saveurl.ui.navigation.navigateToSupport
 import com.jinscompany.saveurl.ui.theme.AppBackground
 import com.jinscompany.saveurl.ui.theme.AppChipSelected
 import com.jinscompany.saveurl.ui.theme.AppChipUnselected
@@ -85,7 +91,10 @@ fun AppSettingScreen(
 ) {
     val darkModePref by sharedViewModel.darkModeEnabled.collectAsState()
     val context = LocalContext.current
+    val activity = LocalActivity.current as MainActivity
     val isFlexibleUpdatable by sharedViewModel.isFlexibleUpdatable.collectAsState()
+    val isAdsRemoved by sharedViewModel.isAdsRemoved.collectAsState()
+    val billingEffect by sharedViewModel.billingUiEffect.collectAsState()
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
@@ -101,6 +110,27 @@ fun AppSettingScreen(
                 is AppSettingEffect.ShowToast ->
                     Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    LaunchedEffect(billingEffect) {
+        when (billingEffect) {
+            is BillingUiEffect.PurchaseSuccess -> {
+                val productId = (billingEffect as BillingUiEffect.PurchaseSuccess).productId
+                val msg = when (productId) {
+                    BillingProducts.REMOVE_ADS -> "광고가 제거되었습니다. 감사합니다!"
+                    BillingProducts.SUPPORT_COFFEE -> "커피 한 잔 후원 감사합니다 ☕"
+                    BillingProducts.SUPPORT_SNACK -> "간식 후원 감사합니다 🍩"
+                    else -> "후원 감사합니다!"
+                }
+                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                sharedViewModel.clearBillingEffect()
+            }
+            is BillingUiEffect.PurchaseFailed -> {
+                Toast.makeText(context, "결제에 실패했습니다. 다시 시도해주세요.", Toast.LENGTH_SHORT).show()
+                sharedViewModel.clearBillingEffect()
+            }
+            else -> {}
         }
     }
 
@@ -155,6 +185,12 @@ fun AppSettingScreen(
             isUpdatable = isFlexibleUpdatable,
             darkModePref = darkModePref,
             onDarkModeChange = { sharedViewModel.setDarkMode(it) },
+            isAdsRemoved = isAdsRemoved,
+            onRemoveAdsClick = { sharedViewModel.launchBilling(activity, BillingProducts.REMOVE_ADS) },
+            onSupportCoffeeClick = { sharedViewModel.launchBilling(activity, BillingProducts.SUPPORT_COFFEE) },
+            onSupportSnackClick = { sharedViewModel.launchBilling(activity, BillingProducts.SUPPORT_SNACK) },
+            onRestorePurchasesClick = { sharedViewModel.restorePurchases() },
+            onSupportClick = { navController.navigateToSupport() },
         )
     }
 }
@@ -173,7 +209,13 @@ fun AppSettingScreen(
     importCsvClick: () -> Unit = {},
     darkModePref: Boolean? = null,
     onDarkModeChange: (Boolean?) -> Unit = {},
-    isUpdatable: Boolean = false
+    isUpdatable: Boolean = false,
+    isAdsRemoved: Boolean = false,
+    onRemoveAdsClick: () -> Unit = {},
+    onSupportCoffeeClick: () -> Unit = {},
+    onSupportSnackClick: () -> Unit = {},
+    onRestorePurchasesClick: () -> Unit = {},
+    onSupportClick: () -> Unit = {},
 ) {
     LazyColumn(
         modifier = Modifier
@@ -207,6 +249,21 @@ fun AppSettingScreen(
         }
 
         item { Spacer(modifier = Modifier.height(8.dp)) }
+
+        // 개발자 응원하기 섹션
+        item { SectionLabel("개발자 응원하기") }
+        item {
+            SettingCard {
+                SettingRow(
+                    icon = Icons.Default.Favorite,
+                    label = "개발자 응원하기",
+                    description = if (isAdsRemoved) "후원 · 광고 제거됨 ✓" else "후원 · 광고 제거",
+                    onClick = onSupportClick
+                )
+            }
+        }
+
+        item { Spacer(modifier = Modifier.height(16.dp)) }
 
         // 앱 정보 섹션
         item { SectionLabel("앱 정보") }
@@ -323,6 +380,7 @@ private fun SettingRow(
     icon: ImageVector,
     label: String,
     onClick: () -> Unit,
+    description: String? = null,
 ) {
     Row(
         modifier = Modifier
@@ -333,7 +391,7 @@ private fun SettingRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
@@ -341,12 +399,22 @@ private fun SettingRow(
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(14.dp))
-            Text(
-                text = label,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Normal,
-                color = AppTextPrimary
-            )
+            Column {
+                Text(
+                    text = label,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = AppTextPrimary
+                )
+                if (description != null) {
+                    Text(
+                        text = description,
+                        fontSize = 12.sp,
+                        color = AppTextSecondary,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+            }
         }
         Icon(
             imageVector = Icons.AutoMirrored.Filled.NavigateNext,

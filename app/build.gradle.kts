@@ -27,8 +27,8 @@ android {
         applicationId = "com.jinscompany.saveurl"
         minSdk = 24
         targetSdk = 35
-        versionCode = 32
-        versionName = "1.0.0"
+        versionCode = 33
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["AdMobId"] = adsId
@@ -135,6 +135,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
     implementation("com.google.android.gms:play-services-ads:24.3.0")
+    implementation("com.android.billingclient:billing-ktx:7.1.1")
 
     testImplementation(libs.junit)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")

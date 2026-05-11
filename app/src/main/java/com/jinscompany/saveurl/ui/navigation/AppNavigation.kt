@@ -22,6 +22,7 @@ import com.jinscompany.saveurl.ui.save_screen.LinkSaveUiEffect
 import com.jinscompany.saveurl.ui.save_screen.LinkSaveViewModel
 import com.jinscompany.saveurl.ui.search.SearchScreen
 import com.jinscompany.saveurl.ui.setting.AppSettingScreen
+import com.jinscompany.saveurl.ui.support.SupportScreen
 import com.jinscompany.saveurl.ui.trash.TrashScreen
 import com.jinscompany.saveurl.ui.trash.TrashUiEffect
 import com.jinscompany.saveurl.ui.trash.TrashViewModel
@@ -130,6 +131,9 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         composable(route = Navigation.Routes.APP_SETTING) {
             AppSettingScreen(navController)
         }
+        composable(route = Navigation.Routes.SUPPORT) {
+            SupportScreen(popBackStack = { navController.popBackStack() })
+        }
         composable(route = Navigation.Routes.TRASH) {
             val viewModel = hiltViewModel<TrashViewModel>()
             LaunchedEffect(Unit) {
@@ -167,6 +171,7 @@ object Navigation {
         const val EDIT_CATEGORY = "editCategory"
         const val TRASH = "trashScreen"
         const val STATIC_WEB = "staticWebScreen"
+        const val SUPPORT = "supportScreen"
     }
 }
 
@@ -200,4 +205,8 @@ fun NavController.navigateToAppSetting() {
 
 fun NavController.navigateToTrash() {
     navigate(route = "${Navigation.Routes.TRASH}")
+}
+
+fun NavController.navigateToSupport() {
+    navigate(route = Navigation.Routes.SUPPORT)
 }
