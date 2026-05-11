@@ -250,18 +250,18 @@ fun AppSettingScreen(
 
         item { Spacer(modifier = Modifier.height(8.dp)) }
 
-        // 개발자 응원하기 섹션
-        item { SectionLabel("개발자 응원하기") }
-        item {
-            SettingCard {
-                SettingRow(
-                    icon = Icons.Default.Favorite,
-                    label = "개발자 응원하기",
-                    description = if (isAdsRemoved) "후원 · 광고 제거됨 ✓" else "후원 · 광고 제거",
-                    onClick = onSupportClick
-                )
-            }
-        }
+        // 개발자 응원하기 섹션 (통신판매업 신고 후 활성화)
+        // item { SectionLabel("개발자 응원하기") }
+        // item {
+        //     SettingCard {
+        //         SettingRow(
+        //             icon = Icons.Default.Favorite,
+        //             label = "개발자 응원하기",
+        //             description = if (isAdsRemoved) "후원 · 광고 제거됨 ✓" else "후원 · 광고 제거",
+        //             onClick = onSupportClick
+        //         )
+        //     }
+        // }
 
         item { Spacer(modifier = Modifier.height(16.dp)) }
 
