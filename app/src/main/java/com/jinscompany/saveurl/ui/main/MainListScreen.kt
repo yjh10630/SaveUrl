@@ -8,10 +8,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.FabPosition
@@ -46,14 +51,15 @@ import androidx.navigation.NavHostController
 import androidx.paging.PagingData
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
-import com.google.android.gms.ads.AdView
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.ui.composable.AdMobBannerAd
 import com.jinscompany.saveurl.ui.composable.CommonSimpleMenuBottomSheet
 import com.jinscompany.saveurl.ui.composable.FilterSelectedList
+import com.jinscompany.saveurl.ui.composable.LinkUrlItem
 import com.jinscompany.saveurl.ui.composable.LinkUrlListSection
 import com.jinscompany.saveurl.ui.composable.MainHeaderSection
+import com.jinscompany.saveurl.ui.composable.QuickAccessSection
 import com.jinscompany.saveurl.ui.composable.SimpleMenuModel
 import com.jinscompany.saveurl.ui.composable.singleClick
 import com.jinscompany.saveurl.ui.filter.FilterScreenBottomSheet
@@ -74,7 +80,7 @@ import com.jinscompany.saveurl.ui.navigation.navigateToEditCategory
 import com.jinscompany.saveurl.ui.navigation.navigateToSaveLink
 import com.jinscompany.saveurl.ui.navigation.navigateToSearch
 import com.jinscompany.saveurl.ui.navigation.navigateToStaticWeb
-import com.jinscompany.saveurl.ui.theme.Brown
+import com.jinscompany.saveurl.ui.theme.AppPrimary
 import com.jinscompany.saveurl.utils.tutorialUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
@@ -95,6 +101,8 @@ fun MainListScreen(
 
     val mainListUiState by viewModel.mainListUiState.collectAsState()
     val filterSelectedItems by viewModel.filterSelectedItems.collectAsState()
+    val recentItems by viewModel.recentItems.collectAsState()
+    val bookmarkItems by viewModel.bookmarkItems.collectAsState()
 
     val mainListPagingData = when (val uiState = mainListUiState) {
         is MainListUiState.Success -> uiState.urlFlowState.collectAsLazyPagingItems()
@@ -104,12 +112,6 @@ fun MainListScreen(
     val uiEffect = viewModel.mainListEffect
     var filterDialog by remember { mutableStateOf<String?>(null) }
     var linkInfoDialog by remember { mutableStateOf<SimpleMenuModel?>(null) }
-
-    val adView = remember { AdView(context) }
-
-    DisposableEffect(Unit) {
-        onDispose { adView.destroy() }
-    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -195,15 +197,17 @@ fun MainListScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackBarHostState) },
+        bottomBar = { AdMobBannerAd() },
         floatingActionButtonPosition = FabPosition.End,
         floatingActionButton = {
             FloatingActionButton(
                 onClick = singleClick {
                     viewModel.onIntent(GoToLinkInsertScreen(""))
                 },
-                containerColor = Brown,
+                containerColor = AppPrimary,
                 contentColor = Color.White,
-                elevation = FloatingActionButtonDefaults.elevation(6.dp)
+                elevation = FloatingActionButtonDefaults.elevation(6.dp),
+                shape = androidx.compose.foundation.shape.CircleShape
             ) {
                 Icon(
                     Icons.Filled.Add,
@@ -242,8 +246,19 @@ fun MainListScreen(
             onLinkItemLongClick = { urlData: UrlData -> viewModel.onIntent(ShowLinkInfoDialog(urlData)) },
             onFilterOpen = { filterDialog = "" },
             filterSelectedData = filterSelectedItems.getMainSelectedList(),
+            categoryList = filterSelectedItems.categories,
+            selectedCategory = filterSelectedItems.categories.firstOrNull() ?: com.jinscompany.saveurl.ui.FilterDefaults.CATEGORY_ALL,
+            onCategoryClick = { category ->
+                viewModel.onIntent(NewFilterData(
+                    category = listOf(category),
+                    sort = filterSelectedItems.sort,
+                    site = filterSelectedItems.siteList,
+                    tag = filterSelectedItems.tagList
+                ))
+            },
+            recentItems = recentItems,
+            bookmarkItems = bookmarkItems,
             listState = listState,
-            adView = adView
         )
     }
 }
@@ -258,30 +273,85 @@ fun MainListScreen(
     onLinkItemLongClick: (UrlData) -> Unit = {},
     onFilterOpen: () -> Unit = {},
     filterSelectedData: List<String> = listOf(),
+    categoryList: List<String> = listOf(),
+    selectedCategory: String = com.jinscompany.saveurl.ui.FilterDefaults.CATEGORY_ALL,
+    onCategoryClick: (String) -> Unit = {},
+    recentItems: List<UrlData> = emptyList(),
+    bookmarkItems: List<UrlData> = emptyList(),
     listState: LazyListState = rememberLazyListState(),
-    adView: AdView
 ) {
-    Column(
+    val snapshot = mainListPagingData?.itemSnapshotList
+    val dateLabels = snapshot?.mapIndexed { index, item ->
+        val label = item?.getDate() ?: ""
+        val prevLabel = if (index > 0) snapshot[index - 1]?.getDate() ?: "" else ""
+        label to (label != prevLabel)
+    }
+
+    LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .background(Color.DarkGray)
+            .background(com.jinscompany.saveurl.ui.theme.AppBackground),
+        contentPadding = PaddingValues(bottom = 32.dp)
     ) {
-        MainHeaderSection(searchIconClick = onSearchClick, appSettingClick = onAppSettingClick)
-        FilterSelectedList(
-            data = filterSelectedData,
-            onClick = onFilterOpen
-        )
-        AdMobBannerAd(adView = adView)
-        Spacer(modifier = Modifier.size(12.dp))
-        mainListPagingData?.let {
-            LinkUrlListSection(
-                listState = listState,
-                items = it,
-                onClick = { onLinkItemClick.invoke(it.url) },
-                longOnClick = {
-                    onLinkItemLongClick.invoke(it)
-                })
+        item {
+            MainHeaderSection(searchIconClick = onSearchClick, appSettingClick = onAppSettingClick)
+        }
+        item {
+            QuickAccessSection(
+                recentItems = recentItems,
+                bookmarkItems = bookmarkItems,
+                onItemClick = { onLinkItemClick(it) },
+                onItemLongClick = { onLinkItemLongClick(it) }
+            )
+            Spacer(modifier = Modifier.size(16.dp))
+        }
+        item {
+            FilterSelectedList(
+                data = filterSelectedData,
+                categoryList = categoryList,
+                selectedCategory = selectedCategory,
+                onCategoryClick = onCategoryClick,
+                onClick = onFilterOpen
+            )
+        }
+
+        if (snapshot != null && dateLabels != null) {
+            items(
+                count = snapshot.size,
+                key = { index -> snapshot[index]?.id ?: index }
+            ) { index ->
+                val item = snapshot[index] ?: return@items
+                val (dateLabel, isNewDate) = dateLabels[index]
+
+                if (isNewDate) {
+                    if (index != 0) Spacer(modifier = Modifier.height(20.dp))
+                    androidx.compose.material3.Text(
+                        text = dateLabel,
+                        fontSize = 12.sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                        color = com.jinscompany.saveurl.ui.theme.AppTextSecondary,
+                        modifier = Modifier.padding(
+                            start = 16.dp, end = 16.dp,
+                            bottom = 8.dp,
+                            top = if (index == 0) 0.dp else 4.dp
+                        )
+                    )
+                } else {
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                LinkUrlItem(
+                    modifier = Modifier
+                        .animateItem()
+                        .padding(horizontal = 16.dp),
+                    data = item,
+                    onClick = { onLinkItemClick.invoke(item.url) },
+                    longOnClick = { onLinkItemLongClick.invoke(item) },
+                    tagRemoveClick = {},
+                )
+            }
         }
     }
 }
@@ -304,6 +374,5 @@ fun MainListScreenPreview() {
     val pagingItems = flowOf(PagingData.from(fakeData)).collectAsLazyPagingItems()
     MainListScreen(
         mainListPagingData = pagingItems,
-        adView = AdView(context)
     )
 }

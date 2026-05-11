@@ -46,7 +46,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.paging.compose.collectAsLazyPagingItems
-import com.google.android.gms.ads.AdView
 import com.jinscompany.saveurl.ui.composable.AdMobBannerAd
 import com.jinscompany.saveurl.ui.composable.CommonSimpleBottomSheet
 import com.jinscompany.saveurl.ui.composable.CommonSimpleMenuBottomSheet
@@ -72,12 +71,6 @@ fun TrashScreen(
     var showAlert by remember { mutableStateOf<TrashViewModel.AlertDataModel?>(null) }
     var showMenuAlert by remember { mutableStateOf<SimpleMenuModel?>(null) }
     val snackBarHostState = remember { SnackbarHostState() }
-    val adView = remember { AdView(context) }
-
-    DisposableEffect(Unit) {
-        onDispose { adView.destroy() }
-    }
-
     LaunchedEffect(Unit) {
         uiEffect.filterNotIsInstance<TrashUiEffect.GotoNextScreen>().collectLatest { effect ->
             when (effect) {
@@ -112,6 +105,7 @@ fun TrashScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackBarHostState) },
+        bottomBar = { AdMobBannerAd() },
     ) { paddingValues ->
         showMenuAlert?.let {
             CommonSimpleMenuBottomSheet(
@@ -144,8 +138,6 @@ fun TrashScreen(
             )
             TrashTitle()
             Spacer(modifier = Modifier.size(24.dp))
-            AdMobBannerAd(adView = adView)
-            Spacer(modifier = Modifier.size(12.dp))
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()

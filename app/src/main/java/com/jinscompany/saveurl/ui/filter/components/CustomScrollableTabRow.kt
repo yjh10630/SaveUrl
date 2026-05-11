@@ -41,7 +41,7 @@ fun CustomScrollableTabRow(
     }
     ScrollableTabRow(
         selectedTabIndex = selectedTabIndex,
-        containerColor = Color.DarkGray,
+        containerColor = com.jinscompany.saveurl.ui.theme.AppSurface,
         edgePadding = 0.dp,
         indicator = { tabPositions ->
             TabRowDefaults.SecondaryIndicator(
@@ -49,7 +49,7 @@ fun CustomScrollableTabRow(
                     currentTabPosition = tabPositions[selectedTabIndex],
                     tabWidth = tabWidths[selectedTabIndex],
                 ),
-                color = Color.LightGray
+                color = com.jinscompany.saveurl.ui.theme.AppPrimary
             )
         },
         divider = {},
@@ -58,8 +58,8 @@ fun CustomScrollableTabRow(
             Tab(
                 selected = selectedTabIndex == tabIndex,
                 onClick = { onTabClick(tabIndex) },
-                selectedContentColor = Color.LightGray,
-                unselectedContentColor = Color.Gray,
+                selectedContentColor = com.jinscompany.saveurl.ui.theme.AppTextPrimary,
+                unselectedContentColor = com.jinscompany.saveurl.ui.theme.AppTextSecondary,
                 text = {
                     Text(
                         modifier = Modifier.padding(horizontal = 0.dp),

@@ -18,6 +18,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.jinscompany.saveurl.ui.theme.AppSurface
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
+import com.jinscompany.saveurl.ui.theme.AppTextSecondary
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -41,10 +44,8 @@ fun CommonSimpleBottomSheet(
     ModalBottomSheet(
         onDismissRequest = { cancel.invoke() },
         sheetState = modalBottomSheetState,
-        dragHandle = { BottomSheetDefaults.DragHandle(
-            color = Color.LightGray
-        ) },
-        containerColor = Color.DarkGray
+        dragHandle = { BottomSheetDefaults.DragHandle(color = AppTextSecondary) },
+        containerColor = AppSurface
     ) {
         CommonSimpleBottomSheetView(
             title = title,
@@ -82,8 +83,8 @@ fun CommonSimpleBottomSheetView(
     Column (
         modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = bottomPadding, top = 12.dp)
     ) {
-        Text(title, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.LightGray,)
-        Text(description, fontSize = 14.sp, color = Color.Gray)
+        Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = AppTextPrimary)
+        Text(description, fontSize = 14.sp, color = AppTextSecondary)
         Spacer(modifier = Modifier.size(36.dp))
         Row {
             CommonNegativeButton(

@@ -82,8 +82,8 @@ fun FilterScreenBottomSheet(
     ModalBottomSheet(
         onDismissRequest = { dismiss.invoke() },
         sheetState = modalBottomSheetState,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.LightGray) },
-        containerColor = Color.DarkGray,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = com.jinscompany.saveurl.ui.theme.AppTextSecondary) },
+        containerColor = com.jinscompany.saveurl.ui.theme.AppSurface,
     ) {
         BoxWithConstraints {
             val maxHeight = this@BoxWithConstraints.maxHeight * 0.9f
@@ -163,7 +163,7 @@ fun FilterScreenBottomSheet(
             }
         }
 
-        HorizontalDivider(color = Color.Gray, thickness = 1.dp)
+        HorizontalDivider(color = com.jinscompany.saveurl.ui.theme.AppDivider, thickness = 1.dp)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -180,7 +180,7 @@ fun FilterScreenBottomSheet(
                 colors = ButtonDefaults.buttonColors(Color.Transparent),
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
             ) {
-                Text("초기화", color = Color.White, fontSize = 14.sp, maxLines = 1)
+                Text("초기화", color = com.jinscompany.saveurl.ui.theme.AppTextSecondary, fontSize = 14.sp, maxLines = 1)
             }
             OutlinedButton(
                 onClick = { onConfirm.invoke() },
@@ -188,8 +188,8 @@ fun FilterScreenBottomSheet(
                     .weight(1f)
                     .padding(horizontal = 4.dp),
                 shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(width = 1.dp, color = Brown),
-                colors = ButtonDefaults.buttonColors(Brown),
+                border = BorderStroke(width = 1.dp, color = com.jinscompany.saveurl.ui.theme.AppPrimary),
+                colors = ButtonDefaults.buttonColors(com.jinscompany.saveurl.ui.theme.AppPrimary),
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
             ) {
                 Text("선택", color = Color.White, fontSize = 14.sp, maxLines = 1)

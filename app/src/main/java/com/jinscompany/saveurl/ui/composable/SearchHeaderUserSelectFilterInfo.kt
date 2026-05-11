@@ -57,30 +57,30 @@ fun SearchHeaderUserSelectFilterInfo(
             "${searchResultItemCnt}",
             modifier = Modifier.padding(start = 24.dp, end = 6.dp),
             fontSize = 16.sp,
-            color = Color.LightGray,
+            color = com.jinscompany.saveurl.ui.theme.AppTextPrimary,
             fontWeight = FontWeight.Bold,
         )
         Text(
             "개",
             fontSize = 12.sp,
-            color = Color.LightGray,
+            color = com.jinscompany.saveurl.ui.theme.AppTextSecondary,
             fontWeight = FontWeight.Medium,
         )
         VerticalDivider(
             modifier = Modifier
                 .height(12.dp)
-                .padding(start = 12.dp, end = 12.dp), color = Color.Gray,
+                .padding(start = 12.dp, end = 12.dp), color = com.jinscompany.saveurl.ui.theme.AppDivider,
             thickness = 1.dp
         )
         LazyRow {
             item {
                 OutlinedButton(
                     onFilterClick,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(20.dp),
                     contentPadding = PaddingValues(start = 10.dp, end = 5.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent,
-                        contentColor = Color.LightGray
+                        containerColor = com.jinscompany.saveurl.ui.theme.AppChipUnselected,
+                        contentColor = com.jinscompany.saveurl.ui.theme.AppTextPrimary
                     )
                 ) {
                     Text(selectedFilterTxt)
@@ -88,7 +88,7 @@ fun SearchHeaderUserSelectFilterInfo(
                         modifier = Modifier.padding(top = 3.dp, bottom = 0.dp, start = 5.dp),
                         imageVector = Icons.Default.ArrowDropUp,
                         contentDescription = "categorySelect",
-                        tint = Color.LightGray
+                        tint = com.jinscompany.saveurl.ui.theme.AppTextSecondary
                     )
                 }
                 Spacer(modifier = Modifier.width(10.dp))
@@ -101,11 +101,11 @@ fun SearchHeaderUserSelectFilterInfo(
                             isSelect = !isSelect
                             userSiteTypeSelectTxt.invoke(item)
                         },
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(20.dp),
                         contentPadding = PaddingValues(start = 10.dp, end = 10.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isSelect) Color.LightGray else Color.Transparent,
-                            contentColor = if (isSelect) Color.DarkGray else Color.LightGray
+                            containerColor = if (isSelect) com.jinscompany.saveurl.ui.theme.AppChipSelected else com.jinscompany.saveurl.ui.theme.AppChipUnselected,
+                            contentColor = if (isSelect) androidx.compose.ui.graphics.Color.White else com.jinscompany.saveurl.ui.theme.AppTextPrimary
                         )
                     ) {
                         Text(item)

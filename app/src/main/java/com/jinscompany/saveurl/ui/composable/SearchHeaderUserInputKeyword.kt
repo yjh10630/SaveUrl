@@ -56,7 +56,7 @@ fun SearchHeaderUserInputKeyword(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
-                tint = Color.LightGray,
+                tint = com.jinscompany.saveurl.ui.theme.AppTextSecondary,
             )
         }
 
@@ -69,7 +69,8 @@ fun SearchHeaderUserInputKeyword(
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Search,
-                    contentDescription = "keyword"
+                    contentDescription = "keyword",
+                    tint = com.jinscompany.saveurl.ui.theme.AppTextSecondary,
                 )
             },
             trailingIcon = {
@@ -79,7 +80,8 @@ fun SearchHeaderUserInputKeyword(
                     }) {
                         Icon(
                             imageVector = Icons.Default.Cancel,
-                            contentDescription = "remove"
+                            contentDescription = "remove",
+                            tint = com.jinscompany.saveurl.ui.theme.AppTextSecondary,
                         )
                     }
                 }
@@ -93,18 +95,18 @@ fun SearchHeaderUserInputKeyword(
                     userEnterSearchKeyword.invoke(keyword, "")
                 },
             ),
-            label = { Text("링크 검색") },
-            placeholder = { Text("링크 검색") },
-            textStyle = TextStyle(color = Color.LightGray),
+            label = { Text("링크 검색", color = com.jinscompany.saveurl.ui.theme.AppTextSecondary) },
+            placeholder = { Text("링크 검색", color = com.jinscompany.saveurl.ui.theme.AppTextSecondary) },
+            textStyle = TextStyle(color = com.jinscompany.saveurl.ui.theme.AppTextPrimary),
             colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = Color.LightGray,
-                unfocusedBorderColor = Color.Gray,
-                focusedLabelColor = Color.LightGray,
-                unfocusedLabelColor = Color.Gray,
-                focusedLeadingIconColor = Color.LightGray,
-                unfocusedLeadingIconColor = Color.Gray,
-                focusedTrailingIconColor = Color.LightGray,
-                unfocusedTrailingIconColor = Color.Gray
+                focusedBorderColor = com.jinscompany.saveurl.ui.theme.AppPrimary,
+                unfocusedBorderColor = com.jinscompany.saveurl.ui.theme.AppDivider,
+                focusedLabelColor = com.jinscompany.saveurl.ui.theme.AppPrimary,
+                unfocusedLabelColor = com.jinscompany.saveurl.ui.theme.AppTextSecondary,
+                focusedLeadingIconColor = com.jinscompany.saveurl.ui.theme.AppPrimary,
+                unfocusedLeadingIconColor = com.jinscompany.saveurl.ui.theme.AppTextSecondary,
+                focusedTrailingIconColor = com.jinscompany.saveurl.ui.theme.AppPrimary,
+                unfocusedTrailingIconColor = com.jinscompany.saveurl.ui.theme.AppTextSecondary
             )
         )
     }

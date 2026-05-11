@@ -15,6 +15,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,121 +32,118 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.jinscompany.saveurl.domain.model.UrlData
+import com.jinscompany.saveurl.ui.theme.AppBookmark
+import com.jinscompany.saveurl.ui.theme.AppSurface
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
+import com.jinscompany.saveurl.ui.theme.AppTextSecondary
+import com.jinscompany.saveurl.ui.theme.AppUnread
 
 @Composable
 fun PreviewLinkUrlItem(
     modifier: Modifier = Modifier,
     data: UrlData
 ) {
-    Row(
+    Card(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
-        Column(
-            modifier = Modifier.weight(1f)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                data.siteName ?: "",
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Thin,
-                color = Color.LightGray,
-                maxLines = 1
-            )
-            Spacer(modifier = Modifier.height(3.dp))
-            Text(
-                data.title ?: "",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.LightGray,
-                maxLines = 1
-            )
-            Text(
-                data.description ?: "",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color.LightGray,
-                maxLines = 2
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (!data.isRead) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .background(Color(0xFF4FC3F7), CircleShape)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                }
-                if (data.isBookMark) {
-                    Icon(
-                        modifier = Modifier.size(14.dp),
-                        imageVector = Icons.Filled.Bookmark,
-                        contentDescription = "bookMark",
-                        tint = Color.LightGray
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                }
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (data.url.isNullOrEmpty()) "" else data.getDate(),
-                    fontSize = 10.sp,
-                    color = Color.LightGray,
-                    fontWeight = FontWeight.Medium
+                    text = data.siteName ?: "",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = AppTextSecondary,
+                    maxLines = 1,
+                    letterSpacing = 0.2.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = data.title ?: "",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = AppTextPrimary,
+                    maxLines = 2,
+                    lineHeight = 20.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = data.description ?: "",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = AppTextSecondary,
+                    maxLines = 2,
+                    lineHeight = 17.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (!data.isRead) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .background(AppUnread, CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                    }
+                    if (data.isBookMark) {
+                        Icon(
+                            modifier = Modifier.size(13.dp),
+                            imageVector = Icons.Filled.Bookmark,
+                            contentDescription = "bookMark",
+                            tint = AppBookmark
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                    }
+                    Text(
+                        text = if (data.url.isNullOrEmpty()) "" else data.getDate(),
+                        fontSize = 11.sp,
+                        color = AppTextSecondary,
+                        fontWeight = FontWeight.Normal
+                    )
+                }
+            }
+            if (!data.imgUrl.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.width(12.dp))
+                AsyncImage(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    model = data.imgUrl,
+                    placeholder = ColorPainter(Color.Transparent),
+                    error = ColorPainter(Color.Transparent),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
                 )
             }
         }
-        Spacer(modifier = Modifier.width(5.dp))
-        AsyncImage(
-            modifier = Modifier
-                .size(120.dp)
-                .clip(RoundedCornerShape(8.dp)),
-            model = data.imgUrl,
-            placeholder = ColorPainter(Color.Transparent),
-            error = ColorPainter(Color.LightGray),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-        )
     }
 }
 
 @Composable
-@Preview(
-    showBackground = true, backgroundColor = 0xFF444444,
-)
+@Preview(showBackground = true, backgroundColor = 0xFF0F0F0F)
 fun PreviewLinkUrlItemPreview() {
     PreviewLinkUrlItem(
         data = UrlData(
             url = "https://",
-            title = "가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사",
-            description = "가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사가나다라마바사",
+            title = "가나다라마바사가나다라마바사",
+            description = "가나다라마바사가나다라마바사가나다라마바사가나다라마바사",
             siteName = "매일경제",
             isBookMark = true,
-            tagList = mutableListOf(
-                "네이트",
-                "네이버",
-                "카카오톡",
-                "운동",
-                "농구",
-                "축구",
-                "스마트폰",
-                "갤럭시",
-                "아이폰",
-                "운동",
-                "농구",
-                "축구",
-                "스마트폰",
-                "갤럭시",
-                "아이폰"
-            )
+            tagList = mutableListOf("네이트", "네이버", "카카오톡")
         )
     )
 }
 
 @Composable
-@Preview(
-    showBackground = true, backgroundColor = 0xFF444444,
-)
+@Preview(showBackground = true, backgroundColor = 0xFF0F0F0F)
 fun PreviewLinkUrlItemPreview2() {
     PreviewLinkUrlItem(data = UrlData())
 }

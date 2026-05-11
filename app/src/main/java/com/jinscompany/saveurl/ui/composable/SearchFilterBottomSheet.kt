@@ -49,9 +49,9 @@ fun SearchFilterBottomSheet(
         onDismissRequest = { dismiss() },
         sheetState = modalBottomSheetState,
         dragHandle = { BottomSheetDefaults.DragHandle(
-            color = Color.LightGray
+            color = com.jinscompany.saveurl.ui.theme.AppTextSecondary
         ) },
-        containerColor = Color.DarkGray
+        containerColor = com.jinscompany.saveurl.ui.theme.AppSurface
     ) {
         SearchFilterView(
             options = options,

@@ -22,6 +22,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.jinscompany.saveurl.ui.theme.AppDivider
+import com.jinscompany.saveurl.ui.theme.AppSurface
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
+import com.jinscompany.saveurl.ui.theme.AppTextSecondary
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -42,10 +46,8 @@ fun CommonSimpleMenuBottomSheet(
     ModalBottomSheet(
         onDismissRequest = { dismiss.invoke() },
         sheetState = modalBottomSheetState,
-        dragHandle = { BottomSheetDefaults.DragHandle(
-            color = Color.LightGray
-        ) },
-        containerColor = Color.DarkGray
+        dragHandle = { BottomSheetDefaults.DragHandle(color = AppTextSecondary) },
+        containerColor = AppSurface
     ) {
         CommonSimpleMenuView(
             menuList = model.menuList,
@@ -76,7 +78,7 @@ fun CommonSimpleMenuView(
     ) {
         if (!titleTxt.isNullOrEmpty()) {
             item {
-                Text(titleTxt, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.LightGray,)
+                Text(titleTxt, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = AppTextPrimary)
 
             }
         }
@@ -84,7 +86,7 @@ fun CommonSimpleMenuView(
             item {
                 Text(
                     descriptionTxt,
-                    fontSize = 14.sp, color = Color.Gray
+                    fontSize = 14.sp, color = AppTextSecondary
                 )
             }
         }
@@ -93,7 +95,7 @@ fun CommonSimpleMenuView(
                 onClick = { event.invoke(index) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.DarkGray,
+                    containerColor = AppSurface,
                     contentColor = item.txtColor
                 )
             ) {
@@ -102,7 +104,7 @@ fun CommonSimpleMenuView(
             }
             if (index < menuList.size - 1) {
                 Spacer(modifier = Modifier.height(2.dp))
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp), color = Color.Gray, thickness = 1.dp)
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp), color = AppDivider, thickness = 1.dp)
                 Spacer(modifier = Modifier.height(2.dp))
             }
 

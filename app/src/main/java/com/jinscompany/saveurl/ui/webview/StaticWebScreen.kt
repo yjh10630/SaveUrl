@@ -29,7 +29,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavHostController
-import com.google.android.gms.ads.AdView
 import com.jinscompany.saveurl.ui.composable.AdMobBannerAd
 import com.jinscompany.saveurl.ui.composable.FullScreenLoading
 
@@ -59,12 +58,9 @@ fun StaticWebScreen(navController: NavHostController, url: String) {
             }
         }
     }
-    val adView = remember { AdView(context) }
-    DisposableEffect(Unit) {
-        onDispose { adView.destroy() }
-    }
-
-    Scaffold { paddingValue ->
+    Scaffold(
+        bottomBar = { AdMobBannerAd() }
+    ) { paddingValue ->
         Column (
             modifier = Modifier
                 .fillMaxSize()
@@ -82,7 +78,6 @@ fun StaticWebScreen(navController: NavHostController, url: String) {
                     )
                 }
             }
-            AdMobBannerAd(adView = adView)
             Box( modifier = Modifier.weight(1f, true) ) {
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),

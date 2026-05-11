@@ -9,6 +9,7 @@ import androidx.paging.cachedIn
 import androidx.paging.filter
 import com.jinscompany.saveurl.domain.model.FilterParams
 import com.jinscompany.saveurl.domain.model.UrlData
+import com.jinscompany.saveurl.domain.repository.UrlRepository
 import com.jinscompany.saveurl.domain.usecase.DeleteWithTrashUseCase
 import com.jinscompany.saveurl.domain.usecase.GetTrashStateUseCase
 import com.jinscompany.saveurl.domain.usecase.GetUrlListUseCase
@@ -52,6 +53,7 @@ class MainListViewModel @Inject constructor(
     private val preferencesManager: PreferencesManager,
     private val clipboardReader: ClipboardReader,
     private val markAsReadUseCase: MarkAsReadUseCase,
+    private val urlRepository: UrlRepository,
 ) : ViewModel() {
 
     private val _mainListUiState = MutableStateFlow<MainListUiState>(MainListUiState.Idle)
@@ -65,9 +67,24 @@ class MainListViewModel @Inject constructor(
     )
     val filterSelectedItems: StateFlow<FilterParams> = _filterSelectedItems.asStateFlow()
 
+    private val _recentItems = MutableStateFlow<List<UrlData>>(emptyList())
+    val recentItems: StateFlow<List<UrlData>> = _recentItems.asStateFlow()
+
+    private val _bookmarkItems = MutableStateFlow<List<UrlData>>(emptyList())
+    val bookmarkItems: StateFlow<List<UrlData>> = _bookmarkItems.asStateFlow()
+
     init {
         getLinkList()
         deleteExpiredTrash()
+        loadQuickAccessItems()
+    }
+
+    private fun loadQuickAccessItems() {
+        viewModelScope.launch {
+            val all = urlRepository.getAllUrlData()
+            _recentItems.value = all.sortedByDescending { it.addDate }.take(5)
+            _bookmarkItems.value = all.filter { it.isBookMark }.sortedByDescending { it.addDate }.take(5)
+        }
     }
 
     private fun deleteExpiredTrash() {
@@ -172,6 +189,7 @@ class MainListViewModel @Inject constructor(
     private fun deleteLinkItem(data: UrlData) {
         viewModelScope.launch {
             deleteWithTrashUseCase.execute(data)
+            loadQuickAccessItems()
         }
     }
 

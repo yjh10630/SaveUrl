@@ -27,7 +27,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.google.android.gms.ads.AdView
 import com.google.firebase.crashlytics.ktx.crashlytics
 import com.google.firebase.ktx.Firebase
 import com.jinscompany.saveurl.domain.model.CategoryModel
@@ -66,12 +65,6 @@ fun InsertLinkScreen(
     var openPreviewContentEditor by remember { mutableStateOf<UrlData?>(null) }
     var showCrawlFailedDialog by remember { mutableStateOf<UrlData?>(null) }
 
-    val adView = remember { AdView(context) }
-
-    DisposableEffect(Unit) {
-        onDispose { adView.destroy() }
-    }
-
     LaunchedEffect(Unit) {
         uiEffect.filterNotIsInstance<LinkSaveUiEffect.GotoNextScreen>()
             .collectLatest {
@@ -86,7 +79,9 @@ fun InsertLinkScreen(
             }
     }
 
-    Scaffold { paddingValue ->
+    Scaffold(
+        bottomBar = { AdMobBannerAd() }
+    ) { paddingValue ->
 
         if (showCrawlFailedDialog != null) {
             PreviewContentEditBottomSheet(
@@ -144,7 +139,7 @@ fun InsertLinkScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(color = Color.DarkGray)
+                .background(color = com.jinscompany.saveurl.ui.theme.AppBackground)
                 .padding(paddingValue)
                 .imePadding(),
             state = listState
@@ -154,7 +149,7 @@ fun InsertLinkScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = Color.LightGray,
+                        tint = com.jinscompany.saveurl.ui.theme.AppTextSecondary,
                     )
                 }
             }
@@ -165,8 +160,6 @@ fun InsertLinkScreen(
                     focusClear = { focusManager.clearFocus() },
                 )
             }
-            item { AdMobBannerAd(adView = adView) }
-            item { Spacer(modifier = Modifier.height(6.dp)) }
             item {
                 PreviewSection(
                     state = uiState.linkUrlPreviewUiState,
