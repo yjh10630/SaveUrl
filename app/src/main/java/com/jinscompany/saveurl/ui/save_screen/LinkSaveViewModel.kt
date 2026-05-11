@@ -2,9 +2,11 @@ package com.jinscompany.saveurl.ui.save_screen
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.domain.usecase.FindUrlDataUseCase
 import com.jinscompany.saveurl.domain.usecase.GetCategoriesUseCase
+import com.jinscompany.saveurl.domain.usecase.InsertCategoryUseCase
 import com.jinscompany.saveurl.domain.usecase.LearnDomainCategoryUseCase
 import com.jinscompany.saveurl.domain.usecase.ParseUrlUseCase
 import com.jinscompany.saveurl.domain.usecase.SaveUrlUseCase
@@ -34,6 +36,7 @@ class LinkSaveViewModel @Inject constructor(
     private val getCategoriesUseCase: GetCategoriesUseCase,
     private val suggestCategoryUseCase: SuggestCategoryUseCase,
     private val learnDomainCategoryUseCase: LearnDomainCategoryUseCase,
+    private val insertCategoryUseCase: InsertCategoryUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LinkSaveUiState())
@@ -114,7 +117,16 @@ class LinkSaveViewModel @Inject constructor(
                     saveUrlUseCase(urlData)
                 }
                 val finalCategory = urlData.category
-                if (!finalCategory.isNullOrEmpty() && finalCategory != suggestedCategory) {
+                if (!finalCategory.isNullOrEmpty() && finalCategory != FilterDefaults.CATEGORY_ALL) {
+                    val existingCategories = getCategoriesUseCase()
+                    if (existingCategories.none { it.name == finalCategory }) {
+                        insertCategoryUseCase(
+                            CategoryModel(
+                                name = finalCategory,
+                                addDate = System.currentTimeMillis()
+                            )
+                        )
+                    }
                     learnDomainCategoryUseCase(urlData.url ?: "", finalCategory)
                 }
                 _uiEffect.emit(LinkSaveUiEffect.GotoNextScreen())
