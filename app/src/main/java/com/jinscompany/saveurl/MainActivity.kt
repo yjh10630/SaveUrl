@@ -12,10 +12,17 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -35,16 +42,17 @@ class MainActivity : ComponentActivity() {
 
     private val sharedViewModel by viewModels<SharedViewModel>()
     private lateinit var inAppUpdateCheck: InAppUpdateCheck
-    private val updateLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        inAppUpdateCheck.onActivityResult(resultCode = result.resultCode)
+    private val immediateLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        inAppUpdateCheck.onImmediateActivityResult(resultCode = result.resultCode)
     }
+    private val flexibleLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { }
 
     private var backPressedTime: Long = 0L
     private lateinit var toast: Toast
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        inAppUpdateCheck = InAppUpdateCheck(this, updateLauncher, sharedViewModel)
+        inAppUpdateCheck = InAppUpdateCheck(this, immediateLauncher, flexibleLauncher, sharedViewModel)
         setupBackPressedHandler()
 
         enableEdgeToEdge()
@@ -69,10 +77,32 @@ class MainActivity : ComponentActivity() {
 
             val darkModePref by sharedViewModel.darkModeEnabled.collectAsState()
             val isDark = darkModePref ?: isSystemInDarkTheme()
+            val isFlexibleUpdateDownloaded by sharedViewModel.isFlexibleUpdateDownloaded.collectAsState()
+            val snackbarHostState = remember { SnackbarHostState() }
+
+            LaunchedEffect(isFlexibleUpdateDownloaded) {
+                if (isFlexibleUpdateDownloaded) {
+                    val result = snackbarHostState.showSnackbar(
+                        message = getString(R.string.update_downloaded_message),
+                        actionLabel = getString(R.string.update_install_action),
+                        duration = SnackbarDuration.Indefinite,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        inAppUpdateCheck.completeFlexibleUpdate()
+                    }
+                    sharedViewModel.setFlexibleUpdateDownloaded(false)
+                }
+            }
+
             SaveUrlTheme(darkTheme = isDark) {
                 SetStatusBarColor(color = Color.DarkGray)
-                Surface(modifier = Modifier.fillMaxSize(), color = Color.DarkGray) {
-                    AppNavigation(navController)
+                Scaffold(
+                    snackbarHost = { SnackbarHost(snackbarHostState) { data -> Snackbar(snackbarData = data) } },
+                    containerColor = Color.DarkGray,
+                ) { _ ->
+                    Surface(modifier = Modifier.fillMaxSize(), color = Color.DarkGray) {
+                        AppNavigation(navController)
+                    }
                 }
             }
         }
@@ -81,7 +111,11 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         if (!SaveUrlApplication.DEBUG) inAppUpdateCheck.resumeFlexibleUpdateCheck()
+    }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        inAppUpdateCheck.unregisterListener()
     }
 
     private fun setupBackPressedHandler() {

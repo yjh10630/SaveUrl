@@ -28,6 +28,7 @@ class UrlRepositoryImpl @Inject constructor(
 
     override suspend fun isSavedUrl(url: String): Boolean = localUrlDBSource.isSavedLocalDBUrl(url)
     override suspend fun findUrlData(url: String): UrlData? = localUrlDBSource.findLocalDBUrlData(url)
+    override suspend fun findByNormalizedUrl(normalizedUrl: String): UrlData? = localUrlDBSource.findByNormalizedUrl(normalizedUrl)
     override suspend fun updateUrl(data: UrlData): Boolean = localUrlDBSource.updateLocalDBUrlData(data)
     override suspend fun getSiteNameList(): List<String> = localUrlDBSource.getSiteNameList()
     override suspend fun getTagList(): List<String> = localUrlDBSource.getTagList()

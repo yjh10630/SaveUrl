@@ -199,7 +199,7 @@ class MainListViewModel @Inject constructor(
 
             val isInitRunApp = preferencesManager.isInitFirstRun.first()
             if (!isInitRunApp) {
-                val isSaved = saveUrlUseCase(
+                val result = saveUrlUseCase(
                     UrlData(
                         title = "이렇게 사용하세요!",
                         imgUrl = "https://github.com/yjh10630/MyWeb/blob/main/assets/images/help.png?raw=true",
@@ -208,9 +208,10 @@ class MainListViewModel @Inject constructor(
                         siteName = "튜토리얼",
                         isBookMark = true,
                         tagList = listOf("사용방법", "튜토리얼")
-                    )
+                    ),
+                    force = true
                 )
-                if (isSaved) preferencesManager.setInitFirstRun(true)
+                if (result is com.jinscompany.saveurl.domain.usecase.SaveResult.Success) preferencesManager.setInitFirstRun(true)
             }
 
             val dataFlow = Pager(

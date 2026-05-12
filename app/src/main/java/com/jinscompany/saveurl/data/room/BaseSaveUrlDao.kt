@@ -69,6 +69,9 @@ interface BaseSaveUrlDao {
 
     @Query("SELECT COUNT(*) FROM basesaveurl WHERE url = :url")
     suspend fun exists(url: String): Int
+
+    @Query("SELECT * FROM basesaveurl WHERE normalizedUrl = :normalizedUrl AND normalizedUrl != '' LIMIT 1")
+    suspend fun findByNormalizedUrl(normalizedUrl: String): UrlData?
     
     @Query("SELECT * FROM BaseSaveUrl \n" +
             "        WHERE title LIKE '%' || :keyword || '%' \n" +

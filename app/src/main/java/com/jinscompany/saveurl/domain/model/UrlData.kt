@@ -20,6 +20,7 @@ data class UrlData(
     @ColumnInfo(name = "category") var category: String? = null,
     @ColumnInfo(name = "isBookMark") var isBookMark: Boolean = false,
     @ColumnInfo(name = "isRead", defaultValue = "0") var isRead: Boolean = false,
+    @ColumnInfo(name = "normalizedUrl", defaultValue = "") val normalizedUrl: String = "",
 ) {
     fun getDate(): String {
         val currentTime = Calendar.getInstance()

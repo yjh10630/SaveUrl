@@ -24,6 +24,9 @@ class SharedViewModel @Inject constructor(
     private val _isFlexibleUpdatable = MutableStateFlow(false)
     val isFlexibleUpdatable: StateFlow<Boolean> = _isFlexibleUpdatable.asStateFlow()
 
+    private val _isFlexibleUpdateDownloaded = MutableStateFlow(false)
+    val isFlexibleUpdateDownloaded: StateFlow<Boolean> = _isFlexibleUpdateDownloaded.asStateFlow()
+
     val darkModeEnabled: StateFlow<Boolean?> = preferencesManager.darkModeEnabled
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
@@ -38,6 +41,10 @@ class SharedViewModel @Inject constructor(
 
     fun setFlexibleUpdate(isUpdatable: Boolean) {
         _isFlexibleUpdatable.value = isUpdatable
+    }
+
+    fun setFlexibleUpdateDownloaded(downloaded: Boolean) {
+        _isFlexibleUpdateDownloaded.value = downloaded
     }
 
     fun setDarkMode(enabled: Boolean?) {

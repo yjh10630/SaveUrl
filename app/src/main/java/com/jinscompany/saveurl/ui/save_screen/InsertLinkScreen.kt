@@ -11,9 +11,12 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -64,6 +67,7 @@ fun InsertLinkScreen(
     var openCategorySelector by remember { mutableStateOf<List<CategoryModel>?>(null) }
     var openPreviewContentEditor by remember { mutableStateOf<UrlData?>(null) }
     var showCrawlFailedDialog by remember { mutableStateOf<UrlData?>(null) }
+    var showDuplicateDialog by remember { mutableStateOf<UrlData?>(null) }
 
     LaunchedEffect(Unit) {
         uiEffect.filterNotIsInstance<LinkSaveUiEffect.GotoNextScreen>()
@@ -75,8 +79,39 @@ fun InsertLinkScreen(
                     is LinkSaveUiEffect.ShowCrawlFailedDialog -> {
                         showCrawlFailedDialog = UrlData(url = it.url, description = it.url)
                     }
+                    is LinkSaveUiEffect.ShowDuplicateDialog -> showDuplicateDialog = it.existing
                 }
             }
+    }
+
+    if (showDuplicateDialog != null) {
+        val existing = showDuplicateDialog!!
+        AlertDialog(
+            onDismissRequest = { showDuplicateDialog = null },
+            title = { Text("이미 저장된 URL") },
+            text = {
+                Text(
+                    text = if (!existing.title.isNullOrEmpty()) {
+                        "\"${existing.title}\"\n\n이미 저장된 링크예요. 그래도 저장할까요?"
+                    } else {
+                        "이미 저장된 링크예요. 그래도 저장할까요?"
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDuplicateDialog = null
+                    event.invoke(LinkSaveIntent.ForceSaveLink)
+                }) {
+                    Text("그래도 저장")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDuplicateDialog = null }) {
+                    Text("취소")
+                }
+            }
+        )
     }
 
     Scaffold(

@@ -10,6 +10,7 @@ import com.jinscompany.saveurl.domain.usecase.InsertCategoryUseCase
 import com.jinscompany.saveurl.domain.usecase.LearnDomainCategoryUseCase
 import com.jinscompany.saveurl.domain.usecase.ParseUrlUseCase
 import com.jinscompany.saveurl.domain.usecase.SaveUrlUseCase
+import com.jinscompany.saveurl.domain.usecase.SaveResult
 import com.jinscompany.saveurl.domain.usecase.SuggestCategoryUseCase
 import com.jinscompany.saveurl.domain.usecase.UpdateUrlUseCase
 import com.google.firebase.crashlytics.ktx.crashlytics
@@ -50,6 +51,7 @@ class LinkSaveViewModel @Inject constructor(
 
     fun onIntent(intent: LinkSaveIntent) {
         when (intent) {
+            is LinkSaveIntent.ForceSaveLink -> forceSaveLink()
             is LinkSaveIntent.BookMarkToggle -> bookMarkToggle(intent.isBookMark)
             is LinkSaveIntent.OpenCategorySelector -> openCategorySelector(intent.currentCategoryName)
             LinkSaveIntent.SaveLink -> saveLink()
@@ -113,25 +115,47 @@ class LinkSaveViewModel @Inject constructor(
             _uiState.value.getSaveData()?.let { urlData ->
                 if (_uiState.value.isEditScreen) {
                     updateUrlUseCase(urlData)
+                    afterSave(urlData)
                 } else {
-                    saveUrlUseCase(urlData)
-                }
-                val finalCategory = urlData.category
-                if (!finalCategory.isNullOrEmpty() && finalCategory != FilterDefaults.CATEGORY_ALL) {
-                    val existingCategories = getCategoriesUseCase()
-                    if (existingCategories.none { it.name == finalCategory }) {
-                        insertCategoryUseCase(
-                            CategoryModel(
-                                name = finalCategory,
-                                addDate = System.currentTimeMillis()
-                            )
-                        )
+                    when (val result = saveUrlUseCase(urlData)) {
+                        is SaveResult.Duplicate -> {
+                            _uiEffect.emit(LinkSaveUiEffect.ShowDuplicateDialog(result.existing))
+                            return@launch
+                        }
+                        is SaveResult.Success -> afterSave(urlData)
+                        SaveResult.Error -> return@launch
                     }
-                    learnDomainCategoryUseCase(urlData.url ?: "", finalCategory)
                 }
-                _uiEffect.emit(LinkSaveUiEffect.GotoNextScreen())
             }
         }
+    }
+
+    private fun forceSaveLink() {
+        viewModelScope.launch {
+            _uiState.value.getSaveData()?.let { urlData ->
+                when (saveUrlUseCase(urlData, force = true)) {
+                    is SaveResult.Success -> afterSave(urlData)
+                    else -> Unit
+                }
+            }
+        }
+    }
+
+    private suspend fun afterSave(urlData: UrlData) {
+        val finalCategory = urlData.category
+        if (!finalCategory.isNullOrEmpty() && finalCategory != FilterDefaults.CATEGORY_ALL) {
+            val existingCategories = getCategoriesUseCase()
+            if (existingCategories.none { it.name == finalCategory }) {
+                insertCategoryUseCase(
+                    CategoryModel(
+                        name = finalCategory,
+                        addDate = System.currentTimeMillis()
+                    )
+                )
+            }
+            learnDomainCategoryUseCase(urlData.url ?: "", finalCategory)
+        }
+        _uiEffect.emit(LinkSaveUiEffect.GotoNextScreen())
     }
 
     private fun removeTag(tag: String) {

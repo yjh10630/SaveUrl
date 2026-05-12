@@ -27,8 +27,8 @@ android {
         applicationId = "com.jinscompany.saveurl"
         minSdk = 24
         targetSdk = 35
-        versionCode = 33
-        versionName = "1.1.0"
+        versionCode = 34
+        versionName = "1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["AdMobId"] = adsId
@@ -53,7 +53,7 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         debug {

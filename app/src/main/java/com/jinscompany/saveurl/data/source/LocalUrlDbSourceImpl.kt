@@ -11,6 +11,7 @@ import com.jinscompany.saveurl.data.room.TrashDao
 import com.jinscompany.saveurl.domain.model.FilterParams
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.ui.FilterDefaults
+import com.jinscompany.saveurl.utils.UrlNormalizer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -62,10 +63,15 @@ class LocalUrlDbSourceImpl @Inject constructor(
         }
     }
 
+    override suspend fun findByNormalizedUrl(normalizedUrl: String): UrlData? = withContext(Dispatchers.IO) {
+        return@withContext baseSaveUrlDao.findByNormalizedUrl(normalizedUrl)
+    }
+
     override suspend fun saveLocalDBUrl(data: UrlData) = withContext(Dispatchers.IO) {
         return@withContext try {
             db.withTransaction {
-                baseSaveUrlDao.insert(data)
+                val normalized = UrlNormalizer.normalize(data.url ?: "")
+                baseSaveUrlDao.insert(data.copy(normalizedUrl = normalized))
                 val categoryName = data.category ?: FilterDefaults.CATEGORY_ALL
                 if (categoryName == FilterDefaults.CATEGORY_ALL) {
                     true

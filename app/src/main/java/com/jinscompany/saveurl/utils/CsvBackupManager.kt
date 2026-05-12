@@ -16,7 +16,7 @@ object CsvBackupManager {
     private val gson = Gson()
     private val listType = object : TypeToken<List<String>>() {}.type
 
-    private val header = "id,url,imageUrl,siteName,title,description,tagList,addDate,category,isBookMark,isRead"
+    private val header = "id,url,imageUrl,siteName,title,description,tagList,addDate,category,isBookMark,isRead,normalizedUrl"
 
     suspend fun export(context: Context, uri: Uri, items: List<UrlData>): Int = withContext(Dispatchers.IO) {
         context.contentResolver.openOutputStream(uri)?.use { stream ->
@@ -60,6 +60,7 @@ object CsvBackupManager {
             item.category.escapeCsv(),
             item.isBookMark.toString(),
             item.isRead.toString(),
+            item.normalizedUrl.escapeCsv(),
         ).joinToString(",")
     }
 
@@ -72,9 +73,10 @@ object CsvBackupManager {
             } catch (e: Exception) {
                 emptyList()
             }
+            val rawUrl = cols[1].ifEmpty { null }
             UrlData(
                 id = cols[0].toIntOrNull() ?: 0,
-                url = cols[1].ifEmpty { null },
+                url = rawUrl,
                 imgUrl = cols[2].ifEmpty { null },
                 siteName = cols[3].ifEmpty { null },
                 title = cols[4].ifEmpty { null },
@@ -84,6 +86,8 @@ object CsvBackupManager {
                 category = cols[8].ifEmpty { null },
                 isBookMark = cols[9].toBooleanStrictOrNull() ?: false,
                 isRead = cols[10].toBooleanStrictOrNull() ?: false,
+                normalizedUrl = if (cols.size > 11 && cols[11].isNotEmpty()) cols[11]
+                                else UrlNormalizer.normalize(rawUrl ?: ""),
             )
         } catch (e: Exception) {
             null

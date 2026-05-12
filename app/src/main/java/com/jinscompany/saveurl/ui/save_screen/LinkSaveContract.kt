@@ -43,6 +43,7 @@ sealed class LinkSaveIntent {
     data class CategorySelectedItem(val selectedCategory: String): LinkSaveIntent()
     data class CrawlerLoading(val loadingUrl: String): LinkSaveIntent()
     data object UserForcedEndCrawling: LinkSaveIntent()
+    data object ForceSaveLink: LinkSaveIntent()
 }
 
 sealed class LinkSaveUiEffect {
@@ -51,4 +52,5 @@ sealed class LinkSaveUiEffect {
     data class OpenPreviewContentEdit(val urlData: UrlData): LinkSaveUiEffect()
     data class StartCrawling(val url: String): LinkSaveUiEffect()
     data class ShowCrawlFailedDialog(val url: String): LinkSaveUiEffect()
+    data class ShowDuplicateDialog(val existing: UrlData): LinkSaveUiEffect()
 }

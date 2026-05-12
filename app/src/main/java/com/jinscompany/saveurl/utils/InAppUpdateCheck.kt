@@ -6,25 +6,34 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.appupdate.AppUpdateOptions
+import com.google.android.play.core.install.InstallStateUpdatedListener
 import com.google.android.play.core.install.model.AppUpdateType
+import com.google.android.play.core.install.model.InstallStatus
 import com.google.android.play.core.install.model.UpdateAvailability
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.remoteconfig.ktx.remoteConfig
 import com.google.firebase.remoteconfig.ktx.remoteConfigSettings
 import com.google.gson.Gson
+import com.jinscompany.saveurl.BuildConfig
 import com.jinscompany.saveurl.SaveUrlApplication
 import com.jinscompany.saveurl.SharedViewModel
 import com.jinscompany.saveurl.domain.model.AppInfo
 import java.util.concurrent.TimeUnit
-import com.jinscompany.saveurl.BuildConfig
 
 class InAppUpdateCheck(
     private val activity: ComponentActivity,
-    private val updateLauncher: ActivityResultLauncher<IntentSenderRequest>,
+    private val immediateLauncher: ActivityResultLauncher<IntentSenderRequest>,
+    private val flexibleLauncher: ActivityResultLauncher<IntentSenderRequest>,
     private val sharedViewModel: SharedViewModel
 ) {
     private val remoteConfig = Firebase.remoteConfig
     private val appUpdateManager = AppUpdateManagerFactory.create(activity)
+
+    private val flexibleInstallListener = InstallStateUpdatedListener { state ->
+        if (state.installStatus() == InstallStatus.DOWNLOADED) {
+            sharedViewModel.setFlexibleUpdateDownloaded(true)
+        }
+    }
 
     init {
         if (SaveUrlApplication.DEBUG) {
@@ -44,48 +53,60 @@ class InAppUpdateCheck(
             val currentBuildCode = BuildConfig.VERSION_CODE
 
             val updateType = when {
-                currentBuildCode < appInfo.minVersion -> AppUpdateType.IMMEDIATE // 강제 업데이트
-                currentBuildCode < appInfo.latestVersion -> AppUpdateType.FLEXIBLE // 선택적 업데이트
+                currentBuildCode < appInfo.minVersion -> AppUpdateType.IMMEDIATE
+                currentBuildCode < appInfo.latestVersion -> AppUpdateType.FLEXIBLE
                 else -> null
             }
 
-            if (updateType == AppUpdateType.FLEXIBLE) {
-                sharedViewModel.setFlexibleUpdate(true)
-            }
-
-            if (updateType == AppUpdateType.IMMEDIATE) {
-                checkUpdate()
+            when (updateType) {
+                AppUpdateType.IMMEDIATE -> checkUpdate(AppUpdateType.IMMEDIATE)
+                AppUpdateType.FLEXIBLE -> checkUpdate(AppUpdateType.FLEXIBLE)
             }
         }
     }
 
-    private fun checkUpdate() {
+    private fun checkUpdate(updateType: Int) {
         appUpdateManager.appUpdateInfo.addOnSuccessListener { info ->
-            if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE && info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)) {
+            if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE && info.isUpdateTypeAllowed(updateType)) {
+                if (updateType == AppUpdateType.FLEXIBLE) {
+                    appUpdateManager.registerListener(flexibleInstallListener)
+                }
+                val launcher = if (updateType == AppUpdateType.IMMEDIATE) immediateLauncher else flexibleLauncher
                 appUpdateManager.startUpdateFlowForResult(
                     info,
-                    updateLauncher,
-                    AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build(),
+                    launcher,
+                    AppUpdateOptions.newBuilder(updateType).build(),
                 )
             }
         }
     }
 
-    fun onActivityResult(resultCode: Int) {
+    fun completeFlexibleUpdate() {
+        appUpdateManager.completeUpdate()
+    }
+
+    fun onImmediateActivityResult(resultCode: Int) {
         if (resultCode != Activity.RESULT_OK) {
-            activity.finish() // 강제 업데이트 거부 시 앱 종료
+            activity.finish()
         }
     }
 
     fun resumeFlexibleUpdateCheck() {
         appUpdateManager.appUpdateInfo.addOnSuccessListener { info ->
             if (info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS) {
+                appUpdateManager.registerListener(flexibleInstallListener)
                 appUpdateManager.startUpdateFlowForResult(
                     info,
-                    updateLauncher,
-                    AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build(),
+                    flexibleLauncher,
+                    AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build(),
                 )
+            } else if (info.installStatus() == InstallStatus.DOWNLOADED) {
+                sharedViewModel.setFlexibleUpdateDownloaded(true)
             }
         }
+    }
+
+    fun unregisterListener() {
+        appUpdateManager.unregisterListener(flexibleInstallListener)
     }
 }

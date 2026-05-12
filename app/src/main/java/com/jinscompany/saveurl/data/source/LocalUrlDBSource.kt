@@ -14,6 +14,7 @@ interface LocalUrlDBSource {
     suspend fun deleteLocalDBUrl(data: UrlData): Boolean
     suspend fun isSavedLocalDBUrl(url: String): Boolean
     suspend fun findLocalDBUrlData(url: String): UrlData?
+    suspend fun findByNormalizedUrl(normalizedUrl: String): UrlData?
     suspend fun updateLocalDBUrlData(data: UrlData): Boolean
     suspend fun getSiteNameList(): List<String>
     suspend fun saveUrlDataList(list: List<UrlData>)
