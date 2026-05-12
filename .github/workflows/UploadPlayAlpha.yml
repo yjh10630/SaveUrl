@@ -52,6 +52,14 @@ jobs:
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: ./gradlew clean bundleRelease
 
+    # 빌드된 AAB를 GitHub Actions Artifacts로 저장 (수동 다운로드용)
+      - name: Upload AAB as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: app/build/outputs/bundle/release/app-release.aab
+          retention-days: 7
+
     # Play Console 배포를 위한 서비스 계정 JSON 파일 디코딩 및 저장
       - name: Decode Play Store Service Account
         run: |
