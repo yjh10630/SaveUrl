@@ -60,10 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
-import com.jinscompany.saveurl.MainActivity
 import com.jinscompany.saveurl.SharedViewModel
-import com.jinscompany.saveurl.billing.BillingProducts
-import com.jinscompany.saveurl.billing.BillingUiEffect
 import com.jinscompany.saveurl.ui.composable.singleClick
 import com.jinscompany.saveurl.ui.navigation.navigateToTrash
 import com.jinscompany.saveurl.ui.navigation.navigateToStaticWeb
@@ -91,10 +88,7 @@ fun AppSettingScreen(
 ) {
     val darkModePref by sharedViewModel.darkModeEnabled.collectAsState()
     val context = LocalContext.current
-    val activity = LocalActivity.current as MainActivity
     val isFlexibleUpdatable by sharedViewModel.isFlexibleUpdatable.collectAsState()
-    val isAdsRemoved by sharedViewModel.isAdsRemoved.collectAsState()
-    val billingEffect by sharedViewModel.billingUiEffect.collectAsState()
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
@@ -110,27 +104,6 @@ fun AppSettingScreen(
                 is AppSettingEffect.ShowToast ->
                     Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
             }
-        }
-    }
-
-    LaunchedEffect(billingEffect) {
-        when (billingEffect) {
-            is BillingUiEffect.PurchaseSuccess -> {
-                val productId = (billingEffect as BillingUiEffect.PurchaseSuccess).productId
-                val msg = when (productId) {
-                    BillingProducts.REMOVE_ADS -> "광고가 제거되었습니다. 감사합니다!"
-                    BillingProducts.SUPPORT_COFFEE -> "커피 한 잔 후원 감사합니다 ☕"
-                    BillingProducts.SUPPORT_SNACK -> "간식 후원 감사합니다 🍩"
-                    else -> "후원 감사합니다!"
-                }
-                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-                sharedViewModel.clearBillingEffect()
-            }
-            is BillingUiEffect.PurchaseFailed -> {
-                Toast.makeText(context, "결제에 실패했습니다. 다시 시도해주세요.", Toast.LENGTH_SHORT).show()
-                sharedViewModel.clearBillingEffect()
-            }
-            else -> {}
         }
     }
 
@@ -185,11 +158,6 @@ fun AppSettingScreen(
             isUpdatable = isFlexibleUpdatable,
             darkModePref = darkModePref,
             onDarkModeChange = { sharedViewModel.setDarkMode(it) },
-            isAdsRemoved = isAdsRemoved,
-            onRemoveAdsClick = { sharedViewModel.launchBilling(activity, BillingProducts.REMOVE_ADS) },
-            onSupportCoffeeClick = { sharedViewModel.launchBilling(activity, BillingProducts.SUPPORT_COFFEE) },
-            onSupportSnackClick = { sharedViewModel.launchBilling(activity, BillingProducts.SUPPORT_SNACK) },
-            onRestorePurchasesClick = { sharedViewModel.restorePurchases() },
             onSupportClick = { navController.navigateToSupport() },
         )
     }
@@ -210,11 +178,6 @@ fun AppSettingScreen(
     darkModePref: Boolean? = null,
     onDarkModeChange: (Boolean?) -> Unit = {},
     isUpdatable: Boolean = false,
-    isAdsRemoved: Boolean = false,
-    onRemoveAdsClick: () -> Unit = {},
-    onSupportCoffeeClick: () -> Unit = {},
-    onSupportSnackClick: () -> Unit = {},
-    onRestorePurchasesClick: () -> Unit = {},
     onSupportClick: () -> Unit = {},
 ) {
     LazyColumn(
