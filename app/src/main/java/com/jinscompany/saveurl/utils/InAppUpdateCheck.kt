@@ -48,8 +48,16 @@ class InAppUpdateCheck(
     }
 
     private fun fetchRemoteConfig() {
-        remoteConfig.fetchAndActivate().addOnCompleteListener {
-            val appInfo = Gson().fromJson(remoteConfig.getString("app_info"), AppInfo::class.java)
+        // Activity 범위 리스너: onStop 이후(회전/종료로 파괴된 Activity)에는 콜백이 호출되지 않아
+        // 해제된 ActivityResultLauncher 로 업데이트 플로우를 시작하는 크래시를 방지
+        remoteConfig.fetchAndActivate().addOnCompleteListener(activity) {
+            // fetch 실패(오프라인 첫 실행 등)로 값이 없으면 "" -> Gson 이 null 을 반환하므로 NPE 방지
+            val appInfo = try {
+                Gson().fromJson(remoteConfig.getString("app_info"), AppInfo::class.java)
+            } catch (e: Exception) {
+                CmLog.e("app_info parse error > ${e.message}")
+                null
+            } ?: return@addOnCompleteListener
             val currentBuildCode = BuildConfig.VERSION_CODE
 
             val updateType = when {
@@ -66,7 +74,7 @@ class InAppUpdateCheck(
     }
 
     private fun checkUpdate(updateType: Int) {
-        appUpdateManager.appUpdateInfo.addOnSuccessListener { info ->
+        appUpdateManager.appUpdateInfo.addOnSuccessListener(activity) { info ->
             if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE && info.isUpdateTypeAllowed(updateType)) {
                 if (updateType == AppUpdateType.FLEXIBLE) {
                     appUpdateManager.registerListener(flexibleInstallListener)
@@ -92,7 +100,7 @@ class InAppUpdateCheck(
     }
 
     fun resumeFlexibleUpdateCheck() {
-        appUpdateManager.appUpdateInfo.addOnSuccessListener { info ->
+        appUpdateManager.appUpdateInfo.addOnSuccessListener(activity) { info ->
             if (info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS) {
                 appUpdateManager.registerListener(flexibleInstallListener)
                 appUpdateManager.startUpdateFlowForResult(
