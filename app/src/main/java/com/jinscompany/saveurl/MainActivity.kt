@@ -30,7 +30,7 @@ import androidx.navigation.compose.rememberNavController
 import com.jinscompany.saveurl.R
 import com.jinscompany.saveurl.ui.composable.SetStatusBarColor
 import com.jinscompany.saveurl.ui.navigation.AppNavigation
-import com.jinscompany.saveurl.ui.navigation.Navigation
+import com.jinscompany.saveurl.ui.navigation.navigateToSaveLink
 import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
 import com.jinscompany.saveurl.utils.CmLog
 import com.jinscompany.saveurl.utils.InAppUpdateCheck
@@ -56,6 +56,8 @@ class MainActivity : ComponentActivity() {
         setupBackPressedHandler()
 
         enableEdgeToEdge()
+        // 회전/프로세스 재생성 시에는 NavController 가 백스택을 복원하므로 공유 Intent 를 다시 처리하지 않는다
+        val isFreshLaunch = savedInstanceState == null
         setContent {
             val navController = rememberNavController()
             val context = LocalContext.current
@@ -63,14 +65,14 @@ class MainActivity : ComponentActivity() {
 
             // 공유 Intent 확인
             LaunchedEffect(Unit) {
+                if (!isFreshLaunch) return@LaunchedEffect
                 val intent = activity?.intent
                 if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
                     val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
                     val realUrl = extractUrlFromText(sharedText ?: "")
                     CmLog.d("sharedText > ${sharedText}\nrealUrl > ${realUrl}")
                     if (!realUrl.isNullOrEmpty()) {
-                        val route = "${Navigation.Routes.SAVE_LINK}?url=$realUrl"
-                        navController.navigate(route)
+                        navController.navigateToSaveLink(url = realUrl)
                     }
                 }
             }

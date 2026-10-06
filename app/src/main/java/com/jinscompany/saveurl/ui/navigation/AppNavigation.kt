@@ -1,6 +1,7 @@
 package com.jinscompany.saveurl.ui.navigation
 
 import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
@@ -187,7 +188,10 @@ fun NavController.navigateToMain(currentScreen: String, scrollToTop: Boolean = f
 }
 
 fun NavController.navigateToSaveLink(url: String? = null,) {
-    val route = "${Navigation.Routes.SAVE_LINK}?url=$url"
+    // URL 에 포함된 &, ?, #, % 등이 route 쿼리로 해석되어 잘리거나 디코딩되지 않도록 인코딩
+    // (Navigation 이 인자 값을 한 번 디코딩하므로 수신측에서는 원본 URL 을 그대로 받는다)
+    val route = if (url.isNullOrEmpty()) Navigation.Routes.SAVE_LINK
+                else "${Navigation.Routes.SAVE_LINK}?url=${Uri.encode(url)}"
     navigate(route)
 }
 
