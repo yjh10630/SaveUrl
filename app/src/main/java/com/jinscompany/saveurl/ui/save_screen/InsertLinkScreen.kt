@@ -24,6 +24,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -60,7 +61,8 @@ fun InsertLinkScreen(
 ) {
     val context = LocalContext.current
     val uiState by state.collectAsState()
-    var startCrawlerUrl by remember { mutableStateOf("") }
+    // 화면 회전/다른 화면 이동 후 복귀 시에도 진행 중이던 WebView 크롤링이 이어지도록 saveable 로 유지
+    var startCrawlerUrl by rememberSaveable { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
     val listState: LazyListState = rememberLazyListState()
 

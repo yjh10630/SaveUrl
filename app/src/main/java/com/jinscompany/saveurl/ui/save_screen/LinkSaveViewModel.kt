@@ -48,6 +48,14 @@ class LinkSaveViewModel @Inject constructor(
 
     private var parseJob: Job? = null
     private var suggestedCategory: String? = null
+    private var isInitialUrlHandled = false
+
+    // 네비게이션 인자로 받은 URL 은 최초 진입 시 한 번만 처리
+    fun startInitialCrawling(url: String?) {
+        if (isInitialUrlHandled) return
+        isInitialUrlHandled = true
+        if (!url.isNullOrEmpty()) startCrawling(url)
+    }
 
     fun onIntent(intent: LinkSaveIntent) {
         when (intent) {

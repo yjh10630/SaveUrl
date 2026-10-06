@@ -1,8 +1,6 @@
 package com.jinscompany.saveurl.ui.navigation
 
-import android.content.Intent
 import android.net.Uri
-import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
@@ -91,7 +89,6 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         ) { backStackEntry ->
             val url = backStackEntry.arguments?.getString("url")
             val viewModel = hiltViewModel<LinkSaveViewModel>()
-            val activity = LocalActivity.current
             LaunchedEffect(Unit) {
                 viewModel.uiEffect
                     .filterIsInstance<LinkSaveUiEffect.GotoNextScreen>()
@@ -105,17 +102,10 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                         )
                     }}
             }
-            // 앱 외부에서 공유하기 다이렉트로 들어왔을 경우에만 해당 되는 로직
+            // 전달받은 URL(공유하기/클립보드/수정)은 ViewModel 당 최초 1회만 크롤링
+            // (카테고리 편집 화면에서 돌아오거나 화면 회전 시 다시 크롤링되어 입력값이 초기화되는 문제 방지)
             LaunchedEffect(Unit) {
-                val intent = activity?.intent
-                val linkUrl = if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
-                    intent.getStringExtra(Intent.EXTRA_TEXT).toString()
-                } else if (url?.isNotEmpty() == true) {
-                    url
-                } else ""
-                if (linkUrl.isNotEmpty()) {
-                    viewModel.startCrawling(url ?: "")
-                }
+                viewModel.startInitialCrawling(url)
             }
             InsertLinkScreen(
                 state = viewModel.uiState,
