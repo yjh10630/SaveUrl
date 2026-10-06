@@ -9,12 +9,27 @@ import android.content.pm.PackageManager
 
 const val tutorialUrl = "https://yjh10630.github.io/MyWeb/#/SaveUrlTutorial"
 
+// RFC 3986 에서 URL 에 쓸 수 있는 문자 (&, %, #, :, ~, + 등 포함)
+private val urlRegex = Regex(
+    "https?://[A-Za-z0-9\\-._~:/?#\\[\\]@!$&'()*+,;=%]+",
+    RegexOption.IGNORE_CASE
+)
+
 fun extractUrlFromText(text: String): String? {
-    val urlRegex = Regex(
-        "(https?://[a-zA-Z0-9./?=_-]+)",
-        RegexOption.IGNORE_CASE
-    )
-    return urlRegex.find(text)?.value
+    val url = urlRegex.find(text)?.value ?: return null
+    // 문장 끝 구두점/닫는 괄호는 URL 에서 제외 ("...보세요 https://a.com/b." 등)
+    var end = url.length
+    while (end > 0) {
+        val c = url[end - 1]
+        val trim = when (c) {
+            '.', ',', ';', ':', '!', '?', '\'' -> true
+            ')' -> url.substring(0, end).count { it == '(' } < url.substring(0, end).count { it == ')' }
+            else -> false
+        }
+        if (!trim) break
+        end--
+    }
+    return url.substring(0, end)
 }
 
 fun ClipboardManager.checkClipboardForUrl(): String {
