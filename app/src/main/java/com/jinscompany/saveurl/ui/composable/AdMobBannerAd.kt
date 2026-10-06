@@ -1,6 +1,7 @@
 package com.jinscompany.saveurl.ui.composable
 
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -32,6 +33,7 @@ fun AdMobBannerAd() {
     AndroidView(
         modifier = Modifier
             .fillMaxWidth()
+            .navigationBarsPadding()
             .padding(10.dp),
         factory = { adView }
     )
