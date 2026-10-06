@@ -246,7 +246,8 @@ class LinkSaveViewModel @Inject constructor(
                         }
                         val data = parseUrlUseCase(realUrl)
                         if (data.title.isNullOrEmpty()) {
-                            _uiEffect.emit(LinkSaveUiEffect.StartCrawling(url))
+                            // 공유 텍스트 전체가 아닌 추출된 URL 로 WebView 폴백 (리다이렉트 해석된 URL 우선)
+                            _uiEffect.emit(LinkSaveUiEffect.StartCrawling(data.url?.takeIf { it.startsWith("http") } ?: realUrl))
                         } else {
                             val checkData = findUrlDataUseCase(data.url ?: "")
                             val suggested = suggestCategoryUseCase(

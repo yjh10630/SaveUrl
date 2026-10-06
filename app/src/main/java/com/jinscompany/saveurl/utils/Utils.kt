@@ -27,8 +27,9 @@ fun extractUrlFromText(text: String): String? {
     while (end > 0) {
         val c = url[end - 1]
         val trim = when (c) {
-            '.', ',', ';', ':', '!', '?', '\'' -> true
+            '.', ',', ';', ':', '!', '?', '\'', '"' -> true
             ')' -> url.substring(0, end).count { it == '(' } < url.substring(0, end).count { it == ')' }
+            ']' -> url.substring(0, end).count { it == '[' } < url.substring(0, end).count { it == ']' }
             else -> false
         }
         if (!trim) break

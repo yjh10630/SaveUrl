@@ -101,6 +101,8 @@ dependencies {
     implementation("androidx.room:room-paging:2.6.1")
 
     implementation("org.jsoup:jsoup:1.14.3")
+    // 링크 미리보기 HTTP/2 전송 (Coil 이 이미 가져오는 버전과 동일)
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
     implementation("com.google.code.gson:gson:2.10.1")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
