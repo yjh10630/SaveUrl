@@ -53,6 +53,11 @@ class CategoryDBSourceImpl @Inject constructor (
                 if (updateData != null) {
                     updateData.name = newName
                     categoryDao.update(updateData)
+                    // 링크는 카테고리를 이름으로 참조하므로 함께 변경하지 않으면
+                    // 변경된 카테고리로 필터링 시 기존 링크가 보이지 않고, 도메인 학습값이 옛 이름을 추천함
+                    db.baseSaveUrlDao().renameCategory(oldName, newName)
+                    db.trashDao().renameCategory(oldName, newName)
+                    db.domainCategoryDao().renameCategory(oldName, newName)
                     true
                 } else false
             }

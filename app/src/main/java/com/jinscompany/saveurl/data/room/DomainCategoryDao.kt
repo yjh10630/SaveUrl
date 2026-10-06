@@ -17,6 +17,9 @@ interface DomainCategoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: DomainCategoryEntity)
 
+    @Query("UPDATE DomainCategory SET category = :newName WHERE category = :oldName")
+    suspend fun renameCategory(oldName: String, newName: String)
+
     @Query("""
         INSERT INTO DomainCategory (domain, category, learnCount)
         VALUES (:domain, :category, 1)

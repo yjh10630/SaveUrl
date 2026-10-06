@@ -100,6 +100,10 @@ interface BaseSaveUrlDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(data: UrlData): Long
 
+    // 카테고리 이름 변경 시 해당 카테고리의 링크도 함께 변경
+    @Query("UPDATE BaseSaveUrl SET category = :newName WHERE category = :oldName")
+    suspend fun renameCategory(oldName: String, newName: String): Int
+
     @Query("UPDATE BaseSaveUrl SET isRead = 1 WHERE url = :url")
     suspend fun markAsRead(url: String)
 

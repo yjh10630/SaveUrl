@@ -29,4 +29,7 @@ interface TrashDao {
 
     @Query("DELETE FROM trash")
     suspend fun deleteAll()
+
+    @Query("UPDATE trash SET category = :newName WHERE category = :oldName")
+    suspend fun renameCategory(oldName: String, newName: String)
 }
