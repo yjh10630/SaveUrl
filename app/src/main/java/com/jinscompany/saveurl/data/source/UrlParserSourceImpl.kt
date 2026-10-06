@@ -1,138 +1,68 @@
 package com.jinscompany.saveurl.data.source
 
 import android.content.Context
-import android.net.Uri
-import android.util.Log
+import android.os.Build
 import android.webkit.WebSettings
-import com.google.firebase.crashlytics.ktx.crashlytics
-import com.google.firebase.ktx.Firebase
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import com.google.firebase.crashlytics.ktx.crashlytics
+import com.google.firebase.ktx.Firebase
+import com.jinscompany.saveurl.data.source.linkpreview.HtmlMetaExtractor
+import com.jinscompany.saveurl.data.source.linkpreview.JsoupHttpGetter
+import com.jinscompany.saveurl.data.source.linkpreview.OkHttpGetter
+import com.jinscompany.saveurl.data.source.linkpreview.LinkPreviewFetcher
+import com.jinscompany.saveurl.data.source.linkpreview.WebViewHtml
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.utils.CmLog
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import net.dankito.readability4j.Readability4J
-import org.apache.commons.lang3.StringEscapeUtils
-import org.jsoup.HttpStatusException
-import org.jsoup.Jsoup
 import javax.inject.Inject
+import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
 
 class UrlParserSourceImpl @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : UrlParserSource {
-    val userAgents = listOf(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.157 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Version/16.3 Safari/537.36",
-        "Mozilla/5.0 (Linux; Android 12; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 16_1 like Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/537.36",
-    )
+
+    private val httpGetter = OkHttpGetter()
+    private val fallbackHttpGetter = JsoupHttpGetter()
+
+    /**
+     * 기기의 실제 WebView UA. 네이버 스마트스토어 등은 "; wv" 가 포함된 Android WebView UA 에만
+     * 상품 페이지를 내려준다 (데스크톱/일반 모바일 UA 는 429 또는 로그인 리다이렉트).
+     */
+    private val deviceUserAgent: String by lazy {
+        try {
+            WebSettings.getDefaultUserAgent(context)
+        } catch (e: Exception) {
+            "Mozilla/5.0 (Linux; Android ${Build.VERSION.RELEASE}; ${Build.MODEL}; wv) AppleWebKit/537.36 " +
+                    "(KHTML, like Gecko) Version/4.0 Chrome/129.0.0.0 Mobile Safari/537.36"
+        }
+    }
 
     override suspend fun jsoupUrlParser(url: String): UrlData = withContext(Dispatchers.IO) {
-        // YouTube는 oEmbed로 먼저 시도
-        if (YouTubeOEmbedParser.isYouTubeUrl(url)) {
-            YouTubeOEmbedParser.parse(url)?.let { return@withContext it }
-        }
-
-        lateinit var data: UrlData
-        try {
-            val response = Jsoup.connect(url).followRedirects(true).execute().url().toExternalForm()
-            val document = Jsoup.connect(response).timeout(30000).userAgent(WebSettings.getDefaultUserAgent(context))
-                .referrer("https://www.google.com/")
-                .ignoreHttpErrors(true)
-                .ignoreContentType(true).get()
-            ensureActive()
-            val realUrl = document.selectFirst("meta[property=og:url]")?.attr("content").let {
-                if (it.isNullOrEmpty()) {
-                    val canonicalUrl = document.select("link[rel=canonical]").attr("href")
-                    if (canonicalUrl.isNullOrEmpty()) url else canonicalUrl
-                } else it
-            }
-
-            val title = document.selectFirst("meta[property=og:title]")?.attr("content")
-            val description = document.selectFirst("meta[property=og:description]")?.attr("content")
-            val imageUrl = document.selectFirst("meta[property=og:image]")?.attr("content")
-            val siteName = document.selectFirst("meta[property=og:site_name]")?.attr("content")
-
-            data = UrlData(
-                url = realUrl,
-                imgUrl = imageUrl ?: "",
-                siteName = siteName ?: "",
-                title = title ?: "",
-                description = description ?: "",
-            )
-        } catch (e: HttpStatusException) {
-            Log.e("UriParserSourceImpl", "Error > ${e.printStackTrace()}")
-            Firebase.crashlytics.recordException(e)
-            val realUrl = e.url ?: url
-            data = if (containsSmartstore(realUrl)) {
-                UrlData(url = url, imgUrl = "", siteName = "네이버 쇼핑", title = "", description = realUrl)
-            } else {
-                UrlData(url = url, imgUrl = "", siteName = "", title = "", description = realUrl.ifEmpty { url })
-            }
+        val ctx = coroutineContext
+        val meta = try {
+            LinkPreviewFetcher(
+                http = httpGetter,
+                fallbackHttp = fallbackHttpGetter,
+                deviceUserAgent = { deviceUserAgent },
+                isCancelled = { !ctx.isActive },
+                log = { CmLog.d("LinkPreview $it") },
+            ).fetch(url)
         } catch (e: Exception) {
-            Log.e("UriParserSourceImpl", "Error > ${e.printStackTrace()}")
             Firebase.crashlytics.recordException(e)
-            val realUrl = getExceptionUrl(e.message ?: "") ?: ""
-            data = if (containsSmartstore(realUrl)) {
-                UrlData(url = url, imgUrl = "", siteName = "네이버 쇼핑", title = "", description = realUrl)
-            } else {
-                UrlData(url = url, imgUrl = "", siteName = "", title = "", description = realUrl.ifEmpty { url })
-            }
-        }
-
-        // catch 블록에서 title이 없는 경우 모바일 UA로 재시도
-        if (data.title.isNullOrEmpty()) {
-            ensureActive()
-            data = retryWithMobileUserAgent(url) ?: data
-        }
-
-        return@withContext data
-    }
-
-    private suspend fun retryWithMobileUserAgent(url: String): UrlData? = withContext(Dispatchers.IO) {
-        try {
-            val mobileUa = "Mozilla/5.0 (Linux; Android 12; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
-            val document = Jsoup.connect(url)
-                .timeout(15000)
-                .userAgent(mobileUa)
-                .referrer("https://www.google.com/")
-                .ignoreHttpErrors(true)
-                .ignoreContentType(true)
-                .get()
-
-            val realUrl = document.selectFirst("meta[property=og:url]")?.attr("content").let {
-                if (it.isNullOrEmpty()) url else it
-            }
-            val title = document.selectFirst("meta[property=og:title]")?.attr("content")
-            if (title.isNullOrEmpty()) return@withContext null
-
-            UrlData(
-                url = realUrl,
-                imgUrl = document.selectFirst("meta[property=og:image]")?.attr("content") ?: "",
-                siteName = document.selectFirst("meta[property=og:site_name]")?.attr("content") ?: "",
-                title = title,
-                description = document.selectFirst("meta[property=og:description]")?.attr("content") ?: "",
-            )
-        } catch (e: Exception) {
             null
         }
+        if (meta == null || !meta.hasTitle) {
+            // 제목을 못 얻으면 호출부(ViewModel)가 WebView 크롤러로 폴백한다.
+            return@withContext UrlData(url = meta?.url ?: url, siteName = meta?.siteName.orEmpty(), title = "", description = url)
+        }
+        meta.toUrlData()
     }
-
-    fun getExceptionUrl(error: String): String? {
-        val regex = Regex("URL=\\[(.*?)]")
-        return regex.find(error)?.groupValues?.get(1)
-    }
-
-    fun containsSmartstore(url: String?): Boolean = url?.contains("smartstore") == true
 
     override suspend fun webViewGetHtml(url: String): UrlData = withContext(Dispatchers.Main) {
         suspendCancellableCoroutine { continuation ->
@@ -147,47 +77,12 @@ class UrlParserSourceImpl @Inject constructor(
 
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView?, url: String?) {
-                        evaluateJavascript("(document.documentElement.outerHTML)") { html ->
+                        evaluateJavascript(WebViewHtml.OUTER_HTML_JS) { raw ->
                             if (isResumed || !continuation.isActive) return@evaluateJavascript
                             isResumed = true
-
-                            CmLog.d("${html}")
-                            Readability4J(url ?: "", html).parse().let { article ->
-                                CmLog.d("html: ${article.textContent}")
-                                CmLog.d("url : $url")
-
-                                val realHtml = article.content ?: ""
-                                val decodedHtml = realHtml
-                                    .replace("\\u003C", "<")
-                                    .replace("\\u003E", ">")
-                                    .replace("\\u0022", "\"")
-                                    .replace("\\", "")
-                                val cleanHtml = StringEscapeUtils.unescapeHtml4(decodedHtml)
-                                val doc = Jsoup.parse(cleanHtml)
-
-                                val realUrl = doc.selectFirst("meta[property=og:url]")?.attr("content").let {
-                                    if (it.isNullOrEmpty()) {
-                                        val canonicalUrl = doc.select("link[rel=canonical]").attr("href")
-                                        if (canonicalUrl.isNullOrEmpty()) url else canonicalUrl
-                                    } else it
-                                }
-
-                                val title = doc.select("meta[property=og:title]").attr("content")
-                                val imageUrl = doc.select("meta[property=og:image]").attr("content")
-                                val description =
-                                    doc.select("meta[property=og:description]").attr("content")
-                                val descriptionSub = doc.select("title").text()
-
-                                continuation.resume(
-                                    UrlData(
-                                        title = title,
-                                        imgUrl = imageUrl,
-                                        url = realUrl,
-                                        description = "$descriptionSub $description",
-                                        siteName = Uri.parse(article.uri).host ?: ""
-                                    )
-                                )
-                            }
+                            val pageUrl = url.orEmpty()
+                            val meta = HtmlMetaExtractor.extract(WebViewHtml.decodeJsResult(raw), pageUrl, "webview")
+                            continuation.resume(meta.toUrlData())
                         }
                     }
                 }

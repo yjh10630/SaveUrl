@@ -13,6 +13,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.google.firebase.crashlytics.ktx.crashlytics
 import com.google.firebase.ktx.Firebase
+import com.jinscompany.saveurl.data.source.linkpreview.HtmlMetaExtractor
+import com.jinscompany.saveurl.data.source.linkpreview.WebViewHtml
 import com.jinscompany.saveurl.domain.model.UrlData
 import kotlinx.coroutines.delay
 import org.jsoup.Jsoup
@@ -29,6 +31,8 @@ fun LinkUrlCrawlerHidden(
 ) {
     val context = LocalContext.current
     val hasFinished = remember { mutableStateOf(false) }
+    // og 등 메타 없이 <title> 만 있는 결과 — 타임아웃 시점에 최후의 수단으로 사용
+    val titleOnlyFallback = remember { mutableStateOf<UrlData?>(null) }
     val webView = remember {
         WebView(context).apply {
             visibility = View.GONE
@@ -42,8 +46,9 @@ fun LinkUrlCrawlerHidden(
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                     val url = request?.url.toString()
-                    if (url.startsWith("coupang://")) {
-                        return true // WebView에서 처리하지 않도록 return true
+                    // coupang://, intent://, market:// 등 앱 딥링크는 WebView 에서 처리하지 않는다
+                    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                        return true
                     }
                     return super.shouldOverrideUrlLoading(view, request)
                 }
@@ -58,38 +63,18 @@ fun LinkUrlCrawlerHidden(
                         else -> {}
                     }
                     if (hasFinished.value) return
-                    evaluateJavascript("(document.documentElement.outerHTML)") { html ->
+                    evaluateJavascript(WebViewHtml.OUTER_HTML_JS) { raw ->
                         try {
-                            val realHtml = html
-                                .replace("\\u003C", "<")
-                                .replace("\\u003E", ">")
-                                .replace("\\u0022", "\"")
-                                .replace("\\", "")
-                            val doc = Jsoup.parse(realHtml)
-
-                            val realUrl = doc.selectFirst("meta[property=og:url]")?.attr("content").let {
-                                if (it.isNullOrEmpty()) {
-                                    val canonicalUrl = doc.select("link[rel=canonical]").attr("href")
-                                    if (canonicalUrl.isNullOrEmpty()) url else canonicalUrl
-                                } else it
-                            }
-
-                            val title = doc.select("meta[property=og:title]").attr("content")
-                            val description = doc.select("meta[property=og:description]").attr("content")
-                            val imageUrl = doc.select("meta[property=og:image]").attr("content")
-                            val siteName = doc.select("meta[property=og:site_name]").attr("content")
-
-                            if (!title.isNullOrEmpty()) {
+                            val html = WebViewHtml.decodeJsResult(raw)
+                            val doc = Jsoup.parse(html, url)
+                            if (HtmlMetaExtractor.isBlockedPage(doc, url)) return@evaluateJavascript
+                            // og → twitter → JSON-LD 순으로 추출
+                            val meta = HtmlMetaExtractor.extract(doc, url, "webview")
+                            if (meta.isGood) {
                                 hasFinished.value = true
-                                onSuccess(
-                                    UrlData(
-                                        url = realUrl,
-                                        imgUrl = imageUrl,
-                                        siteName = siteName,
-                                        title = title,
-                                        description = description
-                                    )
-                                )
+                                onSuccess(meta.toUrlData())
+                            } else if (meta.hasTitle) {
+                                titleOnlyFallback.value = meta.toUrlData()
                             }
                         } catch (e: Exception) {
                             Firebase.crashlytics.recordException(e)
@@ -111,7 +96,8 @@ fun LinkUrlCrawlerHidden(
         delay(10000)
         if (!hasFinished.value) {
             hasFinished.value = true
-            onError()
+            val fallback = titleOnlyFallback.value
+            if (fallback != null) onSuccess(fallback) else onError()
         }
     }
     AndroidView(factory = { webView }, update = {})
