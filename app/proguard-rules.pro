@@ -57,3 +57,7 @@
 # Firebase
 -keep class com.google.firebase.** { *; }
 -dontwarn com.google.firebase.**
+# DataStore Preferences (protobuf-lite는 필드명을 리플렉션으로 찾으므로 필드 보존 필요)
+-keepclassmembers class * extends androidx.datastore.preferences.protobuf.GeneratedMessageLite {
+    <fields>;
+}
