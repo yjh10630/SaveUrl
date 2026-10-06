@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.jinscompany.saveurl.data.room.AppDatabase
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -37,8 +38,26 @@ class MigrationTest {
     @Test
     @Throws(IOException::class)
     fun migrateAllVersions() {
-        helper.createDatabase(testDb, 1).close()
-        helper.runMigrationsAndValidate(testDb, 2, true)
+        helper.createDatabase(testDb, 1).apply {
+            execSQL("INSERT INTO BaseSaveUrl (url, imageUrl, siteName, title, description, tagList, addDate, category, isBookMark) VALUES ('https://test.com', '', '', 'Test Title', '', '[\"tag\"]', 0, '전체', 1)")
+            execSQL("INSERT INTO Category (name, contentCnt, addDate, `order`, isEditable) VALUES ('업무', 1, 0, 1, 1)")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(testDb, 4, true)
+        db.query("SELECT title, tagList, isBookMark, isRead, normalizedUrl FROM BaseSaveUrl").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("Test Title", c.getString(0))
+            assertEquals("[\"tag\"]", c.getString(1))
+            assertEquals(1, c.getInt(2))
+            assertEquals(0, c.getInt(3))
+            assertEquals("", c.getString(4))
+        }
+        db.query("SELECT name FROM Category").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("업무", c.getString(0))
+        }
+        db.close()
     }
 
     @Test

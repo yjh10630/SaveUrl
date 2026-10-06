@@ -21,14 +21,14 @@ val adsFixedSizeBannerUnitIdDubug = localProperties.getProperty("ADS_FIXED_SIZE_
 
 android {
     namespace = "com.jinscompany.saveurl"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.jinscompany.saveurl"
         minSdk = 24
-        targetSdk = 35
-        versionCode = 35
-        versionName = "1.2.0"
+        targetSdk = 36
+        versionCode = 36
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["AdMobId"] = adsId
@@ -48,6 +48,10 @@ android {
 
     ksp {
         arg("room.schemaLocation", "$projectDir/schemas")
+    }
+
+    sourceSets {
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
     }
 
     buildTypes {
