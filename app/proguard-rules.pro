@@ -61,3 +61,10 @@
 -keepclassmembers class * extends androidx.datastore.preferences.protobuf.GeneratedMessageLite {
     <fields>;
 }
+
+# Gson TypeToken (gson 2.10.1 은 R8 규칙을 내장하지 않음)
+# 익명 TypeToken 서브클래스의 제네릭 시그니처가 R8 full mode 에서 제거되면
+# "TypeToken must be created with a type argument" 로 크래시하므로 시그니처 보존
+-keepattributes Signature
+-keep,allowobfuscation class com.google.gson.reflect.TypeToken
+-keep,allowobfuscation class * extends com.google.gson.reflect.TypeToken

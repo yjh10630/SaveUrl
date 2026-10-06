@@ -14,7 +14,8 @@ import java.io.OutputStreamWriter
 object CsvBackupManager {
 
     private val gson = Gson()
-    private val listType = object : TypeToken<List<String>>() {}.type
+    // R8 full mode 대응: 익명 TypeToken 서브클래스 대신 getParameterized 사용
+    private val listType = TypeToken.getParameterized(List::class.java, String::class.java).type
 
     private val header = "id,url,imageUrl,siteName,title,description,tagList,addDate,category,isBookMark,isRead,normalizedUrl"
 
@@ -69,7 +70,7 @@ object CsvBackupManager {
             val cols = splitCsvLine(line)
             if (cols.size < 11) return null
             val tagList: List<String> = try {
-                gson.fromJson(cols[6], listType)
+                gson.fromJson<List<String>>(cols[6], listType) ?: emptyList()
             } catch (e: Exception) {
                 emptyList()
             }

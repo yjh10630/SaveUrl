@@ -2,8 +2,8 @@ package com.jinscompany.saveurl.data.source
 
 import androidx.paging.PagingSource
 import androidx.room.withTransaction
-import com.google.common.reflect.TypeToken
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.room.BaseSaveUrlDao
 import com.jinscompany.saveurl.data.room.CategoryDao
@@ -137,10 +137,11 @@ class LocalUrlDbSourceImpl @Inject constructor(
 
     override suspend fun getTagList(): List<String> = withContext(Dispatchers.IO) {
         val gson = Gson()
-        val type = object : TypeToken<List<String>>() {}.type
+        // R8 full mode 대응: 익명 TypeToken 서브클래스 대신 getParameterized 사용
+        val type = TypeToken.getParameterized(List::class.java, String::class.java).type
         return@withContext baseSaveUrlDao.getAllTagListJson().flatMap { json ->
             try {
-                gson.fromJson<List<String>>(json, type)
+                gson.fromJson<List<String>>(json, type) ?: emptyList() // "null" 문자열이면 null 반환
             } catch (e: Exception) {
                 emptyList()
             }
