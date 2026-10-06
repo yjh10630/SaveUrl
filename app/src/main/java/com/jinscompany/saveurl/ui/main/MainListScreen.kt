@@ -81,6 +81,7 @@ import com.jinscompany.saveurl.ui.navigation.navigateToSaveLink
 import com.jinscompany.saveurl.ui.navigation.navigateToSearch
 import com.jinscompany.saveurl.ui.navigation.navigateToStaticWeb
 import com.jinscompany.saveurl.ui.theme.AppPrimary
+import com.jinscompany.saveurl.utils.openUrlInBrowser
 import com.jinscompany.saveurl.utils.tutorialUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
@@ -143,10 +144,7 @@ fun MainListScreen(
                         APP_SETTING -> navController.navigateToAppSetting()
                     }
                 }
-                is MainListUiEffect.OutLinkWebSite -> {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(effect.url))
-                    context.startActivity(intent)
-                }
+                is MainListUiEffect.OutLinkWebSite -> context.openUrlInBrowser(effect.url)
                 is MainListUiEffect.ShowToast -> {
                     Toast.makeText(context, effect.messageRes, Toast.LENGTH_SHORT).show()
                 }

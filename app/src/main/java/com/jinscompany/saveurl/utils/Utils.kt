@@ -1,11 +1,16 @@
 package com.jinscompany.saveurl.utils
 
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.widget.Toast
+import com.jinscompany.saveurl.R
 
 const val tutorialUrl = "https://yjh10630.github.io/MyWeb/#/SaveUrlTutorial"
 
@@ -70,4 +75,21 @@ fun isDebuggable(context: Context): Boolean {
 fun getCurrentAppVersion(context: Context): String {
     val info: PackageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
     return info.versionName ?: "1.0.0"
+}
+
+/**
+ * 외부 브라우저로 링크 열기.
+ * 저장된 url 은 CSV 가져오기/직접 수정/canonical 상대경로 등으로 http(s) 가 아닐 수 있어
+ * 처리할 앱이 없으면 ActivityNotFoundException 으로 크래시하므로 토스트로 대체
+ */
+fun Context.openUrlInBrowser(url: String?) {
+    if (url.isNullOrBlank()) {
+        Toast.makeText(this, R.string.error_url_missing, Toast.LENGTH_SHORT).show()
+        return
+    }
+    try {
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    } catch (e: ActivityNotFoundException) {
+        Toast.makeText(this, R.string.error_url_open_failed, Toast.LENGTH_SHORT).show()
+    }
 }

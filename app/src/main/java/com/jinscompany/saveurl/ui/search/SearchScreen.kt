@@ -64,6 +64,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
+import com.jinscompany.saveurl.utils.openUrlInBrowser
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.ui.composable.AdMobBannerAd
 import com.jinscompany.saveurl.ui.composable.FullScreenLoading
@@ -328,10 +329,7 @@ fun SearchScreen(
                                     .animateItem()
                                     .padding(horizontal = 16.dp),
                                 data = item,
-                                onClick = { _ ->
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(item.url))
-                                    context.startActivity(intent)
-                                },
+                                onClick = { _ -> context.openUrlInBrowser(item.url) },
                                 longOnClick = {},
                                 tagRemoveClick = {},
                             )

@@ -19,6 +19,7 @@
 
     <!-- 링크 공유/URL -->
     <string name="error_url_missing">Url 정보가 누락 되어 이동할 수 없습니다.</string>
+    <string name="error_url_open_failed">링크를 열 수 있는 앱이 없거나 올바르지 않은 주소입니다.</string>
     <string name="share_app_chooser_title">링크를 공유할 앱을 선택하세요</string>
 
     <!-- InsertLinkScreen -->
