@@ -8,6 +8,7 @@ import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.room.BaseSaveUrlDao
 import com.jinscompany.saveurl.data.room.CategoryDao
 import com.jinscompany.saveurl.data.room.TrashDao
+import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.FilterParams
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.ui.FilterDefaults
@@ -80,9 +81,17 @@ class LocalUrlDbSourceImpl @Inject constructor(
                     if (category != null) {
                         category.contentCnt += 1
                         categoryDao.update(category)
-                        true
-                    } else false
-                } else false
+                    } else {
+                        // 자동 추천(도메인/키워드) 카테고리는 아직 DB 에 없을 수 있음
+                        // 링크는 이미 insert 되었으므로 false 를 반환하면 저장 화면이 멈추고 재시도 시 중복 다이얼로그가 뜸
+                        // -> 카테고리를 함께 생성
+                        val orderMaxCnt = categoryDao.getMaxOrder() ?: 0
+                        categoryDao.insert(
+                            CategoryModel(name = categoryName, contentCnt = 1, order = orderMaxCnt + 1)
+                        )
+                    }
+                    true
+                } else true
             }
         } catch (e: Exception) {
             e.printStackTrace()
