@@ -322,7 +322,8 @@ fun MainListScreen(
                 count = snapshot.size,
                 key = { index -> snapshot[index]?.id ?: index }
             ) { index ->
-                val item = snapshot[index] ?: return@items
+                // itemSnapshotList 접근은 페이지 로드를 트리거하지 않으므로 LazyPagingItems[index] 로 접근해야 다음 페이지가 로드됨
+                val item = mainListPagingData?.get(index) ?: return@items
                 val (dateLabel, isNewDate) = dateLabels[index]
 
                 if (isNewDate) {

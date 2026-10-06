@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -46,6 +46,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import com.jinscompany.saveurl.ui.composable.AdMobBannerAd
 import com.jinscompany.saveurl.ui.composable.CommonSimpleBottomSheet
 import com.jinscompany.saveurl.ui.composable.CommonSimpleMenuBottomSheet
@@ -145,10 +146,12 @@ fun TrashScreen(
                 state = rememberLazyListState(),
                 contentPadding = PaddingValues(top = 0.dp, bottom = 24.dp, start = 12.dp, end = 12.dp),
             ) {
-                itemsIndexed(
-                    items = items.itemSnapshotList,
-                    key = { index, item -> item?.id ?: 0 }
-                ) { index, item ->
+                // itemSnapshotList 접근은 페이지 로드를 트리거하지 않으므로 items[index] 로 접근해야 다음 페이지가 로드됨
+                items(
+                    count = items.itemCount,
+                    key = items.itemKey { it.id }
+                ) { index ->
+                    val item = items[index]
                     item?.let {
                         val data = item.toUrlData()
                         LinkUrlItem(
