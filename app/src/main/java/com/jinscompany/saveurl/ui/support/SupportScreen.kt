@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -35,7 +36,8 @@ fun SupportScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppBackground),
+            .background(AppBackground)
+            .systemBarsPadding(), // edge-to-edge: Scaffold 가 없어 상단 뒤로가기 버튼이 상태바와 겹침
         contentPadding = PaddingValues(bottom = 40.dp)
     ) {
         item {

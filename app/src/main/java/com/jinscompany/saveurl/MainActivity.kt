@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,7 +29,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.rememberNavController
 import com.jinscompany.saveurl.R
-import com.jinscompany.saveurl.ui.composable.SetStatusBarColor
 import com.jinscompany.saveurl.ui.navigation.AppNavigation
 import com.jinscompany.saveurl.ui.navigation.navigateToSaveLink
 import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
@@ -55,7 +55,12 @@ class MainActivity : ComponentActivity() {
         inAppUpdateCheck = InAppUpdateCheck(this, immediateLauncher, flexibleLauncher, sharedViewModel)
         setupBackPressedHandler()
 
-        enableEdgeToEdge()
+        // 앱 화면은 라이트/다크 설정과 무관하게 항상 어두운 배경이므로 시스템 바 아이콘은 밝게 고정
+        // (accompanist systemuicontroller 의 상태바 색 지정은 API 35+ 에서 무시되므로 SystemBarStyle 로 대체)
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+        )
         // 회전/프로세스 재생성 시에는 NavController 가 백스택을 복원하므로 공유 Intent 를 다시 처리하지 않는다
         val isFreshLaunch = savedInstanceState == null
         setContent {
@@ -97,7 +102,6 @@ class MainActivity : ComponentActivity() {
             }
 
             SaveUrlTheme(darkTheme = isDark) {
-                SetStatusBarColor(color = Color.DarkGray)
                 Scaffold(
                     snackbarHost = { SnackbarHost(snackbarHostState) { data -> Snackbar(snackbarData = data) } },
                     containerColor = Color.DarkGray,
