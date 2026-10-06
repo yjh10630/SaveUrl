@@ -37,17 +37,38 @@ object CsvBackupManager {
         val results = mutableListOf<UrlData>()
         context.contentResolver.openInputStream(uri)?.use { stream ->
             BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).use { reader ->
-                reader.readLine() // skip header
-                var line: String?
-                while (reader.readLine().also { line = it } != null) {
-                    parseCsvRow(line ?: "")?.let { results.add(it) }
-                }
+                readRecords(reader).drop(1) // skip header
+                    .forEach { record -> parseCsvRow(record)?.let { results.add(it) } }
             }
         }
         results
     }
 
-    private fun buildCsvRow(item: UrlData): String {
+    /**
+     * 따옴표로 감싼 필드 안의 줄바꿈(설명/제목의 개행)을 하나의 레코드로 합쳐서 반환.
+     * readLine() 단위로 파싱하면 개행이 포함된 행이 잘려 통째로 누락됨.
+     * 이스케이프된 따옴표("")는 2개씩 세어지므로 따옴표 개수가 홀수면 필드가 아직 열려 있는 상태.
+     */
+    internal fun readRecords(reader: BufferedReader): List<String> {
+        val records = mutableListOf<String>()
+        val current = StringBuilder()
+        var quoteCount = 0
+        while (true) {
+            val line = reader.readLine() ?: break
+            if (current.isNotEmpty() || quoteCount % 2 == 1) current.append('\n')
+            current.append(line)
+            quoteCount += line.count { it == '"' }
+            if (quoteCount % 2 == 0) {
+                records.add(current.toString())
+                current.clear()
+                quoteCount = 0
+            }
+        }
+        if (current.isNotEmpty()) records.add(current.toString())
+        return records
+    }
+
+    internal fun buildCsvRow(item: UrlData): String {
         val tagsJson = gson.toJson(item.tagList ?: emptyList<String>())
         return listOf(
             item.id.toString(),
@@ -65,7 +86,7 @@ object CsvBackupManager {
         ).joinToString(",")
     }
 
-    private fun parseCsvRow(line: String): UrlData? {
+    internal fun parseCsvRow(line: String): UrlData? {
         return try {
             val cols = splitCsvLine(line)
             if (cols.size < 11) return null
@@ -123,7 +144,7 @@ object CsvBackupManager {
 
     private fun String?.escapeCsv(): String {
         if (this == null) return ""
-        return if (contains(',') || contains('"') || contains('\n')) {
+        return if (contains(',') || contains('"') || contains('\n') || contains('\r')) {
             "\"${replace("\"", "\"\"")}\""
         } else this
     }
