@@ -58,6 +58,13 @@ fun StaticWebScreen(navController: NavHostController, url: String) {
             }
         }
     }
+    // 화면을 벗어나면 WebView 해제 (Activity Context 를 잡고 있어 누수 및 백그라운드 JS 실행 방지)
+    DisposableEffect(Unit) {
+        onDispose {
+            webView.stopLoading()
+            webView.destroy()
+        }
+    }
     Scaffold(
         bottomBar = { AdMobBannerAd() }
     ) { paddingValue ->

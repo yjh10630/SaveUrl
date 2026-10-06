@@ -6,6 +6,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -101,6 +102,14 @@ fun LinkUrlCrawlerHidden(
                     }
                 }
             }
+        }
+    }
+
+    // 크롤링 완료/화면 이탈 시 히든 WebView 해제 (누수 및 백그라운드 로딩 방지)
+    DisposableEffect(Unit) {
+        onDispose {
+            webView.stopLoading()
+            webView.destroy()
         }
     }
 
