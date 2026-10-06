@@ -1,6 +1,7 @@
 package com.jinscompany.saveurl
 
 import org.jsoup.Jsoup
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 class JsoupTest {
@@ -17,6 +18,8 @@ class JsoupTest {
 
     @Test
     fun UrlTest() {
+        // 실제 네트워크 접속 테스트 — 기본 단위테스트에서는 건너뜀 (LINK_LIVE=1 일 때만 실행)
+        assumeTrue(System.getenv("LINK_LIVE") == "1")
         val response = Jsoup.connect("https://meal-coding.tistory.com/29").followRedirects(true).execute().url().toExternalForm()
         val document = Jsoup.connect(response).timeout(30000).userAgent(userAgents.random()).get()
 

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- 합성 픽스처: og 태그 없이 JSON-LD(@graph) 만 있는 쇼핑몰 상품 페이지 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>쇼핑몰</title>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {"@type": "WebSite", "name": "테스트몰", "url": "https://shop.example.com/"},
+    {"@type": "BreadcrumbList", "itemListElement": []},
+    {
+      "@type": "Product",
+      "name": "힘내바 초코 스니커즈, 480g, 1개",
+      "description": "별점 4.6점, 리뷰 3155개",
+      "image": ["//thumbnail.example.com/remote/492x492ex/image/product.jpg", "https://thumbnail.example.com/2.jpg"],
+      "brand": {"@type": "Brand", "name": "힘내바"},
+      "offers": {"@type": "Offer", "price": "12900", "priceCurrency": "KRW"}
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">{ broken json </script>
+</head>
+<body><h1>상품</h1></body>
+</html>
