@@ -9,12 +9,22 @@ import android.content.pm.PackageManager
 
 const val tutorialUrl = "https://yjh10630.github.io/MyWeb/#/SaveUrlTutorial"
 
+/**
+ * 공유 텍스트에서 첫 번째 URL 을 추출한다.
+ * 기존 정규식([a-zA-Z0-9./?=_-])은 '@', '&', '%', '#', '~', '+', ':' 를 허용하지 않아
+ * TikTok/Threads(@user), 쿼리스트링(&), 퍼센트 인코딩 URL 이 잘리는 문제가 있었다.
+ */
 fun extractUrlFromText(text: String): String? {
     val urlRegex = Regex(
-        "(https?://[a-zA-Z0-9./?=_-]+)",
+        "https?://[A-Za-z0-9\\-._~:/?#\\[\\]@!$&'()*+,;=%]+",
         RegexOption.IGNORE_CASE
     )
-    return urlRegex.find(text)?.value
+    val raw = urlRegex.find(text)?.value ?: return null
+    // 문장 끝 구두점/괄호 제거
+    var url = raw.trimEnd('.', ',', '!', '?', ';', ':', '\'', '"')
+    if (url.endsWith(")") && url.count { it == '(' } < url.count { it == ')' }) url = url.dropLast(1)
+    if (url.endsWith("]") && url.count { it == '[' } < url.count { it == ']' }) url = url.dropLast(1)
+    return url
 }
 
 fun ClipboardManager.checkClipboardForUrl(): String {
