@@ -132,6 +132,7 @@ class MainListViewModel @Inject constructor(
                 }
                 MainListIntent.FetchCategoryData -> {}
                 MainListIntent.ReadClipboard -> clipboardReader.readUrl()?.let { clipboardUrlCheckToSnackBar(it) }
+                MainListIntent.RefreshQuickAccess -> loadQuickAccessItems()
                 MainListIntent.GoToAppSetting -> {
                     _mainListEffect.emit(NavigateToResult(route = APP_SETTING))
                 }
@@ -166,6 +167,7 @@ class MainListViewModel @Inject constructor(
                                 onIntent(MainListIntent.DeleteLinkItem(data))
                             } else {
                                 removeUrlUseCase(data)
+                                loadQuickAccessItems()
                             }
                         }
                     }

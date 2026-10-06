@@ -118,6 +118,9 @@ fun MainListScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.onIntent(MainListIntent.ReadClipboard)
+                // 저장/수정/휴지통 복원 후 돌아왔을 때 최근·북마크 영역이 갱신되지 않던 문제
+                // (MainListViewModel 은 백스택에 유지되어 init 이 다시 호출되지 않음)
+                viewModel.onIntent(MainListIntent.RefreshQuickAccess)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
