@@ -1,6 +1,9 @@
 package com.jinscompany.saveurl.ui.main
 
-import androidx.compose.ui.graphics.Color
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Share
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
@@ -9,8 +12,8 @@ import androidx.paging.cachedIn
 import androidx.paging.filter
 import com.jinscompany.saveurl.domain.model.FilterParams
 import com.jinscompany.saveurl.domain.model.UrlData
-import com.jinscompany.saveurl.domain.repository.UrlRepository
 import com.jinscompany.saveurl.domain.usecase.DeleteWithTrashUseCase
+import com.jinscompany.saveurl.domain.usecase.GetCategoriesUseCase
 import com.jinscompany.saveurl.domain.usecase.GetTrashStateUseCase
 import com.jinscompany.saveurl.domain.usecase.GetUrlListUseCase
 import com.jinscompany.saveurl.domain.usecase.IsSavedUrlUseCase
@@ -53,7 +56,7 @@ class MainListViewModel @Inject constructor(
     private val preferencesManager: PreferencesManager,
     private val clipboardReader: ClipboardReader,
     private val markAsReadUseCase: MarkAsReadUseCase,
-    private val urlRepository: UrlRepository,
+    private val getCategoriesUseCase: GetCategoriesUseCase,
 ) : ViewModel() {
 
     private val _mainListUiState = MutableStateFlow<MainListUiState>(MainListUiState.Idle)
@@ -67,23 +70,25 @@ class MainListViewModel @Inject constructor(
     )
     val filterSelectedItems: StateFlow<FilterParams> = _filterSelectedItems.asStateFlow()
 
-    private val _recentItems = MutableStateFlow<List<UrlData>>(emptyList())
-    val recentItems: StateFlow<List<UrlData>> = _recentItems.asStateFlow()
+    private val _selectedTab = MutableStateFlow(MainTab.RECENT)
+    val selectedTab: StateFlow<MainTab> = _selectedTab.asStateFlow()
 
-    private val _bookmarkItems = MutableStateFlow<List<UrlData>>(emptyList())
-    val bookmarkItems: StateFlow<List<UrlData>> = _bookmarkItems.asStateFlow()
+    /** 카테고리 칩 행에 보여줄 사용자 카테고리 이름 ("전체" 제외) */
+    private val _categoryNames = MutableStateFlow<List<String>>(emptyList())
+    val categoryNames: StateFlow<List<String>> = _categoryNames.asStateFlow()
 
     init {
         getLinkList()
         deleteExpiredTrash()
-        loadQuickAccessItems()
+        loadCategories()
     }
 
-    private fun loadQuickAccessItems() {
+    private fun loadCategories() {
         viewModelScope.launch {
-            val all = urlRepository.getAllUrlData()
-            _recentItems.value = all.sortedByDescending { it.addDate }.take(5)
-            _bookmarkItems.value = all.filter { it.isBookMark }.sortedByDescending { it.addDate }.take(5)
+            _categoryNames.value = runCatching { getCategoriesUseCase() }.getOrDefault(emptyList())
+                .map { it.name }
+                .filter { it != FilterDefaults.CATEGORY_ALL && it != FilterDefaults.CATEGORY_BOOKMARK }
+                .distinct()
         }
     }
 
@@ -130,9 +135,15 @@ class MainListViewModel @Inject constructor(
                 MainListIntent.GoToSearchScreen -> {
                     _mainListEffect.emit(NavigateToResult(route = SEARCH))
                 }
-                MainListIntent.FetchCategoryData -> {}
+                MainListIntent.FetchCategoryData -> loadCategories()
                 MainListIntent.ReadClipboard -> clipboardReader.readUrl()?.let { clipboardUrlCheckToSnackBar(it) }
-                MainListIntent.RefreshQuickAccess -> loadQuickAccessItems()
+                MainListIntent.RefreshOnResume -> loadCategories()
+                is MainListIntent.SelectTab -> {
+                    if (_selectedTab.value != intent.tab) {
+                        _selectedTab.value = intent.tab
+                        getLinkList()
+                    }
+                }
                 MainListIntent.GoToAppSetting -> {
                     _mainListEffect.emit(NavigateToResult(route = APP_SETTING))
                 }
@@ -140,7 +151,7 @@ class MainListViewModel @Inject constructor(
                     _filterSelectedItems.update {
                         FilterParams(categories = intent.category, sort = intent.sort, siteList = intent.site, tagList = intent.tag)
                     }
-                    getLinkList(_filterSelectedItems.value)
+                    getLinkList()
                 }
                 is MainListIntent.ShowLinkInfoDialog -> showLinkInfoDialog(intent.data)
             }
@@ -151,23 +162,22 @@ class MainListViewModel @Inject constructor(
         viewModelScope.launch {
             val isTrashEnable = getTrashStateUseCase()
             val list = mutableListOf<SimpleMenuModel.MenuModel>(
-                SimpleMenuModel.MenuModel(txtRes = R.string.main_list_menu_share, txtColor = Color.LightGray, event = {
+                SimpleMenuModel.MenuModel(txtRes = R.string.main_list_menu_share, icon = Icons.Outlined.Share, event = {
                     viewModelScope.launch { onIntent(MainListIntent.GotoOutShareUrl(data.url)) }
                 }),
-                SimpleMenuModel.MenuModel(txtRes = R.string.main_list_menu_edit, txtColor = Color.LightGray, isBold = true, event = {
+                SimpleMenuModel.MenuModel(txtRes = R.string.main_list_menu_edit, icon = Icons.Outlined.Edit, event = {
                     viewModelScope.launch { onIntent(MainListIntent.GoToLinkEditScreen(url = data.url ?: "")) }
                 }),
                 SimpleMenuModel.MenuModel(
                     txtRes = if (isTrashEnable) R.string.trash_move_label else R.string.main_list_menu_delete,
-                    txtColor = Color.Red,
-                    isBold = true,
+                    icon = Icons.Outlined.Delete,
+                    isDanger = true,
                     event = {
                         viewModelScope.launch {
                             if (isTrashEnable) {
                                 onIntent(MainListIntent.DeleteLinkItem(data))
                             } else {
                                 removeUrlUseCase(data)
-                                loadQuickAccessItems()
                             }
                         }
                     }
@@ -176,7 +186,15 @@ class MainListViewModel @Inject constructor(
 
             if (data.url == tutorialUrl) list.removeAll { it.txtRes == R.string.main_list_menu_edit }
 
-            val model = SimpleMenuModel(menuList = list)
+            val header = SimpleMenuModel.Header(
+                imgUrl = data.imgUrl,
+                title = data.title.orEmpty().ifBlank { data.url.orEmpty() },
+                subtitle = listOfNotNull(
+                    data.siteName?.takeIf { it.isNotBlank() },
+                    data.category?.takeIf { it.isNotBlank() && it != FilterDefaults.CATEGORY_ALL },
+                ).joinToString(" · "),
+            )
+            val model = SimpleMenuModel(menuList = list, header = header)
             _mainListEffect.emit(ShowLinkInfoDialog(model))
         }
     }
@@ -191,11 +209,18 @@ class MainListViewModel @Inject constructor(
     private fun deleteLinkItem(data: UrlData) {
         viewModelScope.launch {
             deleteWithTrashUseCase.execute(data)
-            loadQuickAccessItems()
         }
     }
 
-    private fun getLinkList(params: FilterParams? = null) {
+    private fun getLinkList() {
+        val params = _filterSelectedItems.value
+        val isFavoritesTab = _selectedTab.value == MainTab.FAVORITES
+        // 즐겨찾기 탭 + "전체" 카테고리면 DB 쿼리(북마크)로 바로 거르고,
+        // 특정 카테고리를 고른 경우에는 카테고리 쿼리 결과에서 즐겨찾기만 남긴다.
+        val queryParams = if (isFavoritesTab && params.categories.contains(FilterDefaults.CATEGORY_ALL)) {
+            params.copy(categories = listOf(FilterDefaults.CATEGORY_BOOKMARK))
+        } else params
+        val filterBookmarkInMemory = isFavoritesTab && !queryParams.categories.contains(FilterDefaults.CATEGORY_BOOKMARK)
         viewModelScope.launch {
             _mainListUiState.value = MainListUiState.Loading
 
@@ -218,13 +243,13 @@ class MainListViewModel @Inject constructor(
 
             val dataFlow = Pager(
                 config = PagingConfig(pageSize = 10, prefetchDistance = 5, enablePlaceholders = false),
-                pagingSourceFactory = { getUrlListUseCase(params) }
+                pagingSourceFactory = { getUrlListUseCase(queryParams) }
             ).flow.cachedIn(viewModelScope)
                 .map { pagingData ->
-                    params?.tagList?.let { tagList ->
-                        if (tagList.isEmpty()) pagingData
+                    val tagList = queryParams.tagList
+                    val byTag = if (tagList.isEmpty()) pagingData
                         else pagingData.filter { it.tagList?.any { it in tagList } == true }
-                    } ?: pagingData
+                    if (filterBookmarkInMemory) byTag.filter { it.isBookMark } else byTag
                 }
             _mainListUiState.value = MainListUiState.Success(urlFlowState = dataFlow)
         }

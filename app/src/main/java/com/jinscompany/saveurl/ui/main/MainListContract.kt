@@ -27,10 +27,15 @@ sealed class MainListIntent {
     data class GotoOutShareUrl(val url: String?): MainListIntent()
     data class DeleteLinkItem(val urlData: UrlData): MainListIntent()
     data object ReadClipboard: MainListIntent()
-    data object RefreshQuickAccess: MainListIntent()
+    /** 화면 복귀(ON_RESUME) 시 카테고리 칩 목록 갱신 */
+    data object RefreshOnResume: MainListIntent()
+    data class SelectTab(val tab: MainTab): MainListIntent()
     data class NewFilterData(val category: List<String>, val sort: String, val site: List<String>, val tag: List<String>): MainListIntent()
     data class ShowLinkInfoDialog(val data: UrlData): MainListIntent()
 }
+
+/** 메인 리스트 상단 탭: 리스트 전체를 전환한다 */
+enum class MainTab { RECENT, FAVORITES }
 
 sealed class MainListUiEffect {
     data class NavigateToResult(val route: String, val url: String? = null): MainListUiEffect()

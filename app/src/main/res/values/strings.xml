@@ -56,4 +56,31 @@
     <string name="main_list_menu_delete">삭제하기</string>
     <string name="clipboard_snackbar_message">클립보드에 복사된 링크 저장\n%s</string>
     <string name="clipboard_snackbar_action">저장</string>
+    <!-- 메인 리스트 (리디자인) -->
+    <string name="main_tab_recent">최근 저장</string>
+    <string name="main_tab_favorites">즐겨찾기</string>
+    <string name="main_fab_save_link">링크 저장</string>
+    <string name="main_favorites_count">즐겨찾기 %d개</string>
+    <string name="main_filter_open">필터</string>
+    <string name="main_search">검색</string>
+    <string name="main_settings">설정</string>
+    <string name="main_view_mode">보기 방식</string>
+    <string name="main_empty_title">저장된 링크가 없어요</string>
+    <string name="main_empty_description">다른 앱에서 \'공유\' → SaveURL 을 누르거나\n아래 버튼으로 링크를 저장해 보세요.</string>
+    <string name="main_empty_action">링크 저장하기</string>
+    <string name="main_empty_tutorial">사용 방법 보기</string>
+    <string name="main_empty_filtered_title">조건에 맞는 링크가 없어요</string>
+    <string name="main_empty_filtered_description">다른 카테고리를 고르거나 필터를 바꿔 보세요.</string>
+    <string name="main_empty_favorites_title">즐겨찾기한 링크가 없어요</string>
+    <string name="main_empty_favorites_description">링크를 저장하거나 수정할 때 즐겨찾기를 켜면\n여기에 모아서 보여드려요.</string>
+    <string name="main_bookmarked">즐겨찾기</string>
+    <string name="main_unread">읽지 않음</string>
+
+    <!-- 보기 방식 / 화면 모드 -->
+    <string name="view_mode_default">기본</string>
+    <string name="view_mode_large_card">큰 카드</string>
+    <string name="view_mode_compact">컴팩트</string>
+    <string name="theme_mode_system">시스템</string>
+    <string name="theme_mode_light">라이트</string>
+    <string name="theme_mode_dark">다크</string>
 </resources>
