@@ -38,6 +38,13 @@ jobs:
       - name: Grant execute permission to gradlew
         run: chmod +x ./gradlew
 
+    # local.properties 파일 생성 (AdMob API 키 포함, UploadPlayAlpha.yml 과 동일)
+    # 없으면 app/build.gradle.kts 의 release AdMob 가드(verifyReleaseAdMobIds)에서 빌드가 실패함
+      - name: Create local.properties
+        run: |
+          echo "ADS_ID=${{ secrets.ADMOB_APP_ID }}" >> ./local.properties
+          echo "ADS_FIXED_SIZE_BANNER_UNIT_ID=${{ secrets.ADMOB_UNIT_ID }}" >> ./local.properties
+
     # 릴리즈 APK 빌드 (keystore 정보 환경변수로 전달)
       - name: Build Release APK
         env:

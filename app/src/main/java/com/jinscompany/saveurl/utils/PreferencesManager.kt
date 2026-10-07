@@ -4,11 +4,13 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.jinscompany.saveurl.domain.model.ListViewMode
 import com.jinscompany.saveurl.domain.model.ThemeMode
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -23,6 +25,7 @@ class PreferencesManager @Inject constructor(
     private val INIT_FIRST_RUN = booleanPreferencesKey("init_first_run")
     private val DARK_MODE = booleanPreferencesKey("dark_mode")
     private val LIST_VIEW_MODE = stringPreferencesKey("list_view_mode")
+    private val NORMALIZED_URL_VERSION = intPreferencesKey("normalized_url_version")
 
     val autoDeleteEnabled: Flow<Boolean> = context.dataStore.data
         .map { it[TRASH_ENABLE] ?: true }
@@ -58,5 +61,12 @@ class PreferencesManager @Inject constructor(
 
     suspend fun setListViewMode(mode: ListViewMode) {
         context.dataStore.edit { it[LIST_VIEW_MODE] = mode.key }
+    }
+
+    /** normalizedUrl 백필이 마지막으로 전체 재계산을 끝낸 정규화 알고리즘 버전 (없으면 0) */
+    suspend fun getNormalizedUrlVersion(): Int = context.dataStore.data.first()[NORMALIZED_URL_VERSION] ?: 0
+
+    suspend fun setNormalizedUrlVersion(version: Int) {
+        context.dataStore.edit { it[NORMALIZED_URL_VERSION] = version }
     }
 }

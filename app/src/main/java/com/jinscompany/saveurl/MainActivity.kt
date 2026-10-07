@@ -127,7 +127,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (!SaveUrlApplication.DEBUG) inAppUpdateCheck.resumeFlexibleUpdateCheck()
+        if (!SaveUrlApplication.DEBUG) inAppUpdateCheck.resumeUpdateIfNeeded()
     }
 
     override fun onDestroy() {

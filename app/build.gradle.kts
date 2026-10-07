@@ -13,11 +13,39 @@ plugins {
 }
 
 val localProperties = Properties().apply {
-    load(rootProject.file("local.properties").inputStream())
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
 }
-val adsId = localProperties.getProperty("ADS_ID")
-val adsFixedSizeBannerUnitId = localProperties.getProperty("ADS_FIXED_SIZE_BANNER_UNIT_ID")
-val adsFixedSizeBannerUnitIdDubug = localProperties.getProperty("ADS_FIXED_SIZE_BANNER_UNIT_ID_DEBUG")
+// 키가 없거나 CI 에서 secret 이 비어 "null"/"" 로 들어온 경우를 모두 null 로 취급
+fun adProperty(key: String): String? =
+    localProperties.getProperty(key)?.trim()?.takeUnless { it.isEmpty() || it == "null" }
+
+val adsId = adProperty("ADS_ID")
+val adsFixedSizeBannerUnitId = adProperty("ADS_FIXED_SIZE_BANNER_UNIT_ID")
+
+// Google 공식 테스트 ID (https://developers.google.com/admob/android/test-ads)
+// debug 빌드는 local.properties 와 무관하게 항상 테스트 ID 사용 → 개발 중 실광고 노출/무효 클릭 방지
+val admobTestPublisher = "ca-app-pub-3940256099942544"
+val admobTestAppId = "$admobTestPublisher~3347511713"
+val admobTestBannerId = "$admobTestPublisher/6300978111"
+
+// release 빌드 AdMob ID 검증. 로컬에서 테스트 ID 로 release 를 만들어야 할 때만 -PallowTestAds=true
+val allowTestAds = providers.gradleProperty("allowTestAds").orNull?.toBoolean() == true
+fun releaseAdMobProblems(): List<String> = buildList {
+    fun check(key: String, value: String?, pattern: Regex, example: String) {
+        when {
+            value == null -> add("$key 가 없거나 비어 있음/\"null\" 입니다")
+            !pattern.matches(value) -> add("$key 형식 오류: '$value' (예: $example)")
+            value.startsWith(admobTestPublisher) && !allowTestAds ->
+                add("$key 가 Google 테스트 ID($admobTestPublisher) 입니다")
+        }
+    }
+    check("ADS_ID", adsId, Regex("""ca-app-pub-\d{16}~\d{10}"""), "ca-app-pub-0000000000000000~0000000000")
+    check(
+        "ADS_FIXED_SIZE_BANNER_UNIT_ID", adsFixedSizeBannerUnitId,
+        Regex("""ca-app-pub-\d{16}/\d{10}"""), "ca-app-pub-0000000000000000/0000000000",
+    )
+}
 
 android {
     namespace = "com.jinscompany.saveurl"
@@ -31,10 +59,8 @@ android {
         versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        manifestPlaceholders["AdMobId"] = adsId
-        buildConfigField("String", "AdMobId", "\"$adsId\"")
-        buildConfigField("String", "AdMobBannerUnitId", "\"$adsFixedSizeBannerUnitId\"")
-        buildConfigField("String", "AdMobBannerIdDubug", "\"$adsFixedSizeBannerUnitIdDubug\"")
+        // AdMob ID 는 buildType 별로 지정 (아래 buildTypes 참고)
+        buildConfigField("String", "AdMobBannerIdDubug", "\"$admobTestBannerId\"")
     }
 
     signingConfigs {
@@ -59,8 +85,15 @@ android {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // 값 검증은 verifyReleaseAdMobIds 태스크가 release 빌드 시에만 수행 (debug 빌드/IDE sync 는 막지 않음)
+            manifestPlaceholders["AdMobId"] = adsId ?: ""
+            buildConfigField("String", "AdMobId", "\"${adsId ?: ""}\"")
+            buildConfigField("String", "AdMobBannerUnitId", "\"${adsFixedSizeBannerUnitId ?: ""}\"")
         }
         debug {
+            manifestPlaceholders["AdMobId"] = admobTestAppId
+            buildConfigField("String", "AdMobId", "\"$admobTestAppId\"")
+            buildConfigField("String", "AdMobBannerUnitId", "\"$admobTestBannerId\"")
         }
     }
     compileOptions {
@@ -75,6 +108,28 @@ android {
         buildConfig = true
     }
 }
+
+// release 변형의 모든 빌드(assembleRelease, bundleRelease 등)는 preReleaseBuild 를 거치므로 여기에 가드를 건다
+val verifyReleaseAdMobIds by tasks.registering {
+    group = "verification"
+    description = "release 빌드의 AdMob ID 가 실제 ID 인지 검증 (테스트 ID/누락/형식 오류 시 실패)"
+    val problems = releaseAdMobProblems()
+    val allowed = allowTestAds
+    doLast {
+        if (problems.isNotEmpty()) {
+            throw GradleException(
+                buildString {
+                    appendLine("AdMob release 가드 실패 — 테스트/잘못된 광고 ID 로 release 를 빌드할 수 없습니다.")
+                    problems.forEach { appendLine("  - $it") }
+                    appendLine("local.properties(또는 CI secret)의 ADS_ID / ADS_FIXED_SIZE_BANNER_UNIT_ID 를 실제 값으로 설정하세요.")
+                    append("로컬에서 테스트 ID 로 release 를 확인해야 한다면: ./gradlew assembleRelease -PallowTestAds=true")
+                }
+            )
+        }
+        if (allowed) logger.warn("-PallowTestAds=true — AdMob 테스트 ID 로 release 빌드 중. 이 산출물을 배포하지 마세요.")
+    }
+}
+tasks.matching { it.name == "preReleaseBuild" }.configureEach { dependsOn(verifyReleaseAdMobIds) }
 
 dependencies {
 

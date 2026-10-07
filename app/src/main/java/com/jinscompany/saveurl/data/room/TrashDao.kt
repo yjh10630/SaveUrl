@@ -31,5 +31,5 @@ interface TrashDao {
     suspend fun deleteAll()
 
     @Query("UPDATE trash SET category = :newName WHERE category = :oldName")
-    suspend fun renameCategory(oldName: String, newName: String)
+    suspend fun renameCategory(oldName: String, newName: String): Int
 }
