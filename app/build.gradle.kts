@@ -27,7 +27,7 @@ android {
         applicationId = "com.jinscompany.saveurl"
         minSdk = 24
         targetSdk = 36
-        versionCode = 37
+        versionCode = 38
         versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
