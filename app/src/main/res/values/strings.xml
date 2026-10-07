@@ -67,7 +67,7 @@
     <string name="main_settings">설정</string>
     <string name="main_view_mode">보기 방식</string>
     <string name="main_empty_title">저장된 링크가 없어요</string>
-    <string name="main_empty_description">다른 앱에서 \'공유\' → SaveURL 을 누르거나\n아래 버튼으로 링크를 저장해 보세요.</string>
+    <string name="main_empty_description">다른 앱에서 \'공유\' → SaveLink 를 누르거나\n아래 버튼으로 링크를 저장해 보세요.</string>
     <string name="main_empty_action">링크 저장하기</string>
     <string name="main_empty_tutorial">사용 방법 보기</string>
     <string name="main_empty_filtered_title">조건에 맞는 링크가 없어요</string>

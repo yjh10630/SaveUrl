@@ -1,6 +1,8 @@
 package com.jinscompany.saveurl
 
 import android.app.Application
+import coil.ImageLoader
+import coil.ImageLoaderFactory
 import com.google.android.gms.ads.MobileAds
 import com.jinscompany.saveurl.data.backfill.NormalizedUrlBackfillRunner
 import com.jinscompany.saveurl.utils.CmLog
@@ -11,10 +13,11 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
 import javax.inject.Inject
 
 @HiltAndroidApp
-class SaveUrlApplication: Application() {
+class SaveUrlApplication: Application(), ImageLoaderFactory {
     companion object {
         lateinit var INSTANCE: SaveUrlApplication
         var DEBUG: Boolean = true
@@ -44,5 +47,19 @@ class SaveUrlApplication: Application() {
                 CmLog.d("MobileAds initialize")
             }
         }
+    }
+
+    // 썸네일 요청에 앱 User-Agent 를 붙인다 (위키미디어 등은 기본 okhttp UA 를 403 으로 거부)
+    override fun newImageLoader(): ImageLoader {
+        val userAgent = "SaveLink/${BuildConfig.VERSION_NAME} (Android; https://play.google.com/store/apps/details?id=$packageName)"
+        return ImageLoader.Builder(this)
+            .okHttpClient {
+                OkHttpClient.Builder()
+                    .addInterceptor { chain ->
+                        chain.proceed(chain.request().newBuilder().header("User-Agent", userAgent).build())
+                    }
+                    .build()
+            }
+            .build()
     }
 }

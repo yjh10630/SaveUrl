@@ -75,7 +75,7 @@ val ListViewMode.labelRes: Int
         ListViewMode.COMPACT -> R.string.view_mode_compact
     }
 
-/** 앱바: SaveURL / 보기 방식 / 검색 / 설정 */
+/** 앱바: SaveLink / 보기 방식 / 검색 / 설정 */
 @Composable
 fun MainTopBar(
     viewMode: ListViewMode,
@@ -92,7 +92,7 @@ fun MainTopBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "SaveURL",
+            text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.titleLarge,
             color = colors.textPrimary,
             modifier = Modifier.weight(1f)
