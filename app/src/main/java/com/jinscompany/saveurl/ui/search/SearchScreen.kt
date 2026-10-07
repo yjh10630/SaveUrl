@@ -73,14 +73,15 @@ import com.jinscompany.saveurl.ui.theme.AppDimens
 import com.jinscompany.saveurl.ui.theme.AppTheme
 import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
 import com.jinscompany.saveurl.utils.openUrlInBrowser
+import com.jinscompany.saveurl.ui.tutorial.isTutorialLink
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 /** 폰 검색 화면 (전체 화면). 필터 없이 검색한다 (기존 동작). */
 @Composable
-fun SearchScreen(viewModel: SearchViewModel = hiltViewModel(), popBackStack: () -> Unit) {
-    SearchScreenStateful(viewModel = viewModel, popBackStack = popBackStack, isListPane = false)
+fun SearchScreen(viewModel: SearchViewModel = hiltViewModel(), popBackStack: () -> Unit, onOpenTutorial: () -> Unit = {}) {
+    SearchScreenStateful(viewModel = viewModel, popBackStack = popBackStack, onOpenTutorial = onOpenTutorial, isListPane = false)
 }
 
 /**
@@ -88,12 +89,17 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel(), popBackStack: () 
  * ViewModel 은 검색 백스택 항목의 것(오른쪽 필터 패널과 같은 인스턴스)이다.
  */
 @Composable
-fun SearchListPane(onBack: () -> Unit, viewModel: SearchViewModel = hiltViewModel()) {
-    SearchScreenStateful(viewModel = viewModel, popBackStack = onBack, isListPane = true)
+fun SearchListPane(onBack: () -> Unit, onOpenTutorial: () -> Unit = {}, viewModel: SearchViewModel = hiltViewModel()) {
+    SearchScreenStateful(viewModel = viewModel, popBackStack = onBack, onOpenTutorial = onOpenTutorial, isListPane = true)
 }
 
 @Composable
-private fun SearchScreenStateful(viewModel: SearchViewModel, popBackStack: () -> Unit, isListPane: Boolean) {
+private fun SearchScreenStateful(
+    viewModel: SearchViewModel,
+    popBackStack: () -> Unit,
+    onOpenTutorial: () -> Unit,
+    isListPane: Boolean,
+) {
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
     val selectedFilter = viewModel.selectedScope
@@ -126,6 +132,7 @@ private fun SearchScreenStateful(viewModel: SearchViewModel, popBackStack: () ->
             searchResult = searchResult,
             searchKeyword = { keyword -> viewModel.onIntent(SearchIntent.Search(keyword, selectedFilter)) },
             context = context,
+            onOpenTutorial = onOpenTutorial,
         )
     }
 }
@@ -144,6 +151,8 @@ fun SearchScreen(
     onKeywordChange: (String) -> Unit = {},
     searchResult: LazyPagingItems<UrlData>? = null,
     searchKeyword: (String) -> Unit,
+    /** 첫 실행 시드 항목(예전 튜토리얼 링크)을 누르면 브라우저 대신 앱 안 튜토리얼 */
+    onOpenTutorial: () -> Unit = {},
 ) {
     val colors = AppTheme.colors
     val focusManager = LocalFocusManager.current
@@ -258,7 +267,9 @@ fun SearchScreen(
                                 data = item,
                                 modifier = Modifier.animateItem(),
                                 highlight = keyword,
-                                onClick = { context.openUrlInBrowser(item.url) },
+                                onClick = {
+                                    if (isTutorialLink(item.url)) onOpenTutorial() else context.openUrlInBrowser(item.url)
+                                },
                                 onLongClick = {},
                             )
                         }

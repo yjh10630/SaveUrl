@@ -39,6 +39,8 @@ import com.jinscompany.saveurl.ui.setting.DisplaySettingsPanel
 import com.jinscompany.saveurl.ui.trash.TrashScreen
 import com.jinscompany.saveurl.ui.trash.TrashUiEffect
 import com.jinscompany.saveurl.ui.trash.TrashViewModel
+import com.jinscompany.saveurl.ui.tutorial.TutorialHomeScreen
+import com.jinscompany.saveurl.ui.tutorial.TutorialTopicScreen
 import com.jinscompany.saveurl.ui.webview.StaticWebScreen
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterIsInstance
@@ -164,7 +166,10 @@ private fun AppNavHost(
                 // 오른쪽 = 항상 펼친 필터 패널. 왼쪽 검색 목록과 같은 SearchViewModel(이 백스택 항목)을 쓴다.
                 SearchFilterPanel(onEditCategory = { navController.navigateToEditCategory() })
             } else {
-                SearchScreen(popBackStack = { navController.popBackStack() })
+                SearchScreen(
+                    popBackStack = { navController.popBackStack() },
+                    onOpenTutorial = { navController.navigateToTutorial() },
+                )
             }
         }
         composable(route = Navigation.Routes.EDIT_CATEGORY) {
@@ -194,6 +199,36 @@ private fun AppNavHost(
                 })
             }
         }
+        // 사용 방법(앱 안 튜토리얼): 홈(주제 목록) → 주제 상세. 2분할에서는 오른쪽 패널 안에서 바뀐다.
+        composable(route = Navigation.Routes.TUTORIAL) {
+            PaneContent(isTwoPane) {
+                TutorialHomeScreen(
+                    onClose = { navController.popBackStack() },
+                    onOpenTopic = { id -> navController.navigateToTutorialTopic(id) },
+                )
+            }
+        }
+        composable(
+            route = "${Navigation.Routes.TUTORIAL_TOPIC}?topicId={topicId}",
+            arguments = listOf(
+                navArgument("topicId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            )
+        ) { backStackEntry ->
+            val topicId = backStackEntry.arguments?.getString("topicId").orEmpty()
+            PaneContent(isTwoPane) {
+                TutorialTopicScreen(
+                    topicId = topicId,
+                    onBackToList = { navController.backToTutorialHome() },
+                    onOpenNext = { id -> navController.navigateToTutorialTopic(id) },
+                    onClose = { navController.popBackStack(Navigation.Routes.TUTORIAL, inclusive = true) },
+                )
+            }
+        }
+        // 예전 웹 튜토리얼 화면. 지금은 여는 곳이 없다 (사용 방법은 위 TUTORIAL 라우트).
         composable(
             route = "${Navigation.Routes.STATIC_WEB}?url={url}",
             arguments = listOf(
@@ -237,6 +272,10 @@ object Navigation {
         const val EDIT_CATEGORY = "editCategory"
         const val TRASH = "trashScreen"
         const val STATIC_WEB = "staticWebScreen"
+        /** 앱 안 튜토리얼 홈 (주제 목록) */
+        const val TUTORIAL = "tutorial"
+        /** 앱 안 튜토리얼 주제 상세 (인자 topicId) */
+        const val TUTORIAL_TOPIC = "tutorialTopic"
         /** TODO: 통신판매업 신고 후 billing 복원 시 다시 노출 (현재 NavHost 에 등록하지 않음) */
         const val SUPPORT = "supportScreen"
     }
@@ -250,6 +289,37 @@ fun NavBackStackEntry.baseRoute(): String? = destination.route?.substringBefore(
 
 fun NavController.navigateToStaticWeb(url: String) {
     navigate(route = "${Navigation.Routes.STATIC_WEB}?url=$url")
+}
+
+/**
+ * 앱 안 튜토리얼 홈 열기.
+ * 이미 백스택에 있으면(예: 2분할 오른쪽 패널에 열려 있음) 그 홈으로 돌아가고, 없으면 새로 연다.
+ * [replaceRightPane] = true(2분할 메인 목록): 메인 위에 열린 오른쪽 패널을 닫고 그 자리에 연다.
+ */
+fun NavController.navigateToTutorial(replaceRightPane: Boolean = false) {
+    if (popBackStack(Navigation.Routes.TUTORIAL, inclusive = false)) return
+    if (replaceRightPane) {
+        navigate(Navigation.Routes.TUTORIAL) { popUpTo(Navigation.MAIN_ROUTE_PATTERN) { inclusive = false } }
+    } else {
+        navigate(Navigation.Routes.TUTORIAL) { launchSingleTop = true }
+    }
+}
+
+/**
+ * 튜토리얼 주제 열기. 홈 위에 주제 하나만 쌓는다 ("다음 주제"로 넘겨도 뒤로가기 한 번이면 홈).
+ */
+fun NavController.navigateToTutorialTopic(topicId: String) {
+    navigate("${Navigation.Routes.TUTORIAL_TOPIC}?topicId=${Uri.encode(topicId)}") {
+        popUpTo(Navigation.Routes.TUTORIAL) { inclusive = false }
+    }
+}
+
+/** 주제 상세 → 튜토리얼 홈 */
+fun NavController.backToTutorialHome() {
+    if (!popBackStack(Navigation.Routes.TUTORIAL, inclusive = false)) {
+        popBackStack()
+        navigate(Navigation.Routes.TUTORIAL)
+    }
 }
 
 fun NavController.navigateToMain(currentScreen: String, scrollToTop: Boolean = false) {

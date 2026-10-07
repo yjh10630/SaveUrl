@@ -31,6 +31,7 @@ import com.jinscompany.saveurl.ui.main.MainListPane
 import com.jinscompany.saveurl.ui.main.MainListScreen
 import com.jinscompany.saveurl.ui.navigation.Navigation
 import com.jinscompany.saveurl.ui.navigation.baseRoute
+import com.jinscompany.saveurl.ui.navigation.navigateToTutorial
 import com.jinscompany.saveurl.ui.search.SearchListPane
 import com.jinscompany.saveurl.ui.setting.AppSettingScreen
 import com.jinscompany.saveurl.ui.theme.AppTheme
@@ -129,6 +130,7 @@ private fun SectionListPane(
             )
             Navigation.Routes.SEARCH -> SearchListPane(
                 onBack = { navController.popBackStack(Navigation.Routes.SEARCH, inclusive = true) },
+                onOpenTutorial = { navController.navigateToTutorial() },
             )
             Navigation.Routes.APP_SETTING -> AppSettingScreen(
                 navController = navController,

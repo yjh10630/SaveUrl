@@ -80,14 +80,12 @@ import com.jinscompany.saveurl.domain.model.ThemeMode
 import com.jinscompany.saveurl.ui.composable.singleClick
 import com.jinscompany.saveurl.ui.main.components.labelRes
 import com.jinscompany.saveurl.ui.composable.AdBannerBar
-import com.jinscompany.saveurl.ui.navigation.navigateToStaticWeb
+import com.jinscompany.saveurl.ui.navigation.navigateToTutorial
 import com.jinscompany.saveurl.ui.navigation.navigateToTrash
 import com.jinscompany.saveurl.ui.theme.AppDimens
 import com.jinscompany.saveurl.ui.theme.AppTheme
 import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
 import com.jinscompany.saveurl.utils.getCurrentAppVersion
-import com.jinscompany.saveurl.utils.tutorialUrl
-import java.net.URLEncoder
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -184,9 +182,9 @@ fun AppSettingScreen(
                 else navController.navigateToTrash()
             },
             tutorialClick = {
-                val encodedUrl = URLEncoder.encode(tutorialUrl, "UTF-8")
-                if (isListPane) navController.navigateInSettingsPane("${Navigation.Routes.STATIC_WEB}?url=$encodedUrl")
-                else navController.navigateToStaticWeb(encodedUrl)
+                // 2분할: 오른쪽 패널에 튜토리얼 홈(주제 목록). 폰: 전체 화면
+                if (isListPane) navController.navigateInSettingsPane(Navigation.Routes.TUTORIAL)
+                else navController.navigateToTutorial()
             },
             // 카테고리 편집 행은 2분할에서만 둔다 (폰 설정 화면은 그대로: 카테고리 편집은 필터·카테고리 선택 시트에서 진입)
             categoryEditClick = if (isListPane) {
@@ -195,7 +193,7 @@ fun AppSettingScreen(
             selectedRow = if (!isListPane) null else when (selectedPaneRoute) {
                 Navigation.Routes.EDIT_CATEGORY -> SettingPaneRow.CATEGORY_EDIT
                 Navigation.Routes.TRASH -> SettingPaneRow.TRASH
-                Navigation.Routes.STATIC_WEB -> SettingPaneRow.TUTORIAL
+                Navigation.Routes.TUTORIAL, Navigation.Routes.TUTORIAL_TOPIC -> SettingPaneRow.TUTORIAL
                 else -> null
             },
             currentAppVersion = getCurrentAppVersion(context),
