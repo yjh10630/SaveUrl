@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -99,16 +101,15 @@ import com.jinscompany.saveurl.ui.navigation.navigateToAppSetting
 import com.jinscompany.saveurl.ui.navigation.navigateToEditCategory
 import com.jinscompany.saveurl.ui.navigation.navigateToSaveLink
 import com.jinscompany.saveurl.ui.navigation.navigateToSearch
-import com.jinscompany.saveurl.ui.navigation.navigateToStaticWeb
+import com.jinscompany.saveurl.ui.navigation.navigateToTutorial
+import com.jinscompany.saveurl.ui.tutorial.TutorialEntryCard
 import com.jinscompany.saveurl.ui.theme.AppTheme
 import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
 import com.jinscompany.saveurl.utils.openUrlInBrowser
-import com.jinscompany.saveurl.utils.tutorialUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
-import java.net.URLEncoder
 
 /**
  * 2분할 왼쪽 목록으로 그릴 때의 상태 ([com.jinscompany.saveurl.ui.adaptive.TwoPaneLayout]).
@@ -148,6 +149,7 @@ fun MainListScreen(
     val selectedTab by viewModel.selectedTab.collectAsState()
     val categoryNames by viewModel.categoryNames.collectAsState()
     val viewMode by sharedViewModel.listViewMode.collectAsState()
+    val tutorialCardVisible by viewModel.tutorialCardVisible.collectAsState()
 
     val mainListPagingData = when (val uiState = mainListUiState) {
         is MainListUiState.Success -> uiState.urlFlowState.collectAsLazyPagingItems()
@@ -225,10 +227,7 @@ fun MainListScreen(
                 }
 
                 is MainListUiEffect.ShowLinkInfoDialog -> { linkInfoDialog = effect.model }
-                is MainListUiEffect.StaticWebOpen -> {
-                    val encodedUrl = URLEncoder.encode(effect.url, "UTF-8")
-                    navController.navigateToStaticWeb(encodedUrl)
-                }
+                MainListUiEffect.OpenTutorial -> navController.navigateToTutorial(replaceRightPane = isListPane)
             }
         }
     }
@@ -381,7 +380,9 @@ fun MainListScreen(
                 ))
             },
             onSaveClick = { viewModel.onIntent(GoToLinkInsertScreen("")) },
-            onTutorialClick = { viewModel.onIntent(GoToOutLinkWebSite(tutorialUrl)) },
+            onTutorialClick = { viewModel.onIntent(MainListIntent.OpenTutorial) },
+            tutorialCardVisible = tutorialCardVisible,
+            onTutorialCardDismiss = { viewModel.onIntent(MainListIntent.DismissTutorialCard) },
             listState = listState,
             selectedUrl = pane?.selectedUrl,
             itemMenu = itemMenu,
@@ -410,6 +411,9 @@ fun MainListScreen(
     onSortChange: (String) -> Unit = {},
     onSaveClick: () -> Unit = {},
     onTutorialClick: () -> Unit = {},
+    /** 첫 실행 안내 카드 (새로 설치한 사용자, ✕ 로 닫기 전까지) */
+    tutorialCardVisible: Boolean = false,
+    onTutorialCardDismiss: () -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
     selectedUrl: String? = null,
     itemMenu: (@Composable (UrlData) -> Unit)? = null,
@@ -482,12 +486,15 @@ fun MainListScreen(
         }
 
         if (isEmpty) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                if (tutorialCardVisible) {
+                    TutorialEntryCard(onOpen = onTutorialClick, onDismiss = onTutorialCardDismiss)
+                }
                 MainEmptyState(
                     type = emptyType,
                     onSaveClick = onSaveClick,
                     onTutorialClick = onTutorialClick,
-                    modifier = Modifier.padding(top = 48.dp)
+                    modifier = Modifier.padding(top = if (tutorialCardVisible) 8.dp else 48.dp)
                 )
             }
             return@Column
@@ -499,6 +506,15 @@ fun MainListScreen(
             // FAB 에 마지막 아이템이 가리지 않도록 하단 여백
             contentPadding = PaddingValues(bottom = 96.dp)
         ) {
+            if (tutorialCardVisible) {
+                item(key = "tutorial_entry_card", contentType = "tutorial_entry_card") {
+                    TutorialEntryCard(
+                        onOpen = onTutorialClick,
+                        onDismiss = onTutorialCardDismiss,
+                        modifier = Modifier.animateItem()
+                    )
+                }
+            }
             if (snapshot != null) {
                 items(
                     count = snapshot.size,

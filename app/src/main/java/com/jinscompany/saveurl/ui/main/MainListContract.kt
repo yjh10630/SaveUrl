@@ -32,6 +32,10 @@ sealed class MainListIntent {
     data class SelectTab(val tab: MainTab): MainListIntent()
     data class NewFilterData(val category: List<String>, val sort: String, val site: List<String>, val tag: List<String>): MainListIntent()
     data class ShowLinkInfoDialog(val data: UrlData): MainListIntent()
+    /** 안내 카드·빈 상태의 "사용 방법 보기" */
+    data object OpenTutorial: MainListIntent()
+    /** 안내 카드 ✕ (다시 보이지 않음) */
+    data object DismissTutorialCard: MainListIntent()
 }
 
 /** 메인 리스트 상단 탭: 리스트 전체를 전환한다 */
@@ -40,7 +44,8 @@ enum class MainTab { RECENT, FAVORITES }
 sealed class MainListUiEffect {
     data class NavigateToResult(val route: String, val url: String? = null): MainListUiEffect()
     data class OutLinkWebSite(val url: String): MainListUiEffect()
-    data class StaticWebOpen(val url: String): MainListUiEffect()
+    /** 앱 안 튜토리얼(사용 방법) 열기 */
+    data object OpenTutorial: MainListUiEffect()
     data class ShowToast(@StringRes val messageRes: Int): MainListUiEffect()
     data class UrlShare(val url: String): MainListUiEffect()
     data class ShowSnackBarSaveUrl(val url: String): MainListUiEffect()

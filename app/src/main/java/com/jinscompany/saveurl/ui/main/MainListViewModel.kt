@@ -19,7 +19,6 @@ import com.jinscompany.saveurl.domain.usecase.GetUrlListUseCase
 import com.jinscompany.saveurl.domain.usecase.IsSavedUrlUseCase
 import com.jinscompany.saveurl.domain.usecase.MarkAsReadUseCase
 import com.jinscompany.saveurl.domain.usecase.RemoveUrlUseCase
-import com.jinscompany.saveurl.domain.usecase.SaveUrlUseCase
 import com.jinscompany.saveurl.R
 import com.jinscompany.saveurl.ui.FilterDefaults
 import com.jinscompany.saveurl.ui.composable.SimpleMenuModel
@@ -31,15 +30,17 @@ import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SEARCH
 import com.jinscompany.saveurl.domain.repository.TrashRepository
 import com.jinscompany.saveurl.utils.ClipboardReader
 import com.jinscompany.saveurl.utils.PreferencesManager
-import com.jinscompany.saveurl.utils.tutorialUrl
+import com.jinscompany.saveurl.ui.tutorial.isTutorialLink
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -47,7 +48,6 @@ import javax.inject.Inject
 @HiltViewModel
 class MainListViewModel @Inject constructor(
     private val getUrlListUseCase: GetUrlListUseCase,
-    private val saveUrlUseCase: SaveUrlUseCase,
     private val removeUrlUseCase: RemoveUrlUseCase,
     private val isSavedUrlUseCase: IsSavedUrlUseCase,
     private val getTrashStateUseCase: GetTrashStateUseCase,
@@ -76,6 +76,10 @@ class MainListViewModel @Inject constructor(
     /** 카테고리 칩 행에 보여줄 사용자 카테고리 이름 ("전체" 제외) */
     private val _categoryNames = MutableStateFlow<List<String>>(emptyList())
     val categoryNames: StateFlow<List<String>> = _categoryNames.asStateFlow()
+
+    /** 메인 목록 맨 위 첫 실행 안내 카드 (새로 설치한 사용자, ✕ 로 닫기 전까지) */
+    val tutorialCardVisible: StateFlow<Boolean> = preferencesManager.tutorialCardVisible
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     init {
         getLinkList()
@@ -106,8 +110,9 @@ class MainListViewModel @Inject constructor(
                     _mainListEffect.emit(
                         if (intent.url.isNullOrEmpty()) {
                             ShowToast(R.string.error_url_missing)
-                        } else if (intent.url == tutorialUrl) {
-                            StaticWebOpen(intent.url)
+                        } else if (isTutorialLink(intent.url)) {
+                            // 기존 사용자 DB 에 남은 첫 실행 시드 항목: 웹 페이지 대신 앱 안 튜토리얼
+                            OpenTutorial
                         } else {
                             OutLinkWebSite(intent.url)
                         }
@@ -154,6 +159,8 @@ class MainListViewModel @Inject constructor(
                     getLinkList()
                 }
                 is MainListIntent.ShowLinkInfoDialog -> showLinkInfoDialog(intent.data)
+                MainListIntent.OpenTutorial -> _mainListEffect.emit(OpenTutorial)
+                MainListIntent.DismissTutorialCard -> preferencesManager.dismissTutorialCard()
             }
         }
     }
@@ -184,7 +191,7 @@ class MainListViewModel @Inject constructor(
                 )
             )
 
-            if (data.url == tutorialUrl) list.removeAll { it.txtRes == R.string.main_list_menu_edit }
+            if (isTutorialLink(data.url)) list.removeAll { it.txtRes == R.string.main_list_menu_edit }
 
             val header = SimpleMenuModel.Header(
                 imgUrl = data.imgUrl,
@@ -224,22 +231,10 @@ class MainListViewModel @Inject constructor(
         viewModelScope.launch {
             _mainListUiState.value = MainListUiState.Loading
 
+            // 첫 실행: 예전처럼 튜토리얼 링크 항목을 넣지 않고, 메인 목록 맨 위 안내 카드를 켠다.
+            // 기존 사용자의 시드 항목은 DB 에 그대로 두고, 누르면 앱 안 튜토리얼을 연다 (isTutorialLink).
             val isInitRunApp = preferencesManager.isInitFirstRun.first()
-            if (!isInitRunApp) {
-                val result = saveUrlUseCase(
-                    UrlData(
-                        title = "이렇게 사용하세요!",
-                        imgUrl = "https://github.com/yjh10630/MyWeb/blob/main/assets/images/help.png?raw=true",
-                        url = tutorialUrl,
-                        description = "사용방법을 숙지 하셨다면 튜토리얼을 제거하셔도 됩니다. :) ",
-                        siteName = "튜토리얼",
-                        isBookMark = true,
-                        tagList = listOf("사용방법", "튜토리얼")
-                    ),
-                    force = true
-                )
-                if (result is com.jinscompany.saveurl.domain.usecase.SaveResult.Success) preferencesManager.setInitFirstRun(true)
-            }
+            if (!isInitRunApp) preferencesManager.completeFirstRunWithTutorialCard()
 
             val dataFlow = Pager(
                 config = PagingConfig(pageSize = 10, prefetchDistance = 5, enablePlaceholders = false),
