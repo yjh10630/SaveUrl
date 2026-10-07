@@ -63,7 +63,8 @@ import com.jinscompany.saveurl.ui.composable.filterNotIsInstance
 import com.jinscompany.saveurl.ui.save_screen.components.HeaderUserInputSection
 import com.jinscompany.saveurl.ui.save_screen.components.PreviewSection
 import com.jinscompany.saveurl.ui.save_screen.components.UserInputTagSection
-import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -310,22 +311,8 @@ private fun BookmarkRow(isBookMark: Boolean, onToggle: (Boolean) -> Unit) {
 @Composable
 @Preview(showBackground = true, backgroundColor = 0XFF444444)
 fun InsertLinkScreenPreview() {
-    val dummyEffect = object : SharedFlow<LinkSaveUiEffect> {
-        override val replayCache: List<LinkSaveUiEffect> = emptyList()
-        override suspend fun collect(collector: FlowCollector<LinkSaveUiEffect>): Nothing {
-            throw UnsupportedOperationException("Not supported in preview")
-        }
-    }
-    val dummyUiState = object : StateFlow<LinkSaveUiState> {
-        override val replayCache: List<LinkSaveUiState>
-            get() = emptyList()
-        override val value: LinkSaveUiState
-            get() = LinkSaveUiState(linkUrlPreviewUiState = LinkUrlPreviewUiState.Loading)
-
-        override suspend fun collect(collector: FlowCollector<LinkSaveUiState>): Nothing {
-            throw UnsupportedOperationException("Not supported in preview")
-        }
-    }
+    val dummyEffect = MutableSharedFlow<LinkSaveUiEffect>()
+    val dummyUiState = MutableStateFlow(LinkSaveUiState(linkUrlPreviewUiState = LinkUrlPreviewUiState.Loading))
     InsertLinkScreen(
         state = dummyUiState,
         uiEffect = dummyEffect,

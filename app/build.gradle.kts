@@ -141,17 +141,20 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.material.icons.extended)
+    // 폴드·태블릿 2분할 기반 (버전은 Compose BOM 이 관리)
+    implementation(libs.androidx.material3.adaptive)
+    implementation(libs.androidx.material3.adaptive.layout)
+    implementation(libs.androidx.material3.adaptive.navigation)
 
     implementation("androidx.navigation:navigation-compose:2.8.8")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
-    implementation("com.google.dagger:hilt-android:2.48")
-    ksp("com.google.dagger:hilt-android-compiler:2.48")
+    implementation("com.google.dagger:hilt-android:2.56.2")
+    ksp("com.google.dagger:hilt-android-compiler:2.56.2")
 
     implementation("androidx.room:room-runtime:2.6.1")
-    ksp("android.arch.persistence.room:compiler:1.1.1")
     ksp("androidx.room:room-compiler:2.6.1")
-    annotationProcessor("androidx.room:room-compiler:2.6.1") // use kapt for Kotlin
     implementation("androidx.room:room-ktx:2.6.1") //KTX Extensions/Coroutines for Room
     implementation("androidx.room:room-paging:2.6.1")
 
@@ -163,11 +166,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
     implementation("com.github.bumptech.glide:glide:4.15.1")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.22")
 
     androidTestImplementation("androidx.room:room-testing:2.6.1")
 
-    implementation("androidx.compose.material:material-icons-extended:1.7.8")
     implementation("io.coil-kt:coil-compose:2.4.0")
 
 

@@ -80,7 +80,8 @@ import com.jinscompany.saveurl.ui.composable.CommonSimpleMenuBottomSheet
 import com.jinscompany.saveurl.ui.composable.SimpleMenuModel
 import com.jinscompany.saveurl.data.mapper.toUrlData
 import com.jinscompany.saveurl.ui.composable.filterNotIsInstance
-import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -352,21 +353,8 @@ private fun TrashEmptyState() {
 @Composable
 @Preview(showBackground = true, backgroundColor = 0xFF444444)
 fun TrashScreenPreview() {
-    val dummyEffect = object : SharedFlow<TrashUiEffect> {
-        override val replayCache: List<TrashUiEffect> = emptyList()
-        override suspend fun collect(collector: FlowCollector<TrashUiEffect>): Nothing {
-            throw UnsupportedOperationException("Not supported in preview")
-        }
-    }
-    val dummyUiState = object: StateFlow<TrashUiState> {
-        override val replayCache: List<TrashUiState>
-            get() = emptyList()
-        override val value: TrashUiState
-            get() = TrashUiState()
-        override suspend fun collect(collector: FlowCollector<TrashUiState>): Nothing {
-            throw UnsupportedOperationException("Not supported in preview")
-        }
-    }
+    val dummyEffect = MutableSharedFlow<TrashUiEffect>()
+    val dummyUiState = MutableStateFlow(TrashUiState())
 
     TrashScreen(uiEffect = dummyEffect, state = dummyUiState) { intent -> }
 }
