@@ -1,5 +1,8 @@
 package com.jinscompany.saveurl.ui.support
 
+// TODO: 통신판매업 신고 후 billing 복원 시 다시 노출.
+// 인앱 결제가 아직 없어 이 화면은 어디에서도 진입할 수 없다 (AppNavigation 에서 라우트 등록을 주석 처리함).
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

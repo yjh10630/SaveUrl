@@ -213,7 +213,7 @@ fun AppSettingScreen(
             }
         }
 
-        // 개발자 응원하기 (통신판매업 신고 후 활성화 예정, 결제 로직과 함께 다시 노출)
+        // 개발자 응원하기: 노출하지 않음. TODO: 통신판매업 신고 후 billing 복원 시 다시 노출 (AppNavigation 의 SUPPORT 라우트 등록도 함께 해제)
 
         // 화면
         item { SectionLabel("화면", isFirst = true) }

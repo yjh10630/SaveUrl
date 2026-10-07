@@ -21,7 +21,6 @@ import com.jinscompany.saveurl.ui.save_screen.LinkSaveUiEffect
 import com.jinscompany.saveurl.ui.save_screen.LinkSaveViewModel
 import com.jinscompany.saveurl.ui.search.SearchScreen
 import com.jinscompany.saveurl.ui.setting.AppSettingScreen
-import com.jinscompany.saveurl.ui.support.SupportScreen
 import com.jinscompany.saveurl.ui.trash.TrashScreen
 import com.jinscompany.saveurl.ui.trash.TrashUiEffect
 import com.jinscompany.saveurl.ui.trash.TrashViewModel
@@ -122,9 +121,11 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         composable(route = Navigation.Routes.APP_SETTING) {
             AppSettingScreen(navController)
         }
-        composable(route = Navigation.Routes.SUPPORT) {
-            SupportScreen(popBackStack = { navController.popBackStack() })
-        }
+        // 개발자 응원(SupportScreen)은 인앱 결제가 없어 현재 노출하지 않는다 (진입점 없음, 라우트 미등록).
+        // TODO: 통신판매업 신고 후 billing 복원 시 다시 노출 — 아래 등록과 navigateToSupport() 주석을 함께 해제
+        // composable(route = Navigation.Routes.SUPPORT) {
+        //     SupportScreen(popBackStack = { navController.popBackStack() })
+        // }
         composable(route = Navigation.Routes.TRASH) {
             val viewModel = hiltViewModel<TrashViewModel>()
             LaunchedEffect(Unit) {
@@ -162,6 +163,7 @@ object Navigation {
         const val EDIT_CATEGORY = "editCategory"
         const val TRASH = "trashScreen"
         const val STATIC_WEB = "staticWebScreen"
+        /** TODO: 통신판매업 신고 후 billing 복원 시 다시 노출 (현재 NavHost 에 등록하지 않음) */
         const val SUPPORT = "supportScreen"
     }
 }
@@ -201,6 +203,7 @@ fun NavController.navigateToTrash() {
     navigate(route = "${Navigation.Routes.TRASH}")
 }
 
-fun NavController.navigateToSupport() {
-    navigate(route = Navigation.Routes.SUPPORT)
-}
+// TODO: 통신판매업 신고 후 billing 복원 시 다시 노출 (라우트가 등록되지 않은 상태에서 호출하면 크래시하므로 함께 주석 처리)
+// fun NavController.navigateToSupport() {
+//     navigate(route = Navigation.Routes.SUPPORT)
+// }
