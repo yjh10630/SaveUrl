@@ -23,6 +23,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -33,6 +34,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.rememberNavController
 import com.jinscompany.saveurl.R
+import com.jinscompany.saveurl.ui.adaptive.LocalWindowLayout
+import com.jinscompany.saveurl.ui.adaptive.currentWindowLayout
 import com.jinscompany.saveurl.ui.navigation.AppNavigation
 import com.jinscompany.saveurl.ui.navigation.navigateToSaveLink
 import com.jinscompany.saveurl.domain.model.ThemeMode
@@ -133,13 +136,18 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            // 창 폭에 따른 화면 구성(한 화면/2분할). 아직 2분할 화면은 없고, 하위 화면이 읽을 수 있게만 제공한다.
+            val windowLayout = currentWindowLayout()
+
             SaveUrlTheme(darkTheme = isDark) {
-                Scaffold(
-                    snackbarHost = { SnackbarHost(snackbarHostState) { data -> Snackbar(snackbarData = data) } },
-                    containerColor = MaterialTheme.colorScheme.background,
-                ) { _ ->
-                    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                        AppNavigation(navController)
+                CompositionLocalProvider(LocalWindowLayout provides windowLayout) {
+                    Scaffold(
+                        snackbarHost = { SnackbarHost(snackbarHostState) { data -> Snackbar(snackbarData = data) } },
+                        containerColor = MaterialTheme.colorScheme.background,
+                    ) { _ ->
+                        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                            AppNavigation(navController)
+                        }
                     }
                 }
             }
