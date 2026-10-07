@@ -1,5 +1,8 @@
 package com.jinscompany.saveurl.ui.composable.category
 
+import com.jinscompany.saveurl.ui.theme.AppTextSecondary
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
+import com.jinscompany.saveurl.ui.theme.AppSurface
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import com.jinscompany.saveurl.ui.FilterDefaults
@@ -54,9 +57,9 @@ fun CategorySelectorDialog(
         onDismissRequest = { dismiss.invoke(selectItem) },
         sheetState = modalBottomSheetState,
         dragHandle = { BottomSheetDefaults.DragHandle(
-            color = Color.LightGray
+            color = AppTextPrimary
         ) },
-        containerColor = Color.DarkGray
+        containerColor = AppSurface
     ) {
         Column(
             modifier = Modifier
@@ -65,10 +68,10 @@ fun CategorySelectorDialog(
                 .wrapContentHeight(),
 
         ) {
-            Text("카테고리 선택", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.LightGray)
+            Text("카테고리 선택", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = AppTextPrimary)
             Text(
                 "분류할 카테고리를 선택해 주세요. (하나만 선택이 가능)",
-                fontSize = 14.sp, color = Color.Gray
+                fontSize = 14.sp, color = AppTextSecondary
             )
             TextButton(onClick = {
                 scope.launch {
@@ -77,7 +80,7 @@ fun CategorySelectorDialog(
                     goToCateEdit.invoke()
                 }
             }) {
-                Text("카테고리 편집", style = TextStyle(textDecoration = TextDecoration.Underline), color = Color.LightGray)
+                Text("카테고리 편집", style = TextStyle(textDecoration = TextDecoration.Underline), color = AppTextPrimary)
             }
             Spacer(modifier = Modifier.height(12.dp))
             Column(

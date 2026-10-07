@@ -105,7 +105,7 @@ fun SearchHeaderUserSelectFilterInfo(
                         contentPadding = PaddingValues(start = 10.dp, end = 10.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isSelect) com.jinscompany.saveurl.ui.theme.AppChipSelected else com.jinscompany.saveurl.ui.theme.AppChipUnselected,
-                            contentColor = if (isSelect) androidx.compose.ui.graphics.Color.White else com.jinscompany.saveurl.ui.theme.AppTextPrimary
+                            contentColor = if (isSelect) com.jinscompany.saveurl.ui.theme.AppOnPrimary else com.jinscompany.saveurl.ui.theme.AppTextPrimary
                         )
                     ) {
                         Text(item)

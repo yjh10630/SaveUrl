@@ -1,5 +1,7 @@
 package com.jinscompany.saveurl.ui.composable
 
+import com.jinscompany.saveurl.ui.theme.AppBackground
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import com.jinscompany.saveurl.ui.FilterDefaults
@@ -65,7 +67,7 @@ fun SelectorTextButtonGroup(
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (model.name == selectedOption) {
-                            Color.LightGray
+                            AppTextPrimary
                         } else {
                             Color.Transparent
                         }
@@ -77,7 +79,7 @@ fun SelectorTextButtonGroup(
                             modifier = Modifier.size(24.dp),
                             imageVector = Icons.Default.Bookmark,
                             contentDescription = "icon",
-                            tint = if (model.name == selectedOption) Color.Black else Color.White
+                            tint = if (model.name == selectedOption) AppBackground else AppTextPrimary
                         )
                     } else {
                         Row (
@@ -85,7 +87,7 @@ fun SelectorTextButtonGroup(
                         ) {
                             Text(
                                 model.name,
-                                color = if (model.name == selectedOption) Color.Black else Color.White,
+                                color = if (model.name == selectedOption) AppBackground else AppTextPrimary,
                                 fontSize = 14.sp,
                                 maxLines = 1
                             )
@@ -95,7 +97,7 @@ fun SelectorTextButtonGroup(
                                     modifier = Modifier.size(24.dp),
                                     imageVector = Icons.Default.Cancel,
                                     contentDescription = "remove",
-                                    tint = Color.White
+                                    tint = AppTextPrimary
                                 )
                             }
                         }
@@ -121,7 +123,7 @@ fun SelectorTextButtonGroup(
                             modifier = Modifier.size(20.dp),
                             imageVector = Icons.Default.Add,
                             contentDescription = "settingCategory",
-                            tint = Color.White
+                            tint = AppTextPrimary
                         )
                     }
                 }

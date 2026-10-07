@@ -1,5 +1,7 @@
 package com.jinscompany.saveurl.ui.composable
 
+import com.jinscompany.saveurl.ui.theme.AppTextSecondary
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -83,7 +85,7 @@ fun LinkInsertUrlResult(
                 Icon(
                     imageVector = if (data.isBookMark) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                     contentDescription = "bookmark",
-                    tint = Color.LightGray
+                    tint = AppTextPrimary
                 )
             }
             OutlinedButton(
@@ -98,12 +100,12 @@ fun LinkInsertUrlResult(
                     vertical = 4.dp
                 ),
             ) {
-                Text(data.category ?: "전체", color = Color.LightGray)
+                Text(data.category ?: "전체", color = AppTextPrimary)
                 Spacer(modifier = Modifier.width(6.dp))
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowUp,
                     contentDescription = "categorySelect",
-                    tint = Color.LightGray
+                    tint = AppTextPrimary
                 )
             }
         }
@@ -160,20 +162,20 @@ fun LinkInsertUrlResult(
                         focusClear.invoke()
                     }
                 ),
-                textStyle = TextStyle(color = Color.LightGray),
+                textStyle = TextStyle(color = AppTextPrimary),
                 label = { Text("태그 입력") },
                 placeholder = { Text("태그 입력") },
                 colors = TextFieldDefaults.outlinedTextFieldColors(
-                    focusedBorderColor = Color.LightGray,
-                    unfocusedBorderColor = Color.Gray,
-                    focusedLabelColor = Color.LightGray,
-                    unfocusedLabelColor = Color.Gray,
-                    focusedLeadingIconColor = Color.LightGray,
-                    unfocusedLeadingIconColor = Color.Gray,
-                    focusedTrailingIconColor = Color.LightGray,
-                    unfocusedTrailingIconColor = Color.Gray
+                    focusedBorderColor = AppTextPrimary,
+                    unfocusedBorderColor = AppTextSecondary,
+                    focusedLabelColor = AppTextPrimary,
+                    unfocusedLabelColor = AppTextSecondary,
+                    focusedLeadingIconColor = AppTextPrimary,
+                    unfocusedLeadingIconColor = AppTextSecondary,
+                    focusedTrailingIconColor = AppTextPrimary,
+                    unfocusedTrailingIconColor = AppTextSecondary
                 ),
-                supportingText = { Text("콤마 ( , ) 를 사용해서 여러개 등록 가능해요!", color = Color.Gray) }
+                supportingText = { Text("콤마 ( , ) 를 사용해서 여러개 등록 가능해요!", color = AppTextSecondary) }
             )
             /*OutlinedButton(
                 onClick = {
@@ -187,14 +189,14 @@ fun LinkInsertUrlResult(
                     .padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
-                    if (tag.trim().isEmpty()) Color.Transparent else Color.Gray
+                    if (tag.trim().isEmpty()) Color.Transparent else AppTextSecondary
                 ),
                 contentPadding = PaddingValues(
                     horizontal = 10.dp,
                     vertical = 4.dp
                 ),
             ) {
-                Text("#", fontSize = 30.sp, color = if (tag.trim().isEmpty()) Color.Gray else Color.White)
+                Text("#", fontSize = 30.sp, color = if (tag.trim().isEmpty()) AppTextSecondary else AppTextPrimary)
             }*/
         }
     }

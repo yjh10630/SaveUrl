@@ -1,5 +1,8 @@
 package com.jinscompany.saveurl.ui.add_category
 
+import com.jinscompany.saveurl.ui.theme.AppTextSecondary
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
+import com.jinscompany.saveurl.ui.theme.AppBackground
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -75,7 +78,7 @@ fun EditCategoryScreen(navController: NavHostController) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.DarkGray)
+                .background(AppBackground)
                 .noRippleClickable { focusManager.clearFocus() } // 바깥 터치 시 포커스 제거
         ) {
             Column(
@@ -90,7 +93,7 @@ fun EditCategoryScreen(navController: NavHostController) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = Color.LightGray,
+                        tint = AppTextPrimary,
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -98,10 +101,10 @@ fun EditCategoryScreen(navController: NavHostController) {
                 Column(
                     modifier = Modifier.padding(horizontal = 24.dp)
                 ) {
-                    Text("카테고리 편집", color = Color.LightGray, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Text("카테고리 편집", color = AppTextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     Text(
                         "카테고리 를 이용 하여 웹 사이트를 분류 해 보세요..",
-                        fontSize = 14.sp, color = Color.Gray
+                        fontSize = 14.sp, color = AppTextSecondary
                     )
                     Spacer(modifier = Modifier.height(32.dp))
 
@@ -113,7 +116,7 @@ fun EditCategoryScreen(navController: NavHostController) {
                                 contentDescription = "EditCategory"
                             )
                         },
-                        textStyle = TextStyle(color = Color.LightGray),
+                        textStyle = TextStyle(color = AppTextPrimary),
                         trailingIcon = {
                             if (categoryName.text.isNotEmpty()) {
                                 Row(modifier = Modifier.padding(end = 15.dp),
@@ -123,7 +126,7 @@ fun EditCategoryScreen(navController: NavHostController) {
                                     Icon(
                                         imageVector = Icons.Default.CheckCircle,
                                         contentDescription = "Check Category",
-                                        tint = Color.Gray,
+                                        tint = AppTextSecondary,
                                         modifier = Modifier
                                             .size(25.dp)
                                             .clickable {
@@ -139,7 +142,7 @@ fun EditCategoryScreen(navController: NavHostController) {
                                     Icon(
                                         imageVector = Icons.Default.Cancel,
                                         contentDescription = "Clear Category",
-                                        tint = Color.Gray,
+                                        tint = AppTextSecondary,
                                         modifier = Modifier
                                             .size(25.dp)
                                             .clickable {
@@ -159,7 +162,7 @@ fun EditCategoryScreen(navController: NavHostController) {
                                     ""
                                 }
                             }
-                            Text(txt, color = Color.Gray)
+                            Text(txt, color = AppTextSecondary)
                         },
                         onValueChange = {
                             categoryName = it
@@ -180,23 +183,23 @@ fun EditCategoryScreen(navController: NavHostController) {
                                 )
                             }
                         ),
-                        label = { Text("카테고리 이름", color = Color.Gray) },
-                        placeholder = { Text("입력해 주세요.", color = Color.Gray) },
+                        label = { Text("카테고리 이름", color = AppTextSecondary) },
+                        placeholder = { Text("입력해 주세요.", color = AppTextSecondary) },
                         colors = TextFieldDefaults.outlinedTextFieldColors(
-                            focusedBorderColor = Color.LightGray,
-                            unfocusedBorderColor = Color.Gray,
-                            focusedLabelColor = Color.LightGray,
-                            unfocusedLabelColor = Color.Gray,
-                            focusedLeadingIconColor = Color.LightGray,
-                            unfocusedLeadingIconColor = Color.Gray,
-                            focusedTrailingIconColor = Color.LightGray,
-                            unfocusedTrailingIconColor = Color.Gray
+                            focusedBorderColor = AppTextPrimary,
+                            unfocusedBorderColor = AppTextSecondary,
+                            focusedLabelColor = AppTextPrimary,
+                            unfocusedLabelColor = AppTextSecondary,
+                            focusedLeadingIconColor = AppTextPrimary,
+                            unfocusedLeadingIconColor = AppTextSecondary,
+                            focusedTrailingIconColor = AppTextPrimary,
+                            unfocusedTrailingIconColor = AppTextSecondary
                         )
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         "카테고리",
-                        fontSize = 14.sp, color = Color.Gray
+                        fontSize = 14.sp, color = AppTextSecondary
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     EditCategoryList(

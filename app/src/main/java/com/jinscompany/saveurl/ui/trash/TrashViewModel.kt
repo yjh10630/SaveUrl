@@ -1,6 +1,5 @@
 package com.jinscompany.saveurl.ui.trash
 
-import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
@@ -61,14 +60,14 @@ class TrashViewModel @Inject constructor(
     private fun showMenuAlert(item: TrashItem) {
         viewModelScope.launch {
             val list = listOf(
-                SimpleMenuModel.MenuModel(txtRes = R.string.btn_restore, txtColor = Color.LightGray, event = {
+                SimpleMenuModel.MenuModel(txtRes = R.string.btn_restore, event = {
                     viewModelScope.launch {
                         _uiEffect.emit(TrashUiEffect.ForceCommonBottomSheetHide)
                         restoreWithUrlDataUseCase.execute(item)
                         _uiEffect.emit(TrashUiEffect.ShowSnackBar(txtRes = R.string.trash_item_restored_format, formatArgs = listOf(item.title ?: "")))
                     }
                 }),
-                SimpleMenuModel.MenuModel(txtRes = R.string.btn_delete, txtColor = Color.Red, isBold = true, event = {
+                SimpleMenuModel.MenuModel(txtRes = R.string.btn_delete, isDanger = true, isBold = true, event = {
                     viewModelScope.launch {
                         _uiEffect.emit(TrashUiEffect.ForceCommonBottomSheetHide)
                         deleteTrashItemUseCase(item)
@@ -88,7 +87,7 @@ class TrashViewModel @Inject constructor(
     private fun makeMoreMenu() {
         viewModelScope.launch {
             val list = mutableListOf(
-                SimpleMenuModel.MenuModel(txtRes = R.string.btn_restore_all, txtColor = Color.LightGray, event = {
+                SimpleMenuModel.MenuModel(txtRes = R.string.btn_restore_all, event = {
                     viewModelScope.launch {
                         val model = AlertDataModel(
                             titleRes = R.string.trash_restore_all_title,
@@ -110,7 +109,7 @@ class TrashViewModel @Inject constructor(
                         _uiEffect.emit(TrashUiEffect.AskFromUserTrashStateChange(model))
                     }
                 }),
-                SimpleMenuModel.MenuModel(txtRes = R.string.btn_delete_all, txtColor = Color.Red, isBold = true, event = {
+                SimpleMenuModel.MenuModel(txtRes = R.string.btn_delete_all, isDanger = true, isBold = true, event = {
                     viewModelScope.launch {
                         val model = AlertDataModel(
                             titleRes = R.string.trash_delete_all_title,

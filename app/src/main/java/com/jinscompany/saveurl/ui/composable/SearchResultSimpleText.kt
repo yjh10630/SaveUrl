@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.ui.composable
 
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +18,6 @@ fun SearchResultSimpleText(text: String) {
             .background(Color.Transparent),
         contentAlignment = Alignment.Center
     ) {
-        Text(text, color = Color.White)
+        Text(text, color = AppTextPrimary)
     }
 }

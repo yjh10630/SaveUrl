@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.ui.save_screen.components
 
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -45,7 +46,7 @@ fun LazyItemScope.PreviewSection(state: LinkUrlPreviewUiState, event: () -> Unit
                         modifier = Modifier.padding(8.dp),
                         imageVector = Icons.Rounded.Close,
                         contentDescription = "close",
-                        tint = Color.LightGray,
+                        tint = AppTextPrimary,
                     )
                 }
             }

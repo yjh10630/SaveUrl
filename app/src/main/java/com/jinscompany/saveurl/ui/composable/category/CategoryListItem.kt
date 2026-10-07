@@ -1,5 +1,7 @@
 package com.jinscompany.saveurl.ui.composable.category
 
+import com.jinscompany.saveurl.ui.theme.AppBackground
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -48,14 +50,14 @@ fun LazyItemScope.CategoryItem(
             .padding(horizontal = 10.dp),
         shape = RoundedCornerShape(10.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) Color.LightGray else Color.Transparent
+            containerColor = if (isSelected) AppTextPrimary else Color.Transparent
         ),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text,
-                color = if (isSelected) Color.Black else Color.White,
+                color = if (isSelected) AppBackground else AppTextPrimary,
                 fontSize = 14.sp,
                 maxLines = 1
             )
@@ -65,7 +67,7 @@ fun LazyItemScope.CategoryItem(
                     modifier = Modifier.size(24.dp),
                     imageVector = Icons.Default.Cancel,
                     contentDescription = "remove",
-                    tint = Color.White
+                    tint = AppTextPrimary
                 )
             }
         }
@@ -82,7 +84,7 @@ fun LazyItemScope.BookmarkItem(onClick: () -> Unit, isSelected: Boolean = false)
             .padding(horizontal = 10.dp),
         shape = RoundedCornerShape(10.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) Color.LightGray else Color.Transparent
+            containerColor = if (isSelected) AppTextPrimary else Color.Transparent
         ),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
     ) {
@@ -90,7 +92,7 @@ fun LazyItemScope.BookmarkItem(onClick: () -> Unit, isSelected: Boolean = false)
             modifier = Modifier.size(24.dp),
             imageVector = Icons.Default.Bookmark,
             contentDescription = "icon",
-            tint = if (isSelected) Color.Black else Color.White
+            tint = if (isSelected) AppBackground else AppTextPrimary
         )
     }
 }
@@ -102,7 +104,7 @@ fun LazyItemScope.MoreItem(onClick: () -> Unit) {
             modifier = Modifier.size(24.dp),
             imageVector = Icons.Default.MoreHoriz,
             contentDescription = "moreCategory",
-            tint = Color.White
+            tint = AppTextPrimary
         )
     }
 }
@@ -122,7 +124,7 @@ fun LazyItemScope.CategoryFillMaxWidthItem(
             .fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) Color.LightGray else Color.Transparent
+            containerColor = if (isSelected) AppTextPrimary else Color.Transparent
         ),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
     ) {
@@ -145,14 +147,14 @@ fun LazyItemScope.CategoryFillMaxWidthItem(
                         .weight(1f, false)
                         .alignByBaseline(),
                     overflow = TextOverflow.Ellipsis,
-                    color = if (isSelected) Color.Black else Color.White,
+                    color = if (isSelected) AppBackground else AppTextPrimary,
                     fontSize = 14.sp,
                     maxLines = 1
                 )
                 Text(
                     " (${contentCount})",
                     modifier = Modifier.alignByBaseline(),
-                    color = if (isSelected) Color.Black else Color.White,
+                    color = if (isSelected) AppBackground else AppTextPrimary,
                     fontSize = 10.sp,
                 )
             }
@@ -164,7 +166,7 @@ fun LazyItemScope.CategoryFillMaxWidthItem(
                     modifier = Modifier.size(24.dp),
                     imageVector = Icons.Default.Cancel,
                     contentDescription = "remove",
-                    tint = Color.White
+                    tint = AppTextPrimary
                 )
             }
         }

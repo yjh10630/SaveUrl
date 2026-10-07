@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.ui.webview
 
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
 import android.graphics.Bitmap
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -81,7 +82,7 @@ fun StaticWebScreen(navController: NavHostController, url: String) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Close",
-                        tint = Color.Black,
+                        tint = AppTextPrimary,
                     )
                 }
             }

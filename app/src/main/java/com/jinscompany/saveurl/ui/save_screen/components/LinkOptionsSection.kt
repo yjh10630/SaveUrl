@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.ui.save_screen.components
 
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -57,7 +58,7 @@ fun LazyItemScope.LinkOptionsSection(
             Icon(
                 imageVector = if (isBookMark) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                 contentDescription = "bookmark",
-                tint = Color.LightGray
+                tint = AppTextPrimary
             )
         }
         OutlinedButton(
@@ -73,7 +74,7 @@ fun LazyItemScope.LinkOptionsSection(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     categoryName,
-                    color = Color.LightGray,
+                    color = AppTextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -82,7 +83,7 @@ fun LazyItemScope.LinkOptionsSection(
                     modifier = Modifier.size(25.dp),
                     imageVector = Icons.Default.KeyboardArrowUp,
                     contentDescription = "categorySelect",
-                    tint = Color.LightGray
+                    tint = AppTextPrimary
                 )
             }
         }
@@ -101,12 +102,12 @@ fun LazyItemScope.LinkOptionsSection(
             colors = ButtonDefaults.buttonColors(Color.Transparent),
             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
         ) {
-            Text("수정", color = Color.LightGray)
+            Text("수정", color = AppTextPrimary)
             Spacer(modifier = Modifier.width(6.dp))
             Icon(
                 imageVector = Icons.Default.KeyboardArrowUp,
                 contentDescription = "categorySelect",
-                tint = Color.LightGray
+                tint = AppTextPrimary
             )
         }
     }

@@ -1,5 +1,7 @@
 package com.jinscompany.saveurl.ui.composable.category
 
+import com.jinscompany.saveurl.ui.theme.AppBackground
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.FlowRowScope
@@ -31,13 +33,13 @@ fun FlowRowScope.CategoryItem(
             .padding(horizontal = 4.dp),
         shape = RoundedCornerShape(10.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) Color.LightGray else Color.Transparent
+            containerColor = if (isSelected) AppTextPrimary else Color.Transparent
         ),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
     ) {
         Text(
             text,
-            color = if (isSelected) Color.Black else Color.White,
+            color = if (isSelected) AppBackground else AppTextPrimary,
             fontSize = 14.sp,
             maxLines = 1
         )

@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.ui.filter.components
 
+import com.jinscompany.saveurl.ui.theme.AppOnPrimary
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -51,7 +52,7 @@ fun TabContent(
                         modifier = Modifier.size(20.dp),
                         imageVector = Icons.Rounded.LibraryAdd,
                         contentDescription = "categortInsert",
-                        tint = Color.White
+                        tint = AppOnPrimary
                     )
                 }
             }

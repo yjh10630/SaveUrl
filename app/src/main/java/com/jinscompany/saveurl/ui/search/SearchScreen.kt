@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.ui.search
 
+import com.jinscompany.saveurl.ui.theme.AppOnPrimary
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -233,7 +234,7 @@ fun SearchScreen(
                         shape = RoundedCornerShape(20.dp),
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = AppChipSelected,
-                            selectedLabelColor = Color.White,
+                            selectedLabelColor = AppOnPrimary,
                             containerColor = AppChipUnselected,
                             labelColor = AppTextSecondary,
                         ),

@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.ui.composable
 
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -58,15 +59,15 @@ fun TagItem(modifier: Modifier, tag: String, editMode: Boolean, removeClick: (St
             modifier = modifier,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("#", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.LightGray)
-            Text(tag, fontSize = 14.sp, fontWeight = FontWeight.Thin, color = Color.LightGray)
+            Text("#", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppTextPrimary)
+            Text(tag, fontSize = 14.sp, fontWeight = FontWeight.Thin, color = AppTextPrimary)
             if (editMode) {
                 Spacer(modifier = Modifier.width(5.dp))
                 Icon(
                     modifier = Modifier.size(14.dp),
                     imageVector = Icons.Filled.Cancel,
                     contentDescription = "remove",
-                    tint = Color.LightGray
+                    tint = AppTextPrimary
                 )
             }
         }

@@ -1,5 +1,7 @@
 package com.jinscompany.saveurl.ui.save_screen.components
 
+import com.jinscompany.saveurl.ui.theme.AppTextSecondary
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -77,19 +79,19 @@ fun LazyItemScope.UserInputTagSection(
         singleLine = true,
         keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
         keyboardActions = KeyboardActions(onDone = { focusClear.invoke() }),
-        textStyle = TextStyle(color = Color.LightGray),
+        textStyle = TextStyle(color = AppTextPrimary),
         label = { Text("태그 입력") },
         placeholder = { Text("태그 입력") },
         colors = TextFieldDefaults.outlinedTextFieldColors(
-            focusedBorderColor = Color.LightGray,
-            unfocusedBorderColor = Color.Gray,
-            focusedLabelColor = Color.LightGray,
-            unfocusedLabelColor = Color.Gray,
-            focusedLeadingIconColor = Color.LightGray,
-            unfocusedLeadingIconColor = Color.Gray,
-            focusedTrailingIconColor = Color.LightGray,
-            unfocusedTrailingIconColor = Color.Gray
+            focusedBorderColor = AppTextPrimary,
+            unfocusedBorderColor = AppTextSecondary,
+            focusedLabelColor = AppTextPrimary,
+            unfocusedLabelColor = AppTextSecondary,
+            focusedLeadingIconColor = AppTextPrimary,
+            unfocusedLeadingIconColor = AppTextSecondary,
+            focusedTrailingIconColor = AppTextPrimary,
+            unfocusedTrailingIconColor = AppTextSecondary
         ),
-        supportingText = { Text("콤마 ( , ) 를 사용해서 여러개 등록 가능해요!", color = Color.Gray) }
+        supportingText = { Text("콤마 ( , ) 를 사용해서 여러개 등록 가능해요!", color = AppTextSecondary) }
     )
 }

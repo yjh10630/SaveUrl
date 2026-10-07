@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.ui.filter
 
+import com.jinscompany.saveurl.ui.theme.AppOnPrimary
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -192,7 +193,7 @@ fun FilterScreenBottomSheet(
                 colors = ButtonDefaults.buttonColors(com.jinscompany.saveurl.ui.theme.AppPrimary),
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
             ) {
-                Text("선택", color = Color.White, fontSize = 14.sp, maxLines = 1)
+                Text("선택", color = AppOnPrimary, fontSize = 14.sp, maxLines = 1)
             }
         }
     }

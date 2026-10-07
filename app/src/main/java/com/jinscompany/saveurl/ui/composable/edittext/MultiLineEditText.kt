@@ -1,5 +1,7 @@
 package com.jinscompany.saveurl.ui.composable.edittext
 
+import com.jinscompany.saveurl.ui.theme.AppTextSecondary
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -67,19 +69,19 @@ fun MultiLineEditText(
         },
         keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
         keyboardActions = KeyboardActions(onDone = { focusClear.invoke() }),
-        textStyle = TextStyle(color = Color.LightGray),
+        textStyle = TextStyle(color = AppTextPrimary),
         label = { Text(hint) },
         placeholder = { Text(hint) },
         supportingText = { Text("2줄 까지만 노출 됩니다.") },
         colors = TextFieldDefaults.outlinedTextFieldColors(
-            focusedBorderColor = Color.LightGray,
-            unfocusedBorderColor = Color.Gray,
-            focusedLabelColor = Color.LightGray,
-            unfocusedLabelColor = Color.Gray,
-            focusedLeadingIconColor = Color.LightGray,
-            unfocusedLeadingIconColor = Color.Gray,
-            focusedTrailingIconColor = Color.LightGray,
-            unfocusedTrailingIconColor = Color.Gray
+            focusedBorderColor = AppTextPrimary,
+            unfocusedBorderColor = AppTextSecondary,
+            focusedLabelColor = AppTextPrimary,
+            unfocusedLabelColor = AppTextSecondary,
+            focusedLeadingIconColor = AppTextPrimary,
+            unfocusedLeadingIconColor = AppTextSecondary,
+            focusedTrailingIconColor = AppTextPrimary,
+            unfocusedTrailingIconColor = AppTextSecondary
         ),
     )
 }

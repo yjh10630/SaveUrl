@@ -1,5 +1,9 @@
 package com.jinscompany.saveurl.ui.trash
 
+import com.jinscompany.saveurl.ui.theme.AppDivider
+import com.jinscompany.saveurl.ui.theme.AppTextSecondary
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
+import com.jinscompany.saveurl.ui.theme.AppBackground
 import android.widget.Toast
 import com.jinscompany.saveurl.R
 import androidx.compose.foundation.background
@@ -128,7 +132,7 @@ fun TrashScreen(
         Column (
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.DarkGray)
+                .background(AppBackground)
                 .padding(paddingValues),
         ) {
             TrashHeader(
@@ -162,7 +166,7 @@ fun TrashScreen(
                         )
                         if (index < items.itemCount - 1) {
                             Spacer(modifier = Modifier.height(20.dp))
-                            HorizontalDivider(color = Color.Gray, thickness = 1.dp)
+                            HorizontalDivider(color = AppDivider, thickness = 1.dp)
                             Spacer(modifier = Modifier.height(20.dp))
                         }
                     }
@@ -177,10 +181,10 @@ fun TrashTitle() {
     Column(
         modifier = Modifier.padding(horizontal = 24.dp)
     ){
-        Text("휴지통", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.LightGray,)
+        Text("휴지통", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = AppTextPrimary,)
         Text(
             "삭제된 항목이 표시 됩니다. 이 항목은 7일 후에 완전히 삭제 됩니다.",
-            fontSize = 14.sp, color = Color.Gray
+            fontSize = 14.sp, color = AppTextSecondary
         )
     }
 }
@@ -203,7 +207,7 @@ fun TrashHeader(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
-                tint = Color.LightGray,
+                tint = AppTextPrimary,
             )
         }
 
@@ -215,7 +219,7 @@ fun TrashHeader(
                 Icon(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = "more",
-                    tint = Color.LightGray
+                    tint = AppTextPrimary
                 )
             }
         }

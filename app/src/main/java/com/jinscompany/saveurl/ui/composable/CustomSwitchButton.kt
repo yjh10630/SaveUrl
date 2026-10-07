@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.ui.composable
 
+import com.jinscompany.saveurl.ui.theme.AppDivider
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -43,7 +44,7 @@ fun CustomSwitchButton(
             .width(buttonWidth)
             .height(buttonHeight)
             .clip(CircleShape)
-            .background(if (value) Brown else Color.LightGray)
+            .background(if (value) Brown else AppDivider)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null

@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.ui.composable.category
 
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -29,7 +30,7 @@ fun LazyItemScope.ConfirmCancelItem(
             modifier = Modifier
                 .height(30.dp)
                 .padding(start = 12.dp, end = 12.dp),
-            color = Color.LightGray,
+            color = AppTextPrimary,
             thickness = 2.dp
         )
         IconButton(onClick = checkOnClick) {
@@ -37,7 +38,7 @@ fun LazyItemScope.ConfirmCancelItem(
                 modifier = Modifier.size(24.dp),
                 imageVector = Icons.Default.CheckCircle,
                 contentDescription = "check",
-                tint = Color.White
+                tint = AppTextPrimary
             )
         }
         IconButton(onClick = cancelOnClick) {
@@ -45,7 +46,7 @@ fun LazyItemScope.ConfirmCancelItem(
                 modifier = Modifier.size(24.dp),
                 imageVector = Icons.Default.Cancel,
                 contentDescription = "cancel",
-                tint = Color.White
+                tint = AppTextPrimary
             )
         }
     }

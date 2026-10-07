@@ -32,11 +32,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.jinscompany.saveurl.domain.model.UrlData
-import com.jinscompany.saveurl.ui.theme.AppBookmark
+import com.jinscompany.saveurl.ui.theme.AppPrimary
 import com.jinscompany.saveurl.ui.theme.AppSurface
 import com.jinscompany.saveurl.ui.theme.AppTextPrimary
 import com.jinscompany.saveurl.ui.theme.AppTextSecondary
-import com.jinscompany.saveurl.ui.theme.AppUnread
 
 @Composable
 fun PreviewLinkUrlItem(
@@ -89,7 +88,7 @@ fun PreviewLinkUrlItem(
                         Box(
                             modifier = Modifier
                                 .size(6.dp)
-                                .background(AppUnread, CircleShape)
+                                .background(AppPrimary, CircleShape)
                         )
                         Spacer(modifier = Modifier.width(5.dp))
                     }
@@ -98,7 +97,7 @@ fun PreviewLinkUrlItem(
                             modifier = Modifier.size(13.dp),
                             imageVector = Icons.Filled.Bookmark,
                             contentDescription = "bookMark",
-                            tint = AppBookmark
+                            tint = AppPrimary
                         )
                         Spacer(modifier = Modifier.width(5.dp))
                     }

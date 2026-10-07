@@ -1,5 +1,8 @@
 package com.jinscompany.saveurl.ui.composable
 
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
+import com.jinscompany.saveurl.ui.theme.AppSurface
+import com.jinscompany.saveurl.ui.theme.AppOnPrimary
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,7 +38,7 @@ fun CommonPositiveButton(
         Text(
             text,
             fontSize = 16.sp,
-            color = Color.White,
+            color = AppOnPrimary,
             textAlign = TextAlign.Center
         )
     }
@@ -53,12 +56,12 @@ fun CommonNegativeButton(
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
             .height(50.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
+        colors = ButtonDefaults.buttonColors(containerColor = AppSurface)
     ) {
         Text(
             text,
             fontSize = 16.sp,
-            color = Color.White,
+            color = AppTextPrimary,
             textAlign = TextAlign.Center
         )
     }

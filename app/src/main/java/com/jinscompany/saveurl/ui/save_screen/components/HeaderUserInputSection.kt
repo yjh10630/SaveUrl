@@ -1,5 +1,7 @@
 package com.jinscompany.saveurl.ui.save_screen.components
 
+import com.jinscompany.saveurl.ui.theme.AppTextSecondary
+import com.jinscompany.saveurl.ui.theme.AppTextPrimary
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -46,10 +48,10 @@ fun LazyItemScope.HeaderUserInputSection(
     Column(
         modifier = Modifier.padding(horizontal = 24.dp)
     ) {
-        Text("링크 저장하기", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.LightGray)
+        Text("링크 저장하기", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = AppTextPrimary)
         Text(
             "저장할 웹 사이트 의 링크(URL)를 입력해 주세요.",
-            fontSize = 14.sp, color = Color.Gray
+            fontSize = 14.sp, color = AppTextSecondary
         )
         Spacer(modifier = Modifier.height(32.dp))
         OutlinedTextField(
@@ -83,16 +85,16 @@ fun LazyItemScope.HeaderUserInputSection(
             keyboardActions = KeyboardActions(onDone = { focusClear.invoke() }),
             label = { Text("링크 주소") },
             placeholder = { Text("URL을 입력해주세요.") },
-            textStyle = TextStyle(color = Color.LightGray),
+            textStyle = TextStyle(color = AppTextPrimary),
             colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = Color.LightGray,
-                unfocusedBorderColor = Color.Gray,
-                focusedLabelColor = Color.LightGray,
-                unfocusedLabelColor = Color.Gray,
-                focusedLeadingIconColor = Color.LightGray,
-                unfocusedLeadingIconColor = Color.Gray,
-                focusedTrailingIconColor = Color.LightGray,
-                unfocusedTrailingIconColor = Color.Gray
+                focusedBorderColor = AppTextPrimary,
+                unfocusedBorderColor = AppTextSecondary,
+                focusedLabelColor = AppTextPrimary,
+                unfocusedLabelColor = AppTextSecondary,
+                focusedLeadingIconColor = AppTextPrimary,
+                unfocusedLeadingIconColor = AppTextSecondary,
+                focusedTrailingIconColor = AppTextPrimary,
+                unfocusedTrailingIconColor = AppTextSecondary
             )
         )
     }
