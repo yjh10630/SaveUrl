@@ -8,4 +8,6 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="app_window_background">#FFFFFFFF</color>
+    <!-- 브랜드 블루: 런처 아이콘 배경, 스플래시 아이콘 원 -->
+    <color name="brand_blue">#FF3D6BF5</color>
 </resources>

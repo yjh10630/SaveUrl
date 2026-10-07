@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    런처 아이콘 글리프 "C 저장함": -45° 기울인 두 고리 체인 + 열린 트레이 (흰색).
+    108x108 적응형 캔버스, 안전 영역(중심 반경 33) 안에 들어간다 (최대 반경 약 31.7).
+    48dp 에서도 또렷하도록 원안(체인 4.6 / 트레이 5.2)보다 선을 굵게(최종 6 / 6.5) 하고 글리프를 1.12배 키웠다.
+    그룹 scale 이 선 굵기에도 적용되므로 strokeWidth 는 1.12 로 나눈 값이다.
+    스플래시 아이콘과 테마 아이콘(monochrome)에도 같은 글리프를 쓴다.
+    PNG 레거시 아이콘/Play 스토어 아이콘은 같은 기하로 렌더링했다 (scratchpad icon/scripts/render_icon.py).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="52"
+        android:scaleX="1.12"
+        android:scaleY="1.12">
+        <group
+            android:pivotX="54"
+            android:pivotY="43"
+            android:rotation="-45">
+            <path
+                android:pathData="M43.5,37H50.5A6,6 0,0 1,50.5 49H43.5A6,6 0,0 1,43.5 37Z"
+                android:strokeWidth="5.357"
+                android:strokeColor="#FFFFFFFF" />
+            <path
+                android:pathData="M57.5,37H64.5A6,6 0,0 1,64.5 49H57.5A6,6 0,0 1,57.5 37Z"
+                android:strokeWidth="5.357"
+                android:strokeColor="#FFFFFFFF" />
+        </group>
+        <path
+            android:pathData="M36,60V69A5,5 0,0 0,41 74H67A5,5 0,0 0,72 69V60"
+            android:strokeWidth="5.804"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+</vector>
