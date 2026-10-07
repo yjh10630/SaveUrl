@@ -9,11 +9,15 @@ import com.jinscompany.saveurl.data.room.BaseSaveUrlDao
 import com.jinscompany.saveurl.data.room.CategoryDao
 import com.jinscompany.saveurl.data.room.TrashDao
 import com.jinscompany.saveurl.domain.model.CategoryModel
+import com.jinscompany.saveurl.domain.model.CategoryCount
 import com.jinscompany.saveurl.domain.model.FilterParams
+import com.jinscompany.saveurl.domain.model.LinkCounts
+import com.jinscompany.saveurl.domain.model.SearchScope
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.ui.FilterDefaults
 import com.jinscompany.saveurl.utils.UrlNormalizer
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -153,6 +157,15 @@ class LocalUrlDbSourceImpl @Inject constructor(
     override fun searchByTitle(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchByTitle(keyword)
     override fun searchByDescription(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchByDescription(keyword)
     override fun searchByTag(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchByTag(keyword)
+    override fun searchSorted(keyword: String, scope: SearchScope, oldest: Boolean): PagingSource<Int, UrlData> = when (scope) {
+        SearchScope.ALL -> baseSaveUrlDao.searchAllSorted(keyword, oldest)
+        SearchScope.TITLE -> baseSaveUrlDao.searchByTitleSorted(keyword, oldest)
+        SearchScope.DESCRIPTION -> baseSaveUrlDao.searchByDescriptionSorted(keyword, oldest)
+        SearchScope.TAG -> baseSaveUrlDao.searchByTagSorted(keyword, oldest)
+    }
+    override fun observeLinkCounts(since: Long): Flow<LinkCounts> = baseSaveUrlDao.observeLinkCounts(since)
+    override fun observeTopCategoryCounts(limit: Int): Flow<List<CategoryCount>> =
+        baseSaveUrlDao.observeTopCategoryCounts(excluded = FilterDefaults.CATEGORY_ALL, limit = limit)
 
     private fun UrlData.withNormalizedUrl(): UrlData =
         copy(normalizedUrl = url?.takeIf { it.isNotBlank() }?.let { UrlNormalizer.normalize(it) } ?: "")

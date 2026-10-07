@@ -7,7 +7,10 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
 import com.jinscompany.saveurl.data.backfill.NormalizedUrlRow
+import com.jinscompany.saveurl.domain.model.CategoryCount
+import com.jinscompany.saveurl.domain.model.LinkCounts
 import com.jinscompany.saveurl.domain.model.UrlData
 
 @Dao
@@ -88,6 +91,32 @@ interface BaseSaveUrlDao {
 
     @Query("SELECT * FROM BaseSaveUrl WHERE tagList LIKE '%' || :keyword || '%'")
     fun searchByTag(keyword: String): PagingSource<Int, UrlData>
+
+    // ---- 정렬 지정 검색 (2분할 검색 화면의 필터 패널에서만 사용. 폰 검색은 위 쿼리 그대로) ----
+    // oldest = 1 이면 addDate 오름차순, 0 이면 첫 정렬 키가 모두 NULL 이라 두 번째 키(addDate 내림차순)로 정렬된다.
+    @Query("SELECT * FROM BaseSaveUrl WHERE (title LIKE '%' || :keyword || '%' OR description LIKE '%' || :keyword || '%' OR tagList LIKE '%' || :keyword || '%') " +
+            "ORDER BY CASE WHEN :oldest = 1 THEN addDate END ASC, addDate DESC")
+    fun searchAllSorted(keyword: String, oldest: Boolean): PagingSource<Int, UrlData>
+
+    @Query("SELECT * FROM BaseSaveUrl WHERE title LIKE '%' || :keyword || '%' ORDER BY CASE WHEN :oldest = 1 THEN addDate END ASC, addDate DESC")
+    fun searchByTitleSorted(keyword: String, oldest: Boolean): PagingSource<Int, UrlData>
+
+    @Query("SELECT * FROM BaseSaveUrl WHERE description LIKE '%' || :keyword || '%' ORDER BY CASE WHEN :oldest = 1 THEN addDate END ASC, addDate DESC")
+    fun searchByDescriptionSorted(keyword: String, oldest: Boolean): PagingSource<Int, UrlData>
+
+    @Query("SELECT * FROM BaseSaveUrl WHERE tagList LIKE '%' || :keyword || '%' ORDER BY CASE WHEN :oldest = 1 THEN addDate END ASC, addDate DESC")
+    fun searchByTagSorted(keyword: String, oldest: Boolean): PagingSource<Int, UrlData>
+
+    // ---- 홈 패널 요약 (2분할). 테이블을 한 번만 훑어 세 숫자를 함께 집계하고, 링크가 바뀌면 다시 내보낸다 ----
+    @Query("SELECT COUNT(*) AS total, IFNULL(SUM(isBookMark), 0) AS bookmarks, " +
+            "IFNULL(SUM(CASE WHEN addDate >= :since THEN 1 ELSE 0 END), 0) AS thisWeek FROM BaseSaveUrl")
+    fun observeLinkCounts(since: Long): Flow<LinkCounts>
+
+    /** 링크 수가 많은 카테고리 순 (미분류 = null/빈 값/[excluded] 제외) */
+    @Query("SELECT category AS name, COUNT(*) AS count FROM BaseSaveUrl " +
+            "WHERE category IS NOT NULL AND TRIM(category) != '' AND category != :excluded " +
+            "GROUP BY category ORDER BY count DESC, name ASC LIMIT :limit")
+    fun observeTopCategoryCounts(excluded: String, limit: Int): Flow<List<CategoryCount>>
 
     @Query("SELECT tagList FROM BaseSaveUrl WHERE tagList IS NOT NULL")
     suspend fun getAllTagListJson(): List<String>

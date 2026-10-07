@@ -4,10 +4,14 @@ import androidx.paging.PagingSource
 import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.source.LocalUrlDBSource
 import com.jinscompany.saveurl.data.source.UrlParserSource
+import com.jinscompany.saveurl.domain.model.CategoryCount
 import com.jinscompany.saveurl.domain.model.FilterParams
+import com.jinscompany.saveurl.domain.model.LinkCounts
+import com.jinscompany.saveurl.domain.model.SearchScope
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.domain.repository.UrlRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -36,6 +40,10 @@ class UrlRepositoryImpl @Inject constructor(
     override fun searchByTitle(keyword: String): PagingSource<Int, UrlData> = localUrlDBSource.searchByTitle(keyword)
     override fun searchByDescription(keyword: String): PagingSource<Int, UrlData> = localUrlDBSource.searchByDescription(keyword)
     override fun searchByTag(keyword: String): PagingSource<Int, UrlData> = localUrlDBSource.searchByTag(keyword)
+    override fun searchSorted(keyword: String, scope: SearchScope, oldest: Boolean): PagingSource<Int, UrlData> =
+        localUrlDBSource.searchSorted(keyword, scope, oldest)
+    override fun observeLinkCounts(since: Long): Flow<LinkCounts> = localUrlDBSource.observeLinkCounts(since)
+    override fun observeTopCategoryCounts(limit: Int): Flow<List<CategoryCount>> = localUrlDBSource.observeTopCategoryCounts(limit)
     override suspend fun saveUrlDataList(list: List<UrlData>) = localUrlDBSource.saveUrlDataList(list)
     override suspend fun markAsRead(url: String) = localUrlDBSource.markAsRead(url)
     override suspend fun getAllUrlData(): List<UrlData> = localUrlDBSource.getAllUrlData()
