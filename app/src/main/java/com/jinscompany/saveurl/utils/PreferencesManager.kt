@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.jinscompany.saveurl.domain.model.ListViewMode
+import com.jinscompany.saveurl.domain.model.ThemeDefaultMigration
 import com.jinscompany.saveurl.domain.model.ThemeMode
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -26,6 +27,7 @@ class PreferencesManager @Inject constructor(
     private val DARK_MODE = booleanPreferencesKey("dark_mode")
     private val LIST_VIEW_MODE = stringPreferencesKey("list_view_mode")
     private val NORMALIZED_URL_VERSION = intPreferencesKey("normalized_url_version")
+    private val THEME_DEFAULT_MIGRATED = booleanPreferencesKey("theme_default_migrated")
 
     val autoDeleteEnabled: Flow<Boolean> = context.dataStore.data
         .map { it[TRASH_ENABLE] ?: true }
@@ -33,7 +35,7 @@ class PreferencesManager @Inject constructor(
     val isInitFirstRun: Flow<Boolean> = context.dataStore.data.map { it[INIT_FIRST_RUN] ?: false }
 
     // 화면 모드: 기존 dark_mode 키를 그대로 사용 (key 없음 = 시스템, true = 다크, false = 라이트)
-    // 별도 마이그레이션 없이 기존 사용자의 선택이 그대로 유지된다.
+    // 선택한 적 없는 기존 사용자는 첫 실행 1회 다크로 고정한다 (migrateThemeDefault 참고).
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
         ThemeMode.fromDarkModePref(prefs[DARK_MODE])
     }
@@ -61,6 +63,24 @@ class PreferencesManager @Inject constructor(
 
     suspend fun setListViewMode(mode: ListViewMode) {
         context.dataStore.edit { it[LIST_VIEW_MODE] = mode.key }
+    }
+
+    /**
+     * 화면 모드 기본값 1회 마이그레이션. 판단은 [ThemeDefaultMigration.decide] 에 맡기고,
+     * 한 번의 edit 트랜잭션 안에서 읽기·쓰기·완료 표시를 함께 해서 중간 상태가 남지 않게 한다.
+     */
+    suspend fun migrateThemeDefault(hadPriorData: Boolean): ThemeDefaultMigration.Action {
+        var action = ThemeDefaultMigration.Action.NONE
+        context.dataStore.edit { prefs ->
+            action = ThemeDefaultMigration.decide(
+                alreadyMigrated = prefs[THEME_DEFAULT_MIGRATED] == true,
+                darkModePref = prefs[DARK_MODE],
+                hadPriorData = hadPriorData,
+            )
+            if (action == ThemeDefaultMigration.Action.SET_DARK) prefs[DARK_MODE] = true
+            prefs[THEME_DEFAULT_MIGRATED] = true
+        }
+        return action
     }
 
     /** normalizedUrl 백필이 마지막으로 전체 재계산을 끝낸 정규화 알고리즘 버전 (없으면 0) */

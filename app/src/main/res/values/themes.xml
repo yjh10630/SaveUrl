@@ -5,4 +5,16 @@
     <style name="Theme.SaveUrl" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/app_window_background</item>
     </style>
+
+    <!--
+        스플래시 (androidx core-splashscreen). MainActivity 의 시작 테마이며 installSplashScreen() 후 Theme.SaveUrl 로 바뀐다.
+        배경은 라이트 #FFFFFF / 다크 #0F1115 (values-night 의 app_window_background),
+        아이콘은 런처 글리프를 브랜드 블루 원 위에 올린다.
+    -->
+    <style name="Theme.SaveUrl.Starting" parent="Theme.SplashScreen.IconBackground">
+        <item name="windowSplashScreenBackground">@color/app_window_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/icon_launcher_foreground</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/brand_blue</item>
+        <item name="postSplashScreenTheme">@style/Theme.SaveUrl</item>
+    </style>
 </resources>

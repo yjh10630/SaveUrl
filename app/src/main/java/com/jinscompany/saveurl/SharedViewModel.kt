@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.jinscompany.saveurl.domain.model.ListViewMode
 import com.jinscompany.saveurl.domain.model.ThemeMode
 import com.jinscompany.saveurl.utils.PreferencesManager
+import com.jinscompany.saveurl.utils.ThemeMigrationRunner
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -17,6 +20,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SharedViewModel @Inject constructor(
     private val preferencesManager: PreferencesManager,
+    themeMigrationRunner: ThemeMigrationRunner,
 ): ViewModel() {
 
     private val _isFlexibleUpdatable = MutableStateFlow(false)
@@ -25,9 +29,14 @@ class SharedViewModel @Inject constructor(
     private val _isFlexibleUpdateDownloaded = MutableStateFlow(false)
     val isFlexibleUpdateDownloaded: StateFlow<Boolean> = _isFlexibleUpdateDownloaded.asStateFlow()
 
-    /** null = 아직 DataStore 에서 읽기 전 (첫 프레임은 시스템 설정을 따른다) */
-    val themeMode: StateFlow<ThemeMode?> = preferencesManager.themeMode
-        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    /**
+     * null = 아직 읽기 전. 화면 모드 기본값 마이그레이션이 끝난 뒤에 값을 내보내므로,
+     * 기존 사용자가 첫 실행에 잠깐 밝은 화면을 보는 일이 없다 (그동안 스플래시 유지, MainActivity 참고).
+     */
+    val themeMode: StateFlow<ThemeMode?> = flow {
+        themeMigrationRunner.awaitDone()
+        emitAll(preferencesManager.themeMode)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val listViewMode: StateFlow<ListViewMode> = preferencesManager.listViewMode
         .stateIn(viewModelScope, SharingStarted.Eagerly, ListViewMode.DEFAULT)

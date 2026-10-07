@@ -1,6 +1,9 @@
 package com.jinscompany.saveurl
 
 import android.app.Activity
+import android.app.UiModeManager
+import android.os.Build
+import android.os.SystemClock
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -27,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.rememberNavController
 import com.jinscompany.saveurl.R
 import com.jinscompany.saveurl.ui.navigation.AppNavigation
@@ -50,9 +54,19 @@ class MainActivity : ComponentActivity() {
     private val flexibleLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { }
 
     private var backPressedTime: Long = 0L
+
+    private companion object {
+        const val SPLASH_MAX_WAIT_MS = 1500L
+    }
     private lateinit var toast: Toast
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // 스플래시: super.onCreate 전에 설치. 화면 모드(마이그레이션 포함)를 읽을 때까지 유지해
+        // 첫 Compose 프레임이 잘못된 테마로 그려지지 않게 한다. 저장소 문제로 늦어져도 최대 1.5초 후에는 넘어간다.
+        val splashStart = SystemClock.uptimeMillis()
+        installSplashScreen().setKeepOnScreenCondition {
+            sharedViewModel.themeMode.value == null && SystemClock.uptimeMillis() - splashStart < SPLASH_MAX_WAIT_MS
+        }
         super.onCreate(savedInstanceState)
         inAppUpdateCheck = InAppUpdateCheck(this, immediateLauncher, flexibleLauncher, sharedViewModel)
         setupBackPressedHandler()
@@ -85,6 +99,13 @@ class MainActivity : ComponentActivity() {
 
             val themeMode by sharedViewModel.themeMode.collectAsState()
             val isDark = (themeMode ?: ThemeMode.SYSTEM).isDarkTheme()
+
+            // Android 12+: 앱 내 화면 모드를 시스템에 알려 둔다. 다음 콜드 스타트의 스플래시·window 배경(values-night)이
+            // 앱 테마와 같아져 "시스템 라이트 + 앱 다크" 에서도 흰 스플래시가 번쩍이지 않는다.
+            // (manifest 의 configChanges="uiMode" 로 액티비티 재생성 없이 Compose 가 다시 그린다)
+            LaunchedEffect(themeMode) {
+                themeMode?.let { applyAppNightMode(it) }
+            }
 
             // 앱 내 테마 선택(시스템/라이트/다크)에 맞춰 상태바·내비게이션바 아이콘 색을 바꾼다.
             // (SystemBarStyle.auto 는 시스템 다크 설정만 보므로 앱에서 강제한 테마와 어긋날 수 있다)
@@ -123,6 +144,18 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun applyAppNightMode(mode: ThemeMode) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        val uiModeManager = getSystemService(UiModeManager::class.java) ?: return
+        val target = when (mode) {
+            ThemeMode.SYSTEM -> UiModeManager.MODE_NIGHT_AUTO
+            ThemeMode.LIGHT -> UiModeManager.MODE_NIGHT_NO
+            ThemeMode.DARK -> UiModeManager.MODE_NIGHT_YES
+        }
+        runCatching { uiModeManager.setApplicationNightMode(target) }
+            .onFailure { CmLog.e("setApplicationNightMode failed: ${it.message}") }
     }
 
     override fun onResume() {
