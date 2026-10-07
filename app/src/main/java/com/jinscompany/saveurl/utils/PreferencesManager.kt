@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.jinscompany.saveurl.domain.model.ListViewMode
 import com.jinscompany.saveurl.domain.model.ThemeDefaultMigration
@@ -28,6 +29,10 @@ class PreferencesManager @Inject constructor(
     private val LIST_VIEW_MODE = stringPreferencesKey("list_view_mode")
     private val NORMALIZED_URL_VERSION = intPreferencesKey("normalized_url_version")
     private val THEME_DEFAULT_MIGRATED = booleanPreferencesKey("theme_default_migrated")
+    /** 튜토리얼에서 본 주제 id 집합 */
+    private val TUTORIAL_VIEWED_TOPICS = stringSetPreferencesKey("tutorial_viewed_topics")
+    /** 메인 목록 첫 실행 안내 카드("SaveLink 사용 방법 보기")를 보여줄지. 새로 설치한 사용자만 true 로 시작한다. */
+    private val TUTORIAL_CARD_VISIBLE = booleanPreferencesKey("tutorial_card_visible")
 
     val autoDeleteEnabled: Flow<Boolean> = context.dataStore.data
         .map { it[TRASH_ENABLE] ?: true }
@@ -50,6 +55,32 @@ class PreferencesManager @Inject constructor(
 
     suspend fun setInitFirstRun(isRun: Boolean) {
         context.dataStore.edit { it[INIT_FIRST_RUN] = isRun }
+    }
+
+    val tutorialViewedTopics: Flow<Set<String>> = context.dataStore.data.map { it[TUTORIAL_VIEWED_TOPICS] ?: emptySet() }
+
+    suspend fun addTutorialViewedTopic(id: String) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[TUTORIAL_VIEWED_TOPICS] ?: emptySet()
+            if (id !in current) prefs[TUTORIAL_VIEWED_TOPICS] = current + id
+        }
+    }
+
+    val tutorialCardVisible: Flow<Boolean> = context.dataStore.data.map { it[TUTORIAL_CARD_VISIBLE] ?: false }
+
+    /**
+     * 첫 실행 처리: 첫 실행 완료 표시와 안내 카드 표시를 한 번에 저장한다.
+     * 이미 첫 실행을 마친 사용자(기존 사용자)는 호출되지 않으므로 카드가 보이지 않는다.
+     */
+    suspend fun completeFirstRunWithTutorialCard() {
+        context.dataStore.edit { prefs ->
+            prefs[INIT_FIRST_RUN] = true
+            prefs[TUTORIAL_CARD_VISIBLE] = true
+        }
+    }
+
+    suspend fun dismissTutorialCard() {
+        context.dataStore.edit { it[TUTORIAL_CARD_VISIBLE] = false }
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {

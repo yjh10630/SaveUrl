@@ -84,4 +84,169 @@
     <string name="theme_mode_system">시스템</string>
     <string name="theme_mode_light">라이트</string>
     <string name="theme_mode_dark">다크</string>
+
+    <!-- 사용 방법 (앱 안 튜토리얼). **굵게** 표시는 TutorialText.parseBold 가 처리한다 -->
+    <string name="tutorial_title">사용 방법</string>
+    <string name="tutorial_close">닫기</string>
+    <string name="tutorial_back_to_list_cd">주제 목록으로</string>
+    <string name="tutorial_intro_title">SaveLink 사용 방법</string>
+    <string name="tutorial_intro_body">나중에 볼 링크를 한곳에 모아 두는 앱이에요. 필요한 주제만 골라 보세요.</string>
+    <string name="tutorial_progress">%1$d개 주제 중 %2$d개 봤어요</string>
+    <string name="tutorial_progress_percent">%d%%</string>
+    <string name="tutorial_start_from_first">처음부터 차례로 보기</string>
+    <string name="tutorial_viewed_cd">봤어요</string>
+    <string name="tutorial_position">%1$d / %2$d</string>
+    <string name="tutorial_position_cd">%2$d개 중 %1$d번째 주제</string>
+    <string name="tutorial_breadcrumb">사용 방법 › %s</string>
+    <string name="tutorial_to_list">목록으로</string>
+    <string name="tutorial_next_topic">다음 주제: %s</string>
+    <string name="tutorial_finish">목록으로 돌아가기</string>
+    <string name="tutorial_tip_label">팁:</string>
+
+    <string name="tutorial_group_start">시작하기</string>
+    <string name="tutorial_group_organize">정리하기</string>
+    <string name="tutorial_group_find">찾기·관리</string>
+    <string name="tutorial_group_more">설정·기타</string>
+
+    <!-- 메인 목록 첫 실행 안내 카드 -->
+    <string name="tutorial_card_title">SaveLink 사용 방법 보기</string>
+    <string name="tutorial_card_body">공유로 저장하기, 카테고리, 보기 방식까지 2분이면 알 수 있어요.</string>
+    <string name="tutorial_card_action">둘러보기</string>
+    <string name="tutorial_card_dismiss_cd">안내 카드 닫기</string>
+
+    <!-- 1. 다른 앱에서 바로 저장 -->
+    <string name="tut_share_title">다른 앱에서 바로 저장</string>
+    <string name="tut_share_subtitle">공유 → SaveLink</string>
+    <string name="tut_share_body">브라우저나 유튜브에서 **공유 → SaveLink**를 누르면 저장 화면이 열려요.</string>
+    <string name="tut_share_step1">저장할 페이지에서 공유 버튼을 눌러요.</string>
+    <string name="tut_share_step2">앱 목록에서 SaveLink를 골라요.</string>
+    <string name="tut_share_step3">저장 화면에서 카테고리와 태그를 정하고 저장해요.</string>
+    <string name="tut_share_tip">목록에 SaveLink가 안 보이면 공유 화면의 더보기에서 찾아보세요.</string>
+    <string name="tut_share_image_cd">공유 화면에서 SaveLink를 고르는 모습</string>
+
+    <!-- 2. 앱에서 직접 저장 -->
+    <string name="tut_direct_title">앱에서 직접 저장</string>
+    <string name="tut_direct_subtitle">+ 링크 저장, 복사한 링크</string>
+    <string name="tut_direct_body">오른쪽 아래 **+ 링크 저장**을 누르고 주소를 붙여넣으세요. 복사해 둔 링크가 있으면 앱을 열 때 저장할지 물어봐요.</string>
+    <string name="tut_direct_step1">메인 화면 오른쪽 아래의 링크 저장 버튼을 눌러요.</string>
+    <string name="tut_direct_step2">주소 칸에 링크를 붙여넣어요.</string>
+    <string name="tut_direct_step3">링크를 복사한 뒤 앱을 열면 아래에 저장 안내가 떠요. 저장을 누르면 바로 저장 화면으로 가요.</string>
+    <string name="tut_direct_image_cd">메인 화면 아래의 링크 저장 버튼과 클립보드 링크 저장 안내</string>
+
+    <!-- 3. 제목과 썸네일은 자동으로 -->
+    <string name="tut_autofill_title">제목과 썸네일은 자동으로</string>
+    <string name="tut_autofill_subtitle">정보 자동 불러오기</string>
+    <string name="tut_autofill_body">주소를 넣으면 제목·설명·썸네일을 알아서 가져와요. 오래 걸리면 ✕를 눌러 정보 없이 저장해도 돼요. 카드의 **편집**에서 직접 고칠 수도 있어요.</string>
+    <string name="tut_autofill_step1">주소를 넣으면 미리보기 카드에 정보가 채워져요.</string>
+    <string name="tut_autofill_step2">내용이 다르면 카드의 편집을 눌러 제목과 설명을 고쳐요.</string>
+    <string name="tut_autofill_step3">확인했으면 저장을 눌러요.</string>
+    <string name="tut_autofill_tip">일부 사이트는 정보를 주지 않아서 주소만 저장될 수 있어요.</string>
+    <string name="tut_autofill_image_cd">제목과 썸네일을 불러온 저장 화면의 미리보기 카드</string>
+
+    <!-- 4. 깔끔한 주소, 중복 알림 -->
+    <string name="tut_clean_title">깔끔한 주소, 중복 알림</string>
+    <string name="tut_clean_subtitle">추적 꼬리 정리, 중복 확인</string>
+    <string name="tut_clean_body">광고 추적용 꼬리(utm 등)는 저장할 때 지워 드려요. 이미 저장한 링크면 한 번 더 알려 드려요.</string>
+    <string name="tut_clean_step1">주소 끝의 utm_, fbclid 같은 추적 값은 저장할 때 빠져요.</string>
+    <string name="tut_clean_step2">이미 저장한 링크를 넣으면 그 링크의 수정 화면이 열려요.</string>
+    <string name="tut_clean_step3">주소가 조금 달라도 같은 링크면 저장할 때 확인 창이 떠요. 그래도 저장이나 취소를 골라요.</string>
+    <string name="tut_clean_image_cd">이미 저장된 링크라고 알려 주는 확인 창</string>
+
+    <!-- 5. 카테고리로 정리 -->
+    <string name="tut_category_title">카테고리로 정리</string>
+    <string name="tut_category_subtitle">지우면 미분류로 이동</string>
+    <string name="tut_category_body">링크마다 카테고리를 하나 고를 수 있어요. 카테고리를 지우면 그 안의 링크는 **미분류**로 옮겨져요.</string>
+    <string name="tut_category_step1">저장 화면에서 카테고리 줄을 눌러요.</string>
+    <string name="tut_category_step2">목록에서 하나를 고르거나 새로 만들어요.</string>
+    <string name="tut_category_step3">선택 창의 편집에서 이름을 바꾸거나 지울 수 있어요.</string>
+    <string name="tut_category_tip">카테고리를 지워도 링크는 지워지지 않아요.</string>
+    <string name="tut_category_image_cd">카테고리 선택 창</string>
+
+    <!-- 6. 태그로 묶기 -->
+    <string name="tut_tag_title">태그로 묶기</string>
+    <string name="tut_tag_subtitle">쉼표로 여러 개</string>
+    <string name="tut_tag_body">태그는 여러 개 달 수 있어요. 쉼표(,)로 나눠 입력하세요.</string>
+    <string name="tut_tag_step1">저장 화면의 태그 칸에 입력해요.</string>
+    <string name="tut_tag_step2">쉼표(,)로 나눈 뒤 오른쪽 체크 버튼을 누르면 한 번에 여러 개가 달려요.</string>
+    <string name="tut_tag_step3">달린 태그를 누르면 지워져요.</string>
+    <string name="tut_tag_tip">검색 범위를 태그로 고르면 태그로만 찾을 수 있어요.</string>
+    <string name="tut_tag_image_cd">저장 화면의 태그 칸과 즐겨찾기 스위치</string>
+
+    <!-- 7. 즐겨찾기 -->
+    <string name="tut_favorite_title">즐겨찾기</string>
+    <string name="tut_favorite_subtitle">별 표시와 즐겨찾기 탭</string>
+    <string name="tut_favorite_body">저장할 때 **즐겨찾기에 추가**를 켜면 별이 붙고, 위쪽 **즐겨찾기** 탭에 모여요.</string>
+    <string name="tut_favorite_step1">저장 화면에서 즐겨찾기에 추가를 켜요.</string>
+    <string name="tut_favorite_step2">목록에서 별이 붙은 링크를 확인해요.</string>
+    <string name="tut_favorite_step3">위쪽 즐겨찾기 탭을 누르면 모아서 볼 수 있어요.</string>
+    <string name="tut_favorite_tip">이미 저장한 링크는 길게 눌러 수정하기에서 즐겨찾기를 켜거나 끌 수 있어요.</string>
+    <string name="tut_favorite_image_cd">즐겨찾기 탭에 모인 링크 목록</string>
+
+    <!-- 8. 보기 방식 바꾸기 -->
+    <string name="tut_viewmode_title">보기 방식 바꾸기</string>
+    <string name="tut_viewmode_subtitle">기본 · 큰 카드 · 컴팩트</string>
+    <string name="tut_viewmode_body">목록 위 보기 방식 버튼에서 기본·큰 카드·컴팩트 중 고를 수 있어요. 설정에서도 바꿀 수 있어요.</string>
+    <string name="tut_viewmode_step1">메인 화면 위쪽의 보기 방식 버튼을 눌러요.</string>
+    <string name="tut_viewmode_step2">기본, 큰 카드, 컴팩트 중 하나를 골라요.</string>
+    <string name="tut_viewmode_step3">설정 &gt; 보기 방식에서도 바꿀 수 있어요.</string>
+    <string name="tut_viewmode_tip">사진이 중요한 레시피나 여행 링크는 큰 카드가 보기 좋아요.</string>
+    <string name="tut_viewmode_menu_cd">보기 방식 메뉴</string>
+    <string name="tut_viewmode_default_cd">기본 보기</string>
+    <string name="tut_viewmode_large_cd">큰 카드 보기</string>
+    <string name="tut_viewmode_compact_cd">컴팩트 보기</string>
+
+    <!-- 9. 검색과 필터 -->
+    <string name="tut_search_title">검색과 필터</string>
+    <string name="tut_search_subtitle">범위 고르기, 필터 한 번에</string>
+    <string name="tut_search_body">검색에서 전체·제목·내용·태그 중 찾을 범위를 고르세요. 필터에서는 정렬·카테고리·사이트·태그를 한 번에 고를 수 있어요.</string>
+    <string name="tut_search_step1">메인 화면 위쪽의 검색 버튼을 눌러 검색어를 입력해요.</string>
+    <string name="tut_search_step2">검색 범위 칩에서 전체, 제목, 내용, 태그 중 하나를 골라요.</string>
+    <string name="tut_search_step3">메인 화면의 필터 버튼에서 정렬, 카테고리, 사이트, 태그를 골라요.</string>
+    <string name="tut_search_tip">필터를 걸면 목록 위에 지금 적용된 조건이 보여요.</string>
+    <string name="tut_search_results_cd">검색 결과 화면</string>
+    <string name="tut_search_filter_cd">필터 창</string>
+
+    <!-- 10. 링크 관리 -->
+    <string name="tut_manage_title">링크 관리</string>
+    <string name="tut_manage_subtitle">길게 눌러 메뉴</string>
+    <string name="tut_manage_body">링크를 **길게 누르면** 공유·수정·휴지통 이동 메뉴가 나와요.</string>
+    <string name="tut_manage_step1">목록에서 링크를 길게 눌러요.</string>
+    <string name="tut_manage_step2">공유하기, 수정하기, 휴지통으로 이동 중에서 골라요.</string>
+    <string name="tut_manage_step3">링크를 짧게 누르면 브라우저에서 열려요.</string>
+    <string name="tut_manage_tip">펼친 화면(2분할)에서는 링크 오른쪽의 더보기(⋮) 버튼으로 같은 메뉴를 열어요.</string>
+    <string name="tut_manage_image_cd">링크를 길게 누르면 나오는 메뉴</string>
+
+    <!-- 11. 휴지통은 7일 보관 -->
+    <string name="tut_trash_title">휴지통은 7일 보관</string>
+    <string name="tut_trash_subtitle">복원하거나 바로 삭제</string>
+    <string name="tut_trash_body">지운 링크는 휴지통에서 7일 동안 보관되고, 남은 기간이 표시돼요. 눌러서 복원하거나 바로 지울 수 있어요. 휴지통 화면의 **휴지통 사용**을 끄면 바로 삭제돼요.</string>
+    <string name="tut_trash_step1">설정 &gt; 휴지통에서 지운 링크를 볼 수 있어요.</string>
+    <string name="tut_trash_step2">링크를 누르면 복원하거나 바로 지울 수 있어요.</string>
+    <string name="tut_trash_step3">휴지통 화면의 휴지통 사용을 끄면 앞으로는 바로 지워져요.</string>
+    <string name="tut_trash_tip">남은 기간이 지나면 휴지통에서도 자동으로 지워져요.</string>
+    <string name="tut_trash_image_cd">남은 기간이 표시된 휴지통 화면</string>
+
+    <!-- 12. 화면 모드와 백업 -->
+    <string name="tut_settings_title">화면 모드와 백업</string>
+    <string name="tut_settings_subtitle">다크 모드, CSV 백업</string>
+    <string name="tut_settings_body">설정에서 시스템·라이트·다크 화면을 고를 수 있어요. **데이터 백업(CSV)**으로 링크를 파일로 저장하고, 다른 기기에서 **가져오기**로 불러오세요.</string>
+    <string name="tut_settings_step1">설정 &gt; 화면 모드에서 시스템, 라이트, 다크 중 하나를 골라요.</string>
+    <string name="tut_settings_step2">설정 &gt; 데이터 백업(CSV)으로 링크를 파일로 저장해요.</string>
+    <string name="tut_settings_step3">다른 기기에서는 데이터 가져오기(CSV)로 그 파일을 불러와요.</string>
+    <string name="tut_settings_tip">백업 파일은 원하는 폴더나 클라우드 드라이브에 저장할 수 있어요.</string>
+    <string name="tut_settings_image_cd">설정 화면</string>
+
+    <!-- 13. 큰 화면에서는 2분할 -->
+    <string name="tut_twopane_title">큰 화면에서는 2분할</string>
+    <string name="tut_twopane_subtitle">폴드·태블릿</string>
+    <string name="tut_twopane_body">화면을 펼치면 왼쪽에 목록, 오른쪽에 저장·편집·설정 화면이 함께 보여요.</string>
+    <string name="tut_twopane_step1">왼쪽 목록은 그대로 두고 오른쪽에서 저장하거나 편집해요.</string>
+    <string name="tut_twopane_step2">오른쪽 홈에서 복사한 링크를 바로 저장할 수 있어요.</string>
+    <string name="tut_twopane_step3">오른쪽 위 ✕를 누르면 오른쪽 화면이 처음 상태로 돌아가요.</string>
+    <string name="tut_twopane_image_cd">펼친 화면에서 왼쪽에 목록, 오른쪽에 홈이 보이는 모습</string>
+
+    <!-- 14. 문의 -->
+    <string name="tut_contact_title">문의</string>
+    <string name="tut_contact_subtitle">앱 오류 신고</string>
+    <string name="tut_contact_body">문제가 있으면 설정 &gt; **앱 오류 신고**로 알려 주세요. SaveLink를 써 주셔서 고마워요.</string>
 </resources>

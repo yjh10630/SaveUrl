@@ -1,0 +1,114 @@
+package com.jinscompany.saveurl.ui.tutorial
+
+import com.jinscompany.saveurl.utils.tutorialUrl
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class TutorialContentTest {
+
+    @Test
+    fun `전체 주제는 14개이고 id 가 겹치지 않는다`() {
+        assertEquals(14, TutorialTopics.all.size)
+        assertEquals(14, TutorialTopics.all.map { it.id }.toSet().size)
+    }
+
+    @Test
+    fun `폰에서는 2분할 주제를 빼고 13개, 2분할에서는 14개`() {
+        val phone = TutorialTopics.visible(isTwoPane = false)
+        val wide = TutorialTopics.visible(isTwoPane = true)
+        assertEquals(13, phone.size)
+        assertEquals(14, wide.size)
+        assertFalse(phone.any { it.id == TutorialTopics.TWO_PANE })
+        assertTrue(wide.any { it.id == TutorialTopics.TWO_PANE })
+    }
+
+    @Test
+    fun `그룹 순서대로 묶여 있다 (홈 목록 groupBy 가 순서를 유지)`() {
+        val groups = TutorialTopics.all.map { it.group }
+        assertEquals(groups.sortedBy { it.ordinal }, groups)
+        assertEquals(TutorialGroup.START, TutorialTopics.all.first().group)
+        assertEquals(TutorialTopics.CONTACT, TutorialTopics.all.last().id)
+    }
+
+    @Test
+    fun `진행 표시는 보이는 주제 중 본 것만 센다`() {
+        val phone = TutorialTopics.visible(isTwoPane = false)
+        val viewed = setOf(TutorialTopics.SHARE, TutorialTopics.TWO_PANE, "removed_topic")
+        val progress = TutorialProgress.of(phone, viewed)
+        assertEquals(1, progress.viewed)
+        assertEquals(13, progress.total)
+        assertEquals(7, progress.percent)
+
+        val wide = TutorialProgress.of(TutorialTopics.visible(isTwoPane = true), viewed)
+        assertEquals(2, wide.viewed)
+        assertEquals(14, wide.total)
+        assertEquals(14, wide.percent)
+    }
+
+    @Test
+    fun `진행 표시 경계값`() {
+        assertEquals(0f, TutorialProgress.of(emptyList(), emptySet()).fraction)
+        assertEquals(0, TutorialProgress.of(emptyList(), emptySet()).percent)
+        val all = TutorialTopics.visible(isTwoPane = false)
+        val full = TutorialProgress.of(all, all.map { it.id }.toSet())
+        assertEquals(1f, full.fraction)
+        assertEquals(100, full.percent)
+    }
+
+    @Test
+    fun `위치와 다음 주제`() {
+        val phone = TutorialTopics.visible(isTwoPane = false)
+        val wide = TutorialTopics.visible(isTwoPane = true)
+        assertEquals(1, TutorialTopics.position(phone, TutorialTopics.SHARE))
+        assertEquals(13, TutorialTopics.position(phone, TutorialTopics.CONTACT))
+        assertEquals(14, TutorialTopics.position(wide, TutorialTopics.CONTACT))
+        assertEquals(TutorialTopics.DIRECT, TutorialTopics.next(phone, TutorialTopics.SHARE)?.id)
+        // 폰: 화면 모드와 백업 → (2분할 건너뜀) → 문의
+        assertEquals(TutorialTopics.CONTACT, TutorialTopics.next(phone, TutorialTopics.SETTINGS)?.id)
+        assertEquals(TutorialTopics.TWO_PANE, TutorialTopics.next(wide, TutorialTopics.SETTINGS)?.id)
+        assertNull(TutorialTopics.next(phone, TutorialTopics.CONTACT))
+    }
+
+    @Test
+    fun `펼쳐서 연 2분할 주제를 접은 뒤에도 위치는 없고 다음 주제는 이어진다`() {
+        val phone = TutorialTopics.visible(isTwoPane = false)
+        assertNull(TutorialTopics.position(phone, TutorialTopics.TWO_PANE))
+        assertEquals(TutorialTopics.CONTACT, TutorialTopics.next(phone, TutorialTopics.TWO_PANE)?.id)
+        assertNull(TutorialTopics.next(phone, "unknown"))
+        assertNull(TutorialTopics.find("unknown"))
+    }
+
+    @Test
+    fun `첫 실행 시드 항목은 튜토리얼 URL 로 알아본다`() {
+        assertTrue(isTutorialLink(tutorialUrl))
+        assertTrue(isTutorialLink(" $tutorialUrl "))
+        assertTrue(isTutorialLink("https://yjh10630.github.io/MyWeb/#/SaveUrlTutorial"))
+        assertFalse(isTutorialLink(null))
+        assertFalse(isTutorialLink(""))
+        assertFalse(isTutorialLink("https://yjh10630.github.io/MyWeb/"))
+        assertFalse(isTutorialLink("https://example.com"))
+    }
+
+    @Test
+    fun `굵게 표시 파싱`() {
+        assertEquals(
+            listOf(
+                TutorialText.Segment("브라우저에서 ", false),
+                TutorialText.Segment("공유 → SaveLink", true),
+                TutorialText.Segment("를 누르세요.", false),
+            ),
+            TutorialText.parseBold("브라우저에서 **공유 → SaveLink**를 누르세요.")
+        )
+        assertEquals(listOf(TutorialText.Segment("굵게", true)), TutorialText.parseBold("**굵게**"))
+        assertEquals(listOf(TutorialText.Segment("표시 없음", false)), TutorialText.parseBold("표시 없음"))
+        // 짝이 안 맞는 마지막 ** 는 글자 그대로
+        assertEquals(
+            listOf(TutorialText.Segment("a ", false), TutorialText.Segment("b", true), TutorialText.Segment(" c", false), TutorialText.Segment("**d", false)),
+            TutorialText.parseBold("a **b** c**d")
+        )
+        assertEquals("a b c**d", TutorialText.annotated("a **b** c**d").text)
+    }
+}
