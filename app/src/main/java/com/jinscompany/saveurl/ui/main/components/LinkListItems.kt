@@ -36,6 +36,10 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -72,7 +76,26 @@ internal fun UrlData.displayTime(): String {
     return if (isToday) SimpleDateFormat("a h:mm", Locale.KOREA).format(saved.time) else getDate()
 }
 
-private fun UrlData.metaText(): String =
+/** [keyword] 와 일치하는 부분(대소문자 무시)을 [color] 로 강조 */
+internal fun highlightText(text: String, keyword: String?, color: Color): AnnotatedString {
+    val key = keyword?.trim().orEmpty()
+    if (key.isEmpty()) return AnnotatedString(text)
+    return buildAnnotatedString {
+        var start = 0
+        while (start < text.length) {
+            val idx = text.indexOf(key, start, ignoreCase = true)
+            if (idx < 0) {
+                append(text.substring(start))
+                break
+            }
+            append(text.substring(start, idx))
+            withStyle(SpanStyle(color = color)) { append(text.substring(idx, idx + key.length)) }
+            start = idx + key.length
+        }
+    }
+}
+
+internal fun UrlData.metaText(): String =
     listOf(displayDomain(), displayTime()).filter { it.isNotEmpty() }.joinToString(" · ")
 
 /** 보기 방식에 맞는 링크 아이템 */
@@ -105,13 +128,19 @@ private fun Modifier.linkClickable(onClick: () -> Unit, onLongClick: () -> Unit)
     )
 }
 
-/** 기본: 64dp 썸네일 + 제목 2줄 + "도메인 · 시간" (+ 태그 1개) */
+/**
+ * 기본: 64dp 썸네일 + 제목 2줄 + "도메인 · 시간" (+ 태그 1개).
+ * 검색 결과([highlight] 키워드 강조), 휴지통([metaOverride] 로 메타 줄 교체)에서도 재사용한다.
+ */
 @Composable
-private fun DefaultLinkItem(
+fun DefaultLinkItem(
     data: UrlData,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
+    highlight: String? = null,
+    metaOverride: (@Composable () -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     val colors = AppTheme.colors
     Row(
@@ -125,16 +154,17 @@ private fun DefaultLinkItem(
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = data.title.orEmpty().ifBlank { data.url.orEmpty() },
+                text = highlightText(data.title.orEmpty().ifBlank { data.url.orEmpty() }, highlight, colors.accent),
                 style = MaterialTheme.typography.titleMedium,
                 color = colors.textPrimary,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Spacer(modifier = Modifier.height(6.dp))
-            MetaRow(data = data, showTag = true)
+            if (metaOverride != null) metaOverride() else MetaRow(data = data, showTag = true)
         }
-        BookmarkStar(isBookmarked = data.isBookMark, modifier = Modifier.padding(start = 8.dp, top = 2.dp))
+        if (trailing != null) trailing()
+        else BookmarkStar(isBookmarked = data.isBookMark, modifier = Modifier.padding(start = 8.dp, top = 2.dp))
     }
 }
 

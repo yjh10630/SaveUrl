@@ -43,6 +43,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -203,19 +205,31 @@ fun CategoryChipRow(
             .padding(top = 12.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        LazyRow(
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(start = AppDimens.Gutter, end = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            items(chips, key = { it }) { name ->
-                CategoryChip(
-                    name = name,
-                    isSelected = name in selected,
-                    onClick = { onCategoryClick(name) }
-                )
+        // 칩 행은 필터 버튼 앞에서 끝나야 한다: 영역 밖으로 그려지지 않게 clipToBounds 하고,
+        // 오른쪽 끝을 배경색으로 페이드해 칩이 버튼 밑으로 들어가 보이지 않게 한다 (1단계 겹침 버그 수정).
+        Box(modifier = Modifier.weight(1f).clipToBounds()) {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(start = AppDimens.Gutter, end = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(chips, key = { it }) { name ->
+                    CategoryChip(
+                        name = name,
+                        isSelected = name in selected,
+                        onClick = { onCategoryClick(name) }
+                    )
+                }
             }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .width(20.dp)
+                    .height(34.dp)
+                    .background(Brush.horizontalGradient(listOf(colors.background.copy(alpha = 0f), colors.background)))
+            )
         }
+        Spacer(modifier = Modifier.width(4.dp))
         Box(
             modifier = Modifier
                 .padding(end = AppDimens.Gutter)

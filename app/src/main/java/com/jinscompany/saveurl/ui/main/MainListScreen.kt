@@ -64,7 +64,7 @@ import com.jinscompany.saveurl.domain.model.FilterParams
 import com.jinscompany.saveurl.domain.model.ListViewMode
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.ui.FilterDefaults
-import com.jinscompany.saveurl.ui.composable.AdMobBannerAd
+import com.jinscompany.saveurl.ui.composable.AdBannerBar
 import com.jinscompany.saveurl.ui.composable.CommonSimpleMenuBottomSheet
 import com.jinscompany.saveurl.ui.composable.SimpleMenuModel
 import com.jinscompany.saveurl.ui.composable.singleClick
@@ -232,13 +232,8 @@ fun MainListScreen(
     Scaffold(
         containerColor = colors.background,
         snackbarHost = { SnackbarHost(hostState = snackBarHostState) },
-        bottomBar = {
-            // 광고 슬롯: 기존 AdMobBannerAd(내부 navigationBarsPadding / 생명주기 처리 포함)를 그대로 사용
-            Column(modifier = Modifier.background(colors.surface)) {
-                HorizontalDivider(color = colors.outline, thickness = 1.dp)
-                AdMobBannerAd()
-            }
-        },
+        // 광고 슬롯: 모든 화면 공통 AdBannerBar (기존 AdMobBannerAd + surface 배경 + 상단 구분선)
+        bottomBar = { AdBannerBar() },
         floatingActionButtonPosition = FabPosition.End,
         floatingActionButton = {
             val onFabClick = singleClick { viewModel.onIntent(GoToLinkInsertScreen("")) }
