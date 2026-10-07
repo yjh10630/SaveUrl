@@ -56,6 +56,12 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.jinscompany.saveurl.ui.adaptive.LocalInRightPane
+import com.jinscompany.saveurl.ui.adaptive.LocalWindowLayout
 import com.jinscompany.saveurl.ui.theme.AppDimens
 import com.jinscompany.saveurl.ui.theme.AppShapes
 import com.jinscompany.saveurl.ui.theme.AppTheme
@@ -71,9 +77,13 @@ val ButtonShape = RoundedCornerShape(16.dp)
 /**
  * 화면 하단 광고 슬롯. surface 배경 + 상단 구분선 + 기존 [AdMobBannerAd] (navigationBarsPadding/생명주기 처리 포함).
  * 모든 전체 화면의 Scaffold bottomBar 에서 사용한다.
+ *
+ * 2분할에서는 화면 하단 전체 폭 광고 하나만 둔다([hostedByTwoPane] = true 로 2분할 레이아웃이 직접 그린다).
+ * 그래서 각 화면의 광고 슬롯은 비워 두고, 접으면(한 화면) 다시 각 화면이 그린다.
  */
 @Composable
-fun AdBannerBar(modifier: Modifier = Modifier) {
+fun AdBannerBar(modifier: Modifier = Modifier, hostedByTwoPane: Boolean = false) {
+    if (LocalWindowLayout.current.isTwoPane && !hostedByTwoPane) return
     val colors = AppTheme.colors
     Column(modifier = modifier.fillMaxWidth().background(colors.surface)) {
         HorizontalDivider(color = colors.outline, thickness = 1.dp)
@@ -81,7 +91,10 @@ fun AdBannerBar(modifier: Modifier = Modifier) {
     }
 }
 
-/** ← 제목 [actions] 형태의 단순 앱바 (56dp) */
+/**
+ * ← 제목 [actions] 형태의 단순 앱바 (56dp).
+ * 2분할 오른쪽 패널([LocalInRightPane])에서는 ← 를 빼고 제목 [actions] ✕ 로 그린다 (✕ = 패널 닫기 = [onNavigationClick]).
+ */
 @Composable
 fun AppTopBar(
     title: String,
@@ -92,6 +105,32 @@ fun AppTopBar(
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     val colors = AppTheme.colors
+    if (LocalInRightPane.current) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .padding(start = 24.dp, end = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                actions()
+                IconButton(onClick = singleClick { onNavigationClick() }) {
+                    Icon(Icons.Filled.Close, contentDescription = "닫기", tint = colors.textPrimary)
+                }
+            }
+            if (showDivider) HorizontalDivider(color = colors.outline, thickness = 1.dp)
+        }
+        return
+    }
     Column {
         Row(
             modifier = Modifier
@@ -303,15 +342,26 @@ fun AppSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     )
 }
 
-/** 공통 바텀시트: 상단 28dp 라운드, 라이트는 흰 시트 / 다크는 한 단계 올라온 면 */
+/**
+ * 공통 바텀시트: 상단 28dp 라운드, 라이트는 흰 시트 / 다크는 한 단계 올라온 면.
+ *
+ * 2분할(폭 600dp 이상)에서는 바텀시트 대신 가운데 대화상자([AppCenterDialog], 폭 [dialogWidth])로 띄운다.
+ * 호출하는 쪽은 그대로 [sheetState].hide() 후 콜백을 부르는데, 대화상자에서는 시트가 붙어 있지 않아
+ * hide() 가 애니메이션 없이 바로 끝나므로 같은 코드로 동작한다.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppBottomSheet(
     onDismissRequest: () -> Unit,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    dialogWidth: Dp = 360.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = AppTheme.colors
+    if (LocalWindowLayout.current.isTwoPane) {
+        AppCenterDialog(onDismissRequest = onDismissRequest, width = dialogWidth, content = content)
+        return
+    }
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
@@ -321,6 +371,30 @@ fun AppBottomSheet(
         contentColor = colors.textPrimary,
         content = content,
     )
+}
+
+/** 2분할용 가운데 대화상자: 28dp 라운드, 시트와 같은 배경, 위쪽 24dp 여백 (내용은 시트 내용을 그대로 쓴다) */
+@Composable
+fun AppCenterDialog(
+    onDismissRequest: () -> Unit,
+    width: Dp = 360.dp,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(24.dp)
+                .widthIn(max = width)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(28.dp))
+                .background(sheetContainerColor())
+                .padding(top = 24.dp),
+            content = content,
+        )
+    }
 }
 
 /** 시트 안 입력칸 배경: 다크 시트(surface) 위에서는 배경색으로 한 단계 내려 구분한다 */

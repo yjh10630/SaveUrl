@@ -20,7 +20,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -42,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.jinscompany.saveurl.ui.theme.AppDimens
@@ -74,6 +78,62 @@ fun CommonSimpleMenuBottomSheet(
                 }
             }
         )
+    }
+}
+
+/**
+ * 2분할의 링크 메뉴: 바텀시트 대신 행의 ⋮ 에 붙는 드롭다운 (Stitch 06). 항목은 시트와 같다(헤더 없음).
+ * 항목을 누르면 먼저 닫고 동작을 실행한다 (시트와 같은 순서).
+ */
+private val MenuDropdownWidth = 200.dp
+
+@Composable
+fun SimpleMenuDropdown(
+    model: SimpleMenuModel?,
+    expanded: Boolean,
+    dismiss: () -> Unit,
+) {
+    val colors = AppTheme.colors
+    DropdownMenu(
+        expanded = expanded && model != null,
+        onDismissRequest = dismiss,
+        shape = RoundedCornerShape(12.dp),
+        containerColor = sheetContainerColor(),
+        // ⋮(40dp) 오른쪽 끝에 메뉴 오른쪽 끝을 맞춘다 (Stitch 6번: 행 안쪽으로 열림)
+        offset = DpOffset(x = -(MenuDropdownWidth - 40.dp), y = 0.dp),
+        modifier = Modifier.width(MenuDropdownWidth),
+    ) {
+        model?.menuList?.forEach { item ->
+            val tint = when {
+                item.isDanger -> colors.danger
+                item.txtColor != Color.Unspecified -> item.txtColor
+                else -> colors.textPrimary
+            }
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        item.txtRes?.let { stringResource(it) } ?: item.txt,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = if (item.isBold) FontWeight.SemiBold else FontWeight.Normal,
+                        color = tint,
+                    )
+                },
+                leadingIcon = item.icon?.let { icon ->
+                    {
+                        Icon(
+                            icon, contentDescription = null,
+                            tint = if (item.isDanger) colors.danger else colors.textSecondary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                },
+                onClick = {
+                    dismiss()
+                    item.event.invoke()
+                },
+                modifier = Modifier.heightIn(min = 48.dp),
+            )
+        }
     }
 }
 

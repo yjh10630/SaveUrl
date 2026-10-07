@@ -19,6 +19,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.jinscompany.saveurl.ui.composable.SimpleMenuDropdown
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
@@ -105,16 +110,37 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
 
+/**
+ * 2분할 왼쪽 목록으로 그릴 때의 상태 ([com.jinscompany.saveurl.ui.adaptive.TwoPaneLayout]).
+ * @param rightPaneShowsHome 오른쪽이 기본(홈 패널)일 때 true. 저장/편집 등이 열려 있으면 FAB 를 숨긴다.
+ * @param selectedUrl 오른쪽에서 편집 중인 링크 URL (그 행을 선택 표시)
+ * @param scrollToTop 저장 직후 목록 맨 위로 (메인 백스택 항목 인자)
+ */
+@Immutable
+data class MainListPane(
+    val rightPaneShowsHome: Boolean,
+    val selectedUrl: String?,
+    val scrollToTop: Boolean,
+)
+
+/**
+ * 메인 목록.
+ * - 폰: 메인 화면 전체 ([pane] = null). 동작은 기존과 같다.
+ * - 2분할: 왼쪽 목록 패널 ([pane] != null). 링크 메뉴는 행의 ⋮ 드롭다운, 저장/편집은 오른쪽 패널에 열고,
+ *   클립보드는 열 때 읽지 않는다 (홈 패널 빠른 저장 입력칸에 포커스할 때만 확인).
+ */
 @Composable
 fun MainListScreen(
     navController: NavHostController,
+    listState: LazyListState = rememberLazyListState(),
+    pane: MainListPane? = null,
     viewModel: MainListViewModel = hiltViewModel(),
     sharedViewModel: SharedViewModel = hiltViewModel(LocalActivity.current as MainActivity),
     lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current,
     coroutineScope: CoroutineScope = rememberCoroutineScope()
 ) {
     val context = LocalContext.current
-    val listState = rememberLazyListState()
+    val isListPane = pane != null
     val snackBarHostState = remember { SnackbarHostState() }
 
     val mainListUiState by viewModel.mainListUiState.collectAsState()
@@ -131,11 +157,14 @@ fun MainListScreen(
     val uiEffect = viewModel.mainListEffect
     var filterDialog by remember { mutableStateOf<String?>(null) }
     var linkInfoDialog by remember { mutableStateOf<SimpleMenuModel?>(null) }
+    // 2분할: 링크 메뉴 드롭다운을 붙일 행 (⋮ 또는 길게 누른 행)
+    var menuTargetId by remember { mutableStateOf<Int?>(null) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.onIntent(MainListIntent.ReadClipboard)
+                // 2분할에서는 열 때 클립보드를 읽지 않는다 (홈 패널 입력칸 포커스 때만)
+                if (!isListPane) viewModel.onIntent(MainListIntent.ReadClipboard)
                 // 카테고리 편집 화면에서 돌아왔을 때 칩 목록을 갱신 (ViewModel 은 백스택에 유지되어 init 이 다시 호출되지 않음)
                 viewModel.onIntent(MainListIntent.RefreshOnResume)
             }
@@ -155,9 +184,9 @@ fun MainListScreen(
                         EDIT_CATEGORY -> navController.navigateToEditCategory()
                         SAVE_LINK -> {
                             if (effect.url?.isNotEmpty() == true) {
-                                navController.navigateToSaveLink(url = effect.url)
+                                navController.navigateToSaveLink(url = effect.url, replaceRightPane = isListPane)
                             } else {
-                                navController.navigateToSaveLink()
+                                navController.navigateToSaveLink(replaceRightPane = isListPane)
                             }
                         }
                         SEARCH -> navController.navigateToSearch()
@@ -204,20 +233,36 @@ fun MainListScreen(
         }
     }
 
-    val scrollToTop = navController.currentBackStackEntry?.arguments?.getBoolean("scrollToTop") ?: false
+    val scrollToTop = if (pane != null) pane.scrollToTop
+        else navController.currentBackStackEntry?.arguments?.getBoolean("scrollToTop") ?: false
     LaunchedEffect(scrollToTop) {
         if (scrollToTop) {
             listState.animateScrollToItem(0)  // 스크롤을 최상단으로 이동
             // 초기화
-            navController.previousBackStackEntry?.arguments?.putBoolean("scrollToTop", false)
+            if (pane != null) navController.currentBackStackEntry?.arguments?.putBoolean("scrollToTop", false)
+            else navController.previousBackStackEntry?.arguments?.putBoolean("scrollToTop", false)
+        }
+    }
+    if (pane != null) {
+        // 2분할: 오른쪽 저장 패널에서 저장하면 새 항목이 맨 위에 생긴다. 목록이 맨 위 근처였다면 새 항목이 보이도록 붙여 둔다
+        // (키 기반 스크롤 유지 때문에 새 항목이 화면 위로 밀려 숨는 것 방지)
+        val firstItemId = mainListPagingData?.itemSnapshotList?.items?.firstOrNull()?.id
+        LaunchedEffect(firstItemId) {
+            if (firstItemId != null && listState.firstVisibleItemIndex <= 1) listState.scrollToItem(0)
         }
     }
 
-    // 탭/필터가 바뀌면 새 목록의 처음부터 보여준다
+    // 탭/필터가 바뀌면 새 목록의 처음부터 보여준다.
+    // 첫 구성(회전·접기/펼치기로 다시 그려질 때)에서는 복원된 스크롤 위치를 유지한다.
+    var lastListKey by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(selectedTab, filterSelectedItems) {
-        if (listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0) {
+        val key = "$selectedTab|$filterSelectedItems"
+        if (lastListKey != null && lastListKey != key &&
+            (listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0)
+        ) {
             listState.scrollToItem(0)
         }
+        lastListKey = key
     }
 
     // 링크가 하나도 없는 빈 상태에서는 화면 안의 "링크 저장하기" 버튼과 겹치지 않도록 FAB 를 숨긴다
@@ -237,8 +282,8 @@ fun MainListScreen(
         floatingActionButtonPosition = FabPosition.End,
         floatingActionButton = {
             val onFabClick = singleClick { viewModel.onIntent(GoToLinkInsertScreen("")) }
-            if (hasNoLinksAtAll) {
-                // FAB 없음
+            if (hasNoLinksAtAll || (pane != null && !pane.rightPaneShowsHome)) {
+                // FAB 없음 (2분할: 오른쪽에 저장/편집 등이 열려 있는 동안 숨김)
             } else if (viewMode == ListViewMode.COMPACT) {
                 FloatingActionButton(
                     onClick = onFabClick,
@@ -276,12 +321,34 @@ fun MainListScreen(
                 }
             )
         }
-        linkInfoDialog?.let {
-            CommonSimpleMenuBottomSheet(
-                model = it,
-                dismiss = { linkInfoDialog = null }
-            )
+        if (!isListPane) {
+            linkInfoDialog?.let {
+                CommonSimpleMenuBottomSheet(
+                    model = it,
+                    dismiss = { linkInfoDialog = null }
+                )
+            }
         }
+        val showLinkMenu: (UrlData) -> Unit = { urlData ->
+            menuTargetId = urlData.id
+            viewModel.onIntent(ShowLinkInfoDialog(urlData))
+        }
+        // 2분할: 행의 ⋮ + 드롭다운 메뉴 (폰은 길게 눌러 바텀시트)
+        val itemMenu: (@Composable (UrlData) -> Unit)? = if (isListPane) {
+            { urlData ->
+                IconButton(onClick = { showLinkMenu(urlData) }, modifier = Modifier.size(40.dp)) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.main_link_more), tint = colors.textSecondary)
+                }
+                SimpleMenuDropdown(
+                    model = linkInfoDialog,
+                    expanded = menuTargetId == urlData.id,
+                    dismiss = {
+                        linkInfoDialog = null
+                        menuTargetId = null
+                    }
+                )
+            }
+        } else null
 
         MainListScreen(
             mainListPagingData = mainListPagingData,
@@ -295,7 +362,7 @@ fun MainListScreen(
             onSearchClick = { viewModel.onIntent(GoToSearchScreen) },
             onAppSettingClick = { viewModel.onIntent(GoToAppSetting) },
             onLinkItemClick = { url -> viewModel.onIntent(GoToOutLinkWebSite(url)) },
-            onLinkItemLongClick = { urlData: UrlData -> viewModel.onIntent(ShowLinkInfoDialog(urlData)) },
+            onLinkItemLongClick = { urlData: UrlData -> showLinkMenu(urlData) },
             onFilterOpen = { filterDialog = "" },
             onCategoryClick = { category ->
                 viewModel.onIntent(NewFilterData(
@@ -316,6 +383,8 @@ fun MainListScreen(
             onSaveClick = { viewModel.onIntent(GoToLinkInsertScreen("")) },
             onTutorialClick = { viewModel.onIntent(GoToOutLinkWebSite(tutorialUrl)) },
             listState = listState,
+            selectedUrl = pane?.selectedUrl,
+            itemMenu = itemMenu,
         )
     }
 }
@@ -342,6 +411,8 @@ fun MainListScreen(
     onSaveClick: () -> Unit = {},
     onTutorialClick: () -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
+    selectedUrl: String? = null,
+    itemMenu: (@Composable (UrlData) -> Unit)? = null,
 ) {
     val colors = AppTheme.colors
     val selectedCategories = filterParams.categories
@@ -449,6 +520,8 @@ fun MainListScreen(
                             onClick = { onLinkItemClick.invoke(item.url) },
                             onLongClick = { onLinkItemLongClick.invoke(item) },
                             showDivider = index < snapshot.size - 1,
+                            selected = selectedUrl != null && item.url == selectedUrl,
+                            menu = itemMenu?.let { menu -> { menu(item) } },
                         )
                     }
                 }

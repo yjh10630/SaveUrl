@@ -30,6 +30,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -98,7 +102,11 @@ internal fun highlightText(text: String, keyword: String?, color: Color): Annota
 internal fun UrlData.metaText(): String =
     listOf(displayDomain(), displayTime()).filter { it.isNotEmpty() }.joinToString(" · ")
 
-/** 보기 방식에 맞는 링크 아이템 */
+/**
+ * 보기 방식에 맞는 링크 아이템.
+ * 2분할 왼쪽 목록에서만 [menu](⋮ + 드롭다운)와 [selected](편집 중인 행: accentTint 배경 + 왼쪽 3dp 강조 막대)를 쓴다.
+ * 폰에서는 둘 다 기본값이라 지금 모양 그대로다.
+ */
 @Composable
 fun LinkListItem(
     data: UrlData,
@@ -107,11 +115,36 @@ fun LinkListItem(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
     showDivider: Boolean = false,
+    selected: Boolean = false,
+    menu: (@Composable () -> Unit)? = null,
 ) {
+    val itemModifier = if (selected) modifier.selectedRowBackground() else modifier
     when (viewMode) {
-        ListViewMode.DEFAULT -> DefaultLinkItem(data, onClick, onLongClick, modifier)
-        ListViewMode.LARGE_CARD -> LargeCardLinkItem(data, onClick, onLongClick, modifier)
-        ListViewMode.COMPACT -> CompactLinkItem(data, onClick, onLongClick, modifier, showDivider)
+        ListViewMode.DEFAULT -> DefaultLinkItem(data, onClick, onLongClick, itemModifier, menu = menu)
+        ListViewMode.LARGE_CARD -> LargeCardLinkItem(data, onClick, onLongClick, itemModifier, menu)
+        ListViewMode.COMPACT -> CompactLinkItem(data, onClick, onLongClick, itemModifier, showDivider, menu)
+    }
+}
+
+/** 선택(편집 중) 행 표시: 좌우 8dp 안쪽에 12dp 라운드 accentTint 배경 + 왼쪽 3dp 강조 막대. 레이아웃은 바꾸지 않는다. */
+@Composable
+private fun Modifier.selectedRowBackground(): Modifier {
+    val colors = AppTheme.colors
+    return this.drawBehind {
+        val inset = 8.dp.toPx()
+        val radius = 12.dp.toPx()
+        drawRoundRect(
+            color = colors.accentTint,
+            topLeft = Offset(inset, 0f),
+            size = Size(size.width - inset * 2, size.height),
+            cornerRadius = CornerRadius(radius, radius),
+        )
+        drawRoundRect(
+            color = colors.accent,
+            topLeft = Offset(inset, radius / 2),
+            size = Size(3.dp.toPx(), size.height - radius),
+            cornerRadius = CornerRadius(1.5.dp.toPx(), 1.5.dp.toPx()),
+        )
     }
 }
 
@@ -141,6 +174,7 @@ fun DefaultLinkItem(
     highlight: String? = null,
     metaOverride: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
+    menu: (@Composable () -> Unit)? = null,
 ) {
     val colors = AppTheme.colors
     Row(
@@ -165,6 +199,7 @@ fun DefaultLinkItem(
         }
         if (trailing != null) trailing()
         else BookmarkStar(isBookmarked = data.isBookMark, modifier = Modifier.padding(start = 8.dp, top = 2.dp))
+        if (menu != null) Box(modifier = Modifier.align(Alignment.CenterVertically).padding(start = 2.dp)) { menu() }
     }
 }
 
@@ -175,6 +210,7 @@ private fun LargeCardLinkItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier,
+    menu: (@Composable () -> Unit)? = null,
 ) {
     val colors = AppTheme.colors
     Column(
@@ -239,6 +275,7 @@ private fun LargeCardLinkItem(
                     modifier = Modifier.weight(1f)
                 )
                 BookmarkStar(isBookmarked = data.isBookMark, modifier = Modifier.padding(start = 8.dp, top = 2.dp))
+                if (menu != null) Box(modifier = Modifier.padding(start = 2.dp)) { menu() }
             }
             if (!data.description.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
@@ -275,6 +312,7 @@ private fun CompactLinkItem(
     onLongClick: () -> Unit,
     modifier: Modifier,
     showDivider: Boolean,
+    menu: (@Composable () -> Unit)? = null,
 ) {
     val colors = AppTheme.colors
     Column(modifier = modifier.fillMaxWidth()) {
@@ -299,6 +337,7 @@ private fun CompactLinkItem(
                 MetaRow(data = data, showTag = true)
             }
             BookmarkStar(isBookmarked = data.isBookMark, modifier = Modifier.padding(start = 8.dp))
+            if (menu != null) Box(modifier = Modifier.padding(start = 2.dp)) { menu() }
         }
         if (showDivider) {
             HorizontalDivider(

@@ -136,7 +136,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // 창 폭에 따른 화면 구성(한 화면/2분할). 아직 2분할 화면은 없고, 하위 화면이 읽을 수 있게만 제공한다.
+            // 창 폭에 따른 화면 구성(한 화면/2분할). AppNavigation 이 2분할 레이아웃을 고르고, 각 화면·시트가 읽어 모양을 바꾼다.
             val windowLayout = currentWindowLayout()
 
             SaveUrlTheme(darkTheme = isDark) {

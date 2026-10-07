@@ -55,7 +55,7 @@ fun PreviewContentEditBottomSheet(
         onDispose { keyboardController?.hide() }
     })
 
-    AppBottomSheet(onDismissRequest = dismiss, sheetState = sheetState) {
+    AppBottomSheet(onDismissRequest = dismiss, sheetState = sheetState, dialogWidth = 440.dp) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

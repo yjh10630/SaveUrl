@@ -77,14 +77,32 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 
+/** 폰 검색 화면 (전체 화면). 필터 없이 검색한다 (기존 동작). */
 @Composable
 fun SearchScreen(viewModel: SearchViewModel = hiltViewModel(), popBackStack: () -> Unit) {
+    SearchScreenStateful(viewModel = viewModel, popBackStack = popBackStack, isListPane = false)
+}
+
+/**
+ * 2분할 검색의 왼쪽 패널: 검색창 + 범위 칩 + 결과. 결과에는 오른쪽 필터 패널([SearchFilterPanel]) 값이 바로 반영된다.
+ * ViewModel 은 검색 백스택 항목의 것(오른쪽 필터 패널과 같은 인스턴스)이다.
+ */
+@Composable
+fun SearchListPane(onBack: () -> Unit, viewModel: SearchViewModel = hiltViewModel()) {
+    SearchScreenStateful(viewModel = viewModel, popBackStack = onBack, isListPane = true)
+}
+
+@Composable
+private fun SearchScreenStateful(viewModel: SearchViewModel, popBackStack: () -> Unit, isListPane: Boolean) {
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
-    var selectedFilter by remember { mutableStateOf(viewModel.filterList[0]) }
+    val selectedFilter = viewModel.selectedScope
     val filterOptions = viewModel.filterList
     val searchResult = viewModel.searchResultFlow?.collectAsLazyPagingItems()
 
+    LaunchedEffect(isListPane) {
+        viewModel.setFilterEnabled(isListPane)
+    }
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
@@ -102,7 +120,9 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel(), popBackStack: () 
             focusRequester = focusRequester,
             filterOptions = filterOptions,
             selectedFilter = selectedFilter,
-            onFilterSelect = { selectedFilter = it },
+            onFilterSelect = { viewModel.onScopeChange(it) },
+            keyword = viewModel.keyword,
+            onKeywordChange = { viewModel.onKeywordChange(it) },
             searchResult = searchResult,
             searchKeyword = { keyword -> viewModel.onIntent(SearchIntent.Search(keyword, selectedFilter)) },
             context = context,
@@ -120,12 +140,13 @@ fun SearchScreen(
     filterOptions: List<String> = listOf("전체", "제목", "내용", "태그"),
     selectedFilter: String = "전체",
     onFilterSelect: (String) -> Unit = {},
+    keyword: String = "",
+    onKeywordChange: (String) -> Unit = {},
     searchResult: LazyPagingItems<UrlData>? = null,
     searchKeyword: (String) -> Unit,
 ) {
     val colors = AppTheme.colors
     val focusManager = LocalFocusManager.current
-    var keyword by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
     val itemCnt = searchResult?.itemCount ?: 0
 
@@ -149,7 +170,7 @@ fun SearchScreen(
             }
             SearchField(
                 value = keyword,
-                onValueChange = { keyword = it },
+                onValueChange = onKeywordChange,
                 onSearch = {
                     focusManager.clearFocus()
                     searchKeyword(keyword)

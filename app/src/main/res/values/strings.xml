@@ -60,6 +60,7 @@
     <string name="main_tab_recent">최근 저장</string>
     <string name="main_tab_favorites">즐겨찾기</string>
     <string name="main_fab_save_link">링크 저장</string>
+    <string name="main_link_more">링크 메뉴</string>
     <string name="main_favorites_count">즐겨찾기 %d개</string>
     <string name="main_filter_open">필터</string>
     <string name="main_search">검색</string>

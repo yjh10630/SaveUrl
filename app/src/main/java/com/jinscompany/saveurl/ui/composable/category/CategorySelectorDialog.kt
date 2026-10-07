@@ -67,7 +67,7 @@ fun CategorySelectorDialog(
     val scope = rememberCoroutineScope()
     var selectItem by remember { mutableStateOf(selectedItem) }
 
-    AppBottomSheet(onDismissRequest = { dismiss.invoke(selectItem) }, sheetState = sheetState) {
+    AppBottomSheet(onDismissRequest = { dismiss.invoke(selectItem) }, sheetState = sheetState, dialogWidth = 400.dp) {
         CategorySelectorContent(
             categoryList = categoryList,
             selected = selectItem,

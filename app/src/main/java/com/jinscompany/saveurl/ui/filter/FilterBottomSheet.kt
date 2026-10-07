@@ -1,6 +1,9 @@
 package com.jinscompany.saveurl.ui.filter
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -90,7 +93,7 @@ fun FilterScreenBottomSheet(
         }
     }
 
-    AppBottomSheet(onDismissRequest = { dismiss.invoke() }, sheetState = modalBottomSheetState) {
+    AppBottomSheet(onDismissRequest = { dismiss.invoke() }, sheetState = modalBottomSheetState, dialogWidth = 480.dp) {
         BoxWithConstraints {
             val maxHeight = this@BoxWithConstraints.maxHeight * 0.9f
             FilterScreenBottomSheet(
@@ -119,25 +122,45 @@ fun FilterScreenBottomSheet(
     onClickTag: (String) -> Unit = {},
     onClickClear: () -> Unit = {},
     data: FilterUiState,
-    goToCategorySetting: () -> Unit = {}
+    goToCategorySetting: () -> Unit = {},
+    /** true: 2분할 검색의 오른쪽에 항상 펼쳐 두는 필터 패널. 바꾸면 바로 반영되므로 "결과 보기"·구분선이 없다 (Stitch 7번) */
+    asPanel: Boolean = false,
+    horizontalPadding: Dp = AppDimens.Gutter,
 ) {
     val colors = AppTheme.colors
     Column(modifier = modifier.fillMaxWidth()) {
-        SheetHeader(title = "필터", action = { TextAction("초기화", onClick = onClickClear) })
-        Spacer(modifier = Modifier.height(12.dp))
-        HorizontalDivider(color = colors.outline, thickness = 1.dp)
+        if (asPanel) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = horizontalPadding, end = horizontalPadding - 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "필터",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = colors.textPrimary,
+                    modifier = Modifier.weight(1f)
+                )
+                TextAction("초기화", onClick = onClickClear)
+            }
+        } else {
+            SheetHeader(title = "필터", action = { TextAction("초기화", onClick = onClickClear) })
+            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider(color = colors.outline, thickness = 1.dp)
+        }
         Column(
             modifier = Modifier
                 .weight(1f, fill = false)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = AppDimens.Gutter, vertical = 8.dp)
+                .padding(horizontal = horizontalPadding, vertical = 8.dp)
         ) {
             // 정렬: 2칸 세그먼트
             FilterSection(title = FilterTab.SORT.label) {
                 SortSegment(
                     options = data.sortState.options,
                     selected = data.sortState.selected.value,
-                    onClick = onClickSort
+                    onClick = onClickSort,
+                    // 패널(surface) 위에서는 흰 바탕 + 테두리로 구분한다
+                    containerColor = if (asPanel) colors.background else colors.surface,
                 )
             }
             FilterSection(
@@ -155,13 +178,15 @@ fun FilterScreenBottomSheet(
                 else ChipFlow(data.tagState.options, data.tagState.selected, onClickTag, prefix = "#")
             }
         }
-        HorizontalDivider(color = colors.outline, thickness = 1.dp)
-        PrimaryButton(
-            text = "결과 보기",
-            onClick = onConfirm,
-            modifier = Modifier.padding(horizontal = AppDimens.Gutter, vertical = 12.dp)
-        )
-        Spacer(modifier = Modifier.height(4.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()))
+        if (!asPanel) {
+            HorizontalDivider(color = colors.outline, thickness = 1.dp)
+            PrimaryButton(
+                text = "결과 보기",
+                onClick = onConfirm,
+                modifier = Modifier.padding(horizontal = AppDimens.Gutter, vertical = 12.dp)
+            )
+            Spacer(modifier = Modifier.height(4.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()))
+        }
     }
 }
 
@@ -201,13 +226,19 @@ private fun ChipFlow(options: List<String>, selected: List<String>, onClick: (St
 }
 
 @Composable
-private fun SortSegment(options: List<String>, selected: String, onClick: (String) -> Unit) {
+private fun SortSegment(
+    options: List<String>,
+    selected: String,
+    onClick: (String) -> Unit,
+    containerColor: Color = AppTheme.colors.surface,
+) {
     val colors = AppTheme.colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(colors.surface)
+            .background(containerColor)
+            .then(if (containerColor != colors.surface) Modifier.border(1.dp, colors.outline, RoundedCornerShape(14.dp)) else Modifier)
             .padding(4.dp)
     ) {
         options.forEach { option ->
@@ -217,7 +248,7 @@ private fun SortSegment(options: List<String>, selected: String, onClick: (Strin
                     .weight(1f)
                     .height(40.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(if (isSelected) colors.accent else colors.surface)
+                    .background(if (isSelected) colors.accent else containerColor)
                     .clickable { onClick(option) },
                 contentAlignment = Alignment.Center
             ) {
