@@ -17,6 +17,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.jinscompany.saveurl.ui.composable.AdBannerBar
 import com.jinscompany.saveurl.ui.composable.AppSwitch
@@ -269,14 +270,15 @@ private fun CategoryRow(categoryName: String, onClick: () -> Unit) {
             .padding(horizontal = AppDimens.Gutter, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("카테고리", style = MaterialTheme.typography.bodyLarge, color = colors.textPrimary, modifier = Modifier.weight(1f))
+        Text("카테고리", style = MaterialTheme.typography.bodyLarge, color = colors.textPrimary)
         Text(
             text = if (isNone) "선택 안 함" else categoryName,
             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = if (isNone) FontWeight.Normal else FontWeight.SemiBold),
             color = if (isNone) colors.textSecondary else colors.accent,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false).padding(start = 16.dp)
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f).padding(start = 16.dp)
         )
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.textSecondary)
     }

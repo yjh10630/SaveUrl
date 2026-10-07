@@ -30,6 +30,7 @@ import com.jinscompany.saveurl.ui.theme.AppDimens
 import com.jinscompany.saveurl.ui.theme.AppTheme
 import com.jinscompany.saveurl.R
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -146,8 +147,15 @@ fun TrashScreen(
                 description = alert.descriptionRes?.let { stringResource(it) } ?: alert.description,
                 confirmTxt = alert.confirmTxtRes?.let { stringResource(it) } ?: alert.confirmTxt,
                 cancelTxt = alert.cancelTxtRes?.let { stringResource(it) } ?: alert.cancelTxt,
-                confirm = alert.confirm,
-                cancel = alert.cancel
+                // 확인/취소 후 시트를 composition 에서 내린다. (기존에는 취소 시 숨겨진 시트가 남아 뒤로가기를 가로채던 문제가 있었음)
+                confirm = {
+                    showAlert = null
+                    alert.confirm()
+                },
+                cancel = {
+                    showAlert = null
+                    alert.cancel()
+                }
             )
         }
 
@@ -266,7 +274,8 @@ private fun TrashToggleRow(isActive: Boolean, onToggle: (Boolean) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = AppDimens.Gutter, end = AppDimens.Gutter, bottom = 8.dp),
+            .clickable { onToggle(!isActive) }
+            .padding(start = AppDimens.Gutter, end = AppDimens.Gutter, top = 4.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {

@@ -1,6 +1,7 @@
 package com.jinscompany.saveurl.ui.main.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -210,7 +211,7 @@ fun CategoryChipRow(
         Box(modifier = Modifier.weight(1f).clipToBounds()) {
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(start = AppDimens.Gutter, end = 16.dp),
+                contentPadding = PaddingValues(start = AppDimens.Gutter, end = 28.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(chips, key = { it }) { name ->
@@ -224,18 +225,20 @@ fun CategoryChipRow(
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .width(20.dp)
-                    .height(34.dp)
+                    .width(32.dp)
+                    .height(36.dp)
                     .background(Brush.horizontalGradient(listOf(colors.background.copy(alpha = 0f), colors.background)))
             )
         }
-        Spacer(modifier = Modifier.width(4.dp))
+        Spacer(modifier = Modifier.width(10.dp))
         Box(
             modifier = Modifier
                 .padding(end = AppDimens.Gutter)
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(if (hasDetailFilter) colors.accentTint else colors.surface)
+                // 칩(surface 채움)과 구분되도록 테두리형 버튼으로 둔다
+                .background(if (hasDetailFilter) colors.accentTint else colors.background)
+                .border(1.dp, if (hasDetailFilter) colors.accent.copy(alpha = 0.4f) else colors.outline, CircleShape)
                 .clickable(onClick = singleClick { onFilterClick() }),
             contentAlignment = Alignment.Center
         ) {

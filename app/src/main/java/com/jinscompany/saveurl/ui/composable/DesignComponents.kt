@@ -147,6 +147,7 @@ fun AppTextField(
     imeAction: ImeAction = ImeAction.Done,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     trailing: (@Composable RowScope.() -> Unit)? = null,
+    containerColor: Color = AppTheme.colors.surface,
 ) {
     val colors = AppTheme.colors
     val interaction = remember { MutableInteractionSource() }
@@ -169,7 +170,7 @@ fun AppTextField(
                     .fillMaxWidth()
                     .heightIn(min = 52.dp)
                     .clip(FieldShape)
-                    .background(colors.surface)
+                    .background(containerColor)
                     .border(
                         width = if (focused) 1.5.dp else 0.dp,
                         color = if (focused) colors.accent else Color.Transparent,
@@ -263,7 +264,8 @@ fun SecondaryButton(
             .height(52.dp),
         shape = ButtonShape,
         contentPadding = PaddingValues(horizontal = 16.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = colors.surface, contentColor = colors.textPrimary),
+        // 다크 시트(surface) 위에서도 구분되도록 다크는 outline 톤을 쓴다
+        colors = ButtonDefaults.buttonColors(containerColor = if (colors.isDark) colors.outline else colors.surface, contentColor = colors.textPrimary),
         elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp, 0.dp, 0.dp, 0.dp),
     ) {
         Text(text, style = MaterialTheme.typography.titleMedium, maxLines = 1)
@@ -320,6 +322,11 @@ fun AppBottomSheet(
         content = content,
     )
 }
+
+/** 시트 안 입력칸 배경: 다크 시트(surface) 위에서는 배경색으로 한 단계 내려 구분한다 */
+@Composable
+fun sheetFieldColor(): Color =
+    if (AppTheme.colors.isDark) AppTheme.colors.background else AppTheme.colors.surface
 
 @Composable
 fun sheetContainerColor(): Color =

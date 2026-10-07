@@ -136,6 +136,7 @@ private fun EditField(
         },
         imeAction = if (singleLine) ImeAction.Done else ImeAction.Default,
         keyboardActions = KeyboardActions(onDone = { focusClear() }),
+        containerColor = sheetFieldColor(),
     )
 }
 

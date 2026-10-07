@@ -307,7 +307,7 @@ private fun EditingRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .background(sheetFieldColor())
+                        .background(inlineFieldColor())
                         .border(1.5.dp, colors.accent, RoundedCornerShape(10.dp))
                         .padding(horizontal = 12.dp, vertical = 10.dp)
                 ) { inner() }
@@ -326,7 +326,7 @@ private fun EditingRow(
 }
 
 @Composable
-private fun sheetFieldColor() = AppTheme.colors.background
+private fun inlineFieldColor() = AppTheme.colors.background
 
 @Preview(showBackground = true)
 @Composable
