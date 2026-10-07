@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.SaveUrl" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- 첫 프레임(Compose 렌더 전) 배경을 디자인 팔레트와 맞춘다. 다크는 values-night 참고 -->
+    <style name="Theme.SaveUrl" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/app_window_background</item>
+    </style>
 </resources>

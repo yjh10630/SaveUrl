@@ -2,6 +2,8 @@ package com.jinscompany.saveurl
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jinscompany.saveurl.domain.model.ListViewMode
+import com.jinscompany.saveurl.domain.model.ThemeMode
 import com.jinscompany.saveurl.utils.PreferencesManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,8 +25,12 @@ class SharedViewModel @Inject constructor(
     private val _isFlexibleUpdateDownloaded = MutableStateFlow(false)
     val isFlexibleUpdateDownloaded: StateFlow<Boolean> = _isFlexibleUpdateDownloaded.asStateFlow()
 
-    val darkModeEnabled: StateFlow<Boolean?> = preferencesManager.darkModeEnabled
+    /** null = 아직 DataStore 에서 읽기 전 (첫 프레임은 시스템 설정을 따른다) */
+    val themeMode: StateFlow<ThemeMode?> = preferencesManager.themeMode
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    val listViewMode: StateFlow<ListViewMode> = preferencesManager.listViewMode
+        .stateIn(viewModelScope, SharingStarted.Eagerly, ListViewMode.DEFAULT)
 
     fun setFlexibleUpdate(isUpdatable: Boolean) {
         _isFlexibleUpdatable.value = isUpdatable
@@ -34,7 +40,11 @@ class SharedViewModel @Inject constructor(
         _isFlexibleUpdateDownloaded.value = downloaded
     }
 
-    fun setDarkMode(enabled: Boolean?) {
-        viewModelScope.launch { preferencesManager.setDarkMode(enabled) }
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { preferencesManager.setThemeMode(mode) }
+    }
+
+    fun setListViewMode(mode: ListViewMode) {
+        viewModelScope.launch { preferencesManager.setListViewMode(mode) }
     }
 }
