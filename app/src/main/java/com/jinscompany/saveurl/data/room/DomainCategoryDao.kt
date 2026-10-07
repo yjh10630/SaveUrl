@@ -20,6 +20,10 @@ interface DomainCategoryDao {
     @Query("UPDATE DomainCategory SET category = :newName WHERE category = :oldName")
     suspend fun renameCategory(oldName: String, newName: String)
 
+    // 삭제된 카테고리를 계속 추천(→ 저장 시 재생성)하지 않도록 학습값도 제거
+    @Query("DELETE FROM DomainCategory WHERE category = :category")
+    suspend fun deleteByCategory(category: String): Int
+
     @Query("""
         INSERT INTO DomainCategory (domain, category, learnCount)
         VALUES (:domain, :category, 1)

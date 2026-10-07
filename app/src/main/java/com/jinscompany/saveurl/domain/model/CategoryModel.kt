@@ -16,4 +16,13 @@ data class CategoryModel(
 ) {
     @Ignore
     var isSelected: Boolean = false
+
+    companion object {
+        /**
+         * 카테고리 삭제 시 해당 링크가 옮겨지는 기본 카테고리.
+         * isEditable=false 로 생성되어 카테고리 편집 화면에 나오지 않음(삭제/이름 변경 불가).
+         * ("전체"/"북마크" 는 DB 행이 없는 가상 필터라 링크를 옮길 대상으로 쓸 수 없음)
+         */
+        const val UNCATEGORIZED = "미분류"
+    }
 }
