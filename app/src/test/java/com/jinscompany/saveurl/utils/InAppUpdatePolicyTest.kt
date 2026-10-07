@@ -68,6 +68,14 @@ class InAppUpdatePolicyTest {
     }
 
     @Test
+    fun `업데이트 가능 배지는 Play 에 새 버전이 있거나 진행 중일 때만 노출`() {
+        assertTrue(InAppUpdatePolicy.isUpdateBadgeVisible(UpdateAvailability.UPDATE_AVAILABLE))
+        assertTrue(InAppUpdatePolicy.isUpdateBadgeVisible(inProgress))
+        assertFalse(InAppUpdatePolicy.isUpdateBadgeVisible(UpdateAvailability.UPDATE_NOT_AVAILABLE))
+        assertFalse(InAppUpdatePolicy.isUpdateBadgeVisible(UpdateAvailability.UNKNOWN))
+    }
+
+    @Test
     fun `Remote Config 버전 비교`() {
         assertEquals(AppUpdateType.IMMEDIATE, InAppUpdatePolicy.requiredUpdateType(38, minVersion = 39, latestVersion = 40))
         assertEquals(AppUpdateType.FLEXIBLE, InAppUpdatePolicy.requiredUpdateType(38, minVersion = 30, latestVersion = 39))

@@ -80,6 +80,7 @@ class InAppUpdateCheck(
 
     private fun checkUpdate(updateType: Int) {
         appUpdateManager.appUpdateInfo.addOnSuccessListener(activity) { info ->
+            sharedViewModel.setFlexibleUpdate(InAppUpdatePolicy.isUpdateBadgeVisible(info.updateAvailability()))
             if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE && info.isUpdateTypeAllowed(updateType)) {
                 startUpdateFlow(info, updateType)
             }
@@ -122,6 +123,7 @@ class InAppUpdateCheck(
     /** onResume 에서 호출: 진행 중인 업데이트를 원래 타입 그대로 이어간다 */
     fun resumeUpdateIfNeeded() {
         appUpdateManager.appUpdateInfo.addOnSuccessListener(activity) { info ->
+            sharedViewModel.setFlexibleUpdate(InAppUpdatePolicy.isUpdateBadgeVisible(info.updateAvailability()))
             val forcedByRemoteConfig = readAppInfo()?.let {
                 BuildConfig.VERSION_CODE < it.minVersion
             } ?: false
