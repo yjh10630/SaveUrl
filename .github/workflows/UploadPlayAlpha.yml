@@ -1,4 +1,4 @@
-name: Android Release Build and Upload to Play Alpha
+name: Android Release Build and Upload to Google Play
 
 on:
   push:
@@ -7,17 +7,17 @@ on:
 
 jobs:
   build:
-    name: Build Release AAB and Upload to Google Play Alpha
-    runs-on: ubuntu-latest
+    name: Build Release AAB and Upload to Google Play
+    runs-on: ubuntu-24.04   # ubuntu-latest 가 Ubuntu 26 으로 바뀌어도 빌드 환경이 갑자기 달라지지 않도록 고정
 
     steps:
     # 리포지토리의 코드를 체크아웃 (다운로드)
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
     # JDK 17 설치 (Android 빌드 도구 사용을 위해 필요)
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v6
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -54,7 +54,7 @@ jobs:
 
     # 빌드된 AAB를 GitHub Actions Artifacts로 저장 (수동 다운로드용)
       - name: Upload AAB as Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: app-release-aab
           path: app/build/outputs/bundle/release/app-release.aab
@@ -72,8 +72,8 @@ jobs:
           VERSION_NAME=$(grep versionName app/build.gradle.kts | head -n 1 | sed -E 's/.*"([^"]+)".*/\1/')
           echo "name=v$VERSION_NAME" >> "$GITHUB_OUTPUT"
 
-    # Google Play 콘솔의 Alpha 트랙으로 AAB 업로드 (릴리스 노트 포함, draft 상태로 업로드됨)
-      - name: Upload AAB to Google Play (Alpha Track)
+    # Google Play 콘솔의 지정 트랙(tracks)으로 AAB 업로드 (릴리스 노트 포함, status 에 따라 바로 출시 또는 draft)
+      - name: Upload AAB to Google Play
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJson: service-account.json                         # 인증용 서비스 계정 JSON
@@ -81,5 +81,5 @@ jobs:
           releaseFiles: app/build/outputs/bundle/release/app-release.aab   # 업로드할 AAB 파일 경로
           whatsNewDirectory: distribution/whatsnew                             # 릴리스 노트 경로
           releaseName: ${{ steps.version.outputs.name }}                   # versionName 기반 릴리스 이름 (예: v1.0.4)
-          track: beta                                                      # 배포 트랙 (beta = 공개 테스트)
+          tracks: beta                                                     # 배포 트랙 (internal=내부, alpha=비공개, beta=공개 테스트, production=프로덕션)
           status: completed                                                    # 배포 상태 (completed - 자동 배포,  draft - 임시 저장, 직접 승인 필요, inProgress - 점진적 배포 userFraction: 0.2  # 20% 사용자에게만 배포 )
