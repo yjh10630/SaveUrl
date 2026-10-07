@@ -1,24 +1,26 @@
 package com.jinscompany.saveurl.ui.save_screen.components
 
-import com.jinscompany.saveurl.ui.theme.AppTextSecondary
-import com.jinscompany.saveurl.ui.theme.AppTextPrimary
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BookmarkAdd
-import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,72 +28,73 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.jinscompany.saveurl.ui.composable.AppTextField
+import com.jinscompany.saveurl.ui.composable.FieldLabel
+import com.jinscompany.saveurl.ui.theme.AppDimens
+import com.jinscompany.saveurl.ui.theme.AppTheme
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * 태그 입력 + 등록된 태그 칩.
+ * 기존 동작 유지: ✓ 버튼으로 쉼표 구분 태그를 추가하고, 칩을 누르면 삭제한다.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun LazyItemScope.UserInputTagSection(
+fun UserInputTagSection(
+    tagList: List<String>,
     focusClear: () -> Unit,
     onInsertTagTxt: (List<String>) -> Unit,
+    onRemoveTag: (String) -> Unit,
 ) {
     var tag by rememberSaveable { mutableStateOf("") }
-    OutlinedTextField(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp),
-        value = tag,
-        leadingIcon = {
-            Icon(imageVector = Icons.Default.BookmarkAdd, contentDescription = "Bookmark")
-        },
-        trailingIcon = {
-            if (tag.isNotEmpty()) {
-                Row(
-                    modifier = Modifier.padding(end = 15.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+    val colors = AppTheme.colors
+    Column(modifier = Modifier.padding(horizontal = AppDimens.Gutter)) {
+        FieldLabel("태그")
+        Spacer(modifier = Modifier.height(8.dp))
+        AppTextField(
+            value = tag,
+            onValueChange = { tag = it },
+            placeholder = "태그 입력 후 쉼표(,)로 구분",
+            onClear = { tag = "" },
+            imeAction = ImeAction.Done,
+            keyboardActions = KeyboardActions(onDone = { focusClear.invoke() }),
+            trailing = {
+                IconButton(
+                    modifier = Modifier.size(40.dp),
+                    onClick = {
+                        val list = tag.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                        onInsertTagTxt.invoke(list)
+                        tag = ""
+                        focusClear.invoke()
+                    }
                 ) {
-                    Icon(
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp)
-                            .clickable {
-                                val tagList = tag.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                                onInsertTagTxt.invoke(tagList)
-                                tag = ""
-                                focusClear.invoke()
-                            },
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "addTag"
-                    )
-                    Icon(
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp)
-                            .clickable { tag = "" },
-                        imageVector = Icons.Default.Cancel,
-                        contentDescription = "tagCancel"
-                    )
+                    Icon(Icons.Filled.CheckCircle, contentDescription = "태그 추가", tint = colors.accent, modifier = Modifier.size(22.dp))
                 }
             }
-        },
-        onValueChange = { tag = it },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { focusClear.invoke() }),
-        textStyle = TextStyle(color = AppTextPrimary),
-        label = { Text("태그 입력") },
-        placeholder = { Text("태그 입력") },
-        colors = TextFieldDefaults.outlinedTextFieldColors(
-            focusedBorderColor = AppTextPrimary,
-            unfocusedBorderColor = AppTextSecondary,
-            focusedLabelColor = AppTextPrimary,
-            unfocusedLabelColor = AppTextSecondary,
-            focusedLeadingIconColor = AppTextPrimary,
-            unfocusedLeadingIconColor = AppTextSecondary,
-            focusedTrailingIconColor = AppTextPrimary,
-            unfocusedTrailingIconColor = AppTextSecondary
-        ),
-        supportingText = { Text("콤마 ( , ) 를 사용해서 여러개 등록 가능해요!", color = AppTextSecondary) }
-    )
+        )
+        if (tagList.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                tagList.forEach { item ->
+                    Row(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(colors.accentTint)
+                            .clickable { onRemoveTag(item) }
+                            .padding(start = 12.dp, end = 8.dp, top = 7.dp, bottom = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("#$item", style = MaterialTheme.typography.bodyMedium, color = colors.accent, maxLines = 1)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(Icons.Rounded.Close, contentDescription = "삭제", tint = colors.accent, modifier = Modifier.size(14.dp))
+                    }
+                }
+            }
+        }
+    }
 }

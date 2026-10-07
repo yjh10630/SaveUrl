@@ -59,14 +59,7 @@ fun CommonSimpleMenuBottomSheet(
     val modalBottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
-    ModalBottomSheet(
-        onDismissRequest = { dismiss.invoke() },
-        sheetState = modalBottomSheetState,
-        shape = AppShapes.SheetTop,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = AppTheme.colors.outline) },
-        // 라이트는 흰 시트, 다크는 배경보다 한 단계 올라온 면으로 구분
-        containerColor = if (AppTheme.colors.isDark) AppTheme.colors.surface else AppTheme.colors.background,
-    ) {
+    AppBottomSheet(onDismissRequest = { dismiss.invoke() }, sheetState = modalBottomSheetState) {
         CommonSimpleMenuView(
             header = model.header,
             menuList = model.menuList,

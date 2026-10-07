@@ -1,42 +1,38 @@
 package com.jinscompany.saveurl.ui.save_screen.components
 
-import com.jinscompany.saveurl.ui.theme.AppTextSecondary
-import com.jinscompany.saveurl.ui.theme.AppTextPrimary
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddLink
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.jinscompany.saveurl.ui.composable.AppTextField
+import com.jinscompany.saveurl.ui.composable.FieldLabel
+import com.jinscompany.saveurl.ui.theme.AppDimens
+import com.jinscompany.saveurl.ui.theme.AppTheme
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** 링크 주소 입력. 포커스를 잃을 때 값이 있으면 크롤링을 시작한다 (기존 동작 유지) */
 @Composable
-fun LazyItemScope.HeaderUserInputSection(
+fun HeaderUserInputSection(
     url: String,
     userInputStartCrawler: (String) -> Unit,
     focusClear: () -> Unit,
@@ -45,57 +41,33 @@ fun LazyItemScope.HeaderUserInputSection(
     LaunchedEffect(url) {
         linkUrl = url
     }
-    Column(
-        modifier = Modifier.padding(horizontal = 24.dp)
-    ) {
-        Text("링크 저장하기", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = AppTextPrimary)
-        Text(
-            "저장할 웹 사이트 의 링크(URL)를 입력해 주세요.",
-            fontSize = 14.sp, color = AppTextSecondary
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-        OutlinedTextField(
+    val colors = AppTheme.colors
+    Column(modifier = Modifier.padding(horizontal = AppDimens.Gutter)) {
+        FieldLabel("링크 주소")
+        Spacer(modifier = Modifier.height(8.dp))
+        AppTextField(
             value = linkUrl,
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.AddLink,
-                    contentDescription = "AddLink"
-                )
-            },
-            trailingIcon = {
-                if (linkUrl.isNotEmpty()) {
-                    IconButton(onClick = { linkUrl = "" }) {
-                        Icon(
-                            imageVector = Icons.Default.Cancel,
-                            contentDescription = "linkCancel",
-                        )
-                    }
+            onValueChange = { linkUrl = it },
+            placeholder = "https://",
+            leadingIcon = Icons.Outlined.Link,
+            onClear = { linkUrl = "" },
+            imeAction = ImeAction.Done,
+            keyboardActions = KeyboardActions(onDone = { focusClear.invoke() }),
+            modifier = Modifier.onFocusChanged { focusState ->
+                if (!focusState.isFocused && linkUrl.isNotEmpty()) {
+                    userInputStartCrawler.invoke(linkUrl)
                 }
             },
-            onValueChange = { linkUrl = it },
-            singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .onFocusChanged { focusState ->
-                    if (!focusState.isFocused && linkUrl.isNotEmpty()) {
-                        userInputStartCrawler.invoke(linkUrl)
-                    }
-                },
-            keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { focusClear.invoke() }),
-            label = { Text("링크 주소") },
-            placeholder = { Text("URL을 입력해주세요.") },
-            textStyle = TextStyle(color = AppTextPrimary),
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = AppTextPrimary,
-                unfocusedBorderColor = AppTextSecondary,
-                focusedLabelColor = AppTextPrimary,
-                unfocusedLabelColor = AppTextSecondary,
-                focusedLeadingIconColor = AppTextPrimary,
-                unfocusedLeadingIconColor = AppTextSecondary,
-                focusedTrailingIconColor = AppTextPrimary,
-                unfocusedTrailingIconColor = AppTextSecondary
-            )
         )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                "링크를 붙여넣으면 자동으로 정보를 가져와요",
+                style = MaterialTheme.typography.labelMedium,
+                color = colors.textSecondary
+            )
+        }
     }
 }

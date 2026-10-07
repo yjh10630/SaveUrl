@@ -1,19 +1,38 @@
 package com.jinscompany.saveurl.ui.save_screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import com.jinscompany.saveurl.ui.composable.AdBannerBar
+import com.jinscompany.saveurl.ui.composable.AppSwitch
+import com.jinscompany.saveurl.ui.composable.AppTopBar
+import com.jinscompany.saveurl.ui.composable.PrimaryButton
+import com.jinscompany.saveurl.ui.composable.singleClick
+import com.jinscompany.saveurl.ui.theme.AppDimens
+import com.jinscompany.saveurl.ui.theme.AppTheme
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,15 +55,11 @@ import com.google.firebase.ktx.Firebase
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.ui.FilterDefaults
-import com.jinscompany.saveurl.ui.composable.AdMobBannerAd
-import com.jinscompany.saveurl.ui.composable.CommonPositiveButton
 import com.jinscompany.saveurl.ui.composable.LinkUrlCrawlerHidden
-import com.jinscompany.saveurl.ui.composable.LinkUrlTagList
 import com.jinscompany.saveurl.ui.composable.PreviewContentEditBottomSheet
 import com.jinscompany.saveurl.ui.composable.category.CategorySelectorDialog
 import com.jinscompany.saveurl.ui.composable.filterNotIsInstance
 import com.jinscompany.saveurl.ui.save_screen.components.HeaderUserInputSection
-import com.jinscompany.saveurl.ui.save_screen.components.LinkOptionsSection
 import com.jinscompany.saveurl.ui.save_screen.components.PreviewSection
 import com.jinscompany.saveurl.ui.save_screen.components.UserInputTagSection
 import kotlinx.coroutines.flow.FlowCollector
@@ -64,7 +79,7 @@ fun InsertLinkScreen(
     // 화면 회전/다른 화면 이동 후 복귀 시에도 진행 중이던 WebView 크롤링이 이어지도록 saveable 로 유지
     var startCrawlerUrl by rememberSaveable { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
-    val listState: LazyListState = rememberLazyListState()
+    val scrollState = rememberScrollState()
 
     var openCategorySelector by remember { mutableStateOf<List<CategoryModel>?>(null) }
     var openPreviewContentEditor by remember { mutableStateOf<UrlData?>(null) }
@@ -116,8 +131,24 @@ fun InsertLinkScreen(
         )
     }
 
+    val colors = AppTheme.colors
+    val isSavable = uiState.linkUrlPreviewUiState is LinkUrlPreviewUiState.LinkUrlData
     Scaffold(
-        bottomBar = { AdMobBannerAd() }
+        containerColor = colors.background,
+        bottomBar = {
+            // 저장 버튼은 스크롤 영역 밖에 고정하고, 광고와 최소 16dp + 버튼 영역 패딩만큼 떨어뜨려 오클릭을 줄인다.
+            Column(modifier = Modifier.background(colors.background)) {
+                HorizontalDivider(color = colors.outline, thickness = 1.dp)
+                PrimaryButton(
+                    text = if (uiState.isEditScreen) "수정" else "저장",
+                    onClick = { event.invoke(LinkSaveIntent.SaveLink) },
+                    enabled = isSavable,
+                    modifier = Modifier.padding(horizontal = AppDimens.Gutter, vertical = 12.dp),
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                AdBannerBar()
+            }
+        }
     ) { paddingValue ->
 
         if (showCrawlFailedDialog != null) {
@@ -173,71 +204,104 @@ fun InsertLinkScreen(
             )
         }
 
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(color = com.jinscompany.saveurl.ui.theme.AppBackground)
+                .background(colors.background)
                 .padding(paddingValue)
-                .imePadding(),
-            state = listState
+                .consumeWindowInsets(paddingValue)
+                .imePadding()
         ) {
-            item {
-                IconButton(onClick = { event.invoke(LinkSaveIntent.ScreenBackPress) }) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = com.jinscompany.saveurl.ui.theme.AppTextSecondary,
-                    )
-                }
-            }
-            item {
+            AppTopBar(
+                title = if (uiState.isEditScreen) "링크 수정" else "링크 저장",
+                onNavigationClick = { event.invoke(LinkSaveIntent.ScreenBackPress) },
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(scrollState)
+                    .padding(top = 8.dp, bottom = 24.dp)
+            ) {
                 HeaderUserInputSection(
                     url = uiState.userInputUrl,
                     userInputStartCrawler = { event.invoke(LinkSaveIntent.StartCrawling(it)) },
                     focusClear = { focusManager.clearFocus() },
                 )
-            }
-            item {
+                Spacer(modifier = Modifier.height(20.dp))
                 PreviewSection(
                     state = uiState.linkUrlPreviewUiState,
                     event = { event.invoke(LinkSaveIntent.UserForcedEndCrawling) },
+                    editorClick = singleClick { event.invoke(LinkSaveIntent.OpenPreviewContentEdit) },
                 )
-            }
-            item { Spacer(modifier = Modifier.height(12.dp)) }
-            item {
-                LinkUrlTagList(
-                    modifier = Modifier.padding(24.dp),
-                    tagList = uiState.tagList,
-                    editMode = true,
-                    removeClick = { event.invoke(LinkSaveIntent.UserRemoveTag(it)) })
-            }
-            item { Spacer(modifier = Modifier.height(12.dp)) }
-            item {
-                LinkOptionsSection(
-                    state = uiState.linkUrlPreviewUiState,
-                    isBookMark = uiState.isBookMark,
+                Spacer(modifier = Modifier.height(20.dp))
+                HorizontalDivider(color = colors.outline, thickness = 1.dp, modifier = Modifier.padding(horizontal = AppDimens.Gutter))
+                CategoryRow(
                     categoryName = uiState.categoryName,
-                    bookMarkClick = { event.invoke(LinkSaveIntent.BookMarkToggle(it)) },
-                    categoryClick = { event.invoke(LinkSaveIntent.OpenCategorySelector(it)) },
-                    editorClick = { event.invoke(LinkSaveIntent.OpenPreviewContentEdit) }
+                    onClick = singleClick { event.invoke(LinkSaveIntent.OpenCategorySelector(uiState.categoryName)) }
                 )
-            }
-            item { Spacer(modifier = Modifier.height(12.dp)) }
-            item {
+                HorizontalDivider(color = colors.outline, thickness = 1.dp, modifier = Modifier.padding(horizontal = AppDimens.Gutter))
+                Spacer(modifier = Modifier.height(20.dp))
                 UserInputTagSection(
+                    tagList = uiState.tagList,
                     focusClear = { focusManager.clearFocus() },
-                    onInsertTagTxt = { event.invoke(LinkSaveIntent.UserInputTag(it)) })
-            }
-            item { Spacer(modifier = Modifier.height(32.dp)) }
-            item {
-                CommonPositiveButton(
-                    onClick = { event.invoke(LinkSaveIntent.SaveLink) },
-                    enabled = uiState.linkUrlPreviewUiState is LinkUrlPreviewUiState.LinkUrlData,
-                    text = if (uiState.isEditScreen) "수정" else "저장",
+                    onInsertTagTxt = { event.invoke(LinkSaveIntent.UserInputTag(it)) },
+                    onRemoveTag = { event.invoke(LinkSaveIntent.UserRemoveTag(it)) },
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                BookmarkRow(
+                    isBookMark = uiState.isBookMark,
+                    onToggle = { event.invoke(LinkSaveIntent.BookMarkToggle(it)) }
                 )
             }
-            item { Spacer(modifier = Modifier.height(24.dp)) }
         }
+    }
+}
+
+/** "카테고리 ........ 레시피 ›" (선택 안 함 = 전체) */
+@Composable
+private fun CategoryRow(categoryName: String, onClick: () -> Unit) {
+    val colors = AppTheme.colors
+    val isNone = categoryName.isEmpty() || categoryName == FilterDefaults.CATEGORY_ALL
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = AppDimens.Gutter, vertical = 18.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("카테고리", style = MaterialTheme.typography.bodyLarge, color = colors.textPrimary, modifier = Modifier.weight(1f))
+        Text(
+            text = if (isNone) "선택 안 함" else categoryName,
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = if (isNone) FontWeight.Normal else FontWeight.SemiBold),
+            color = if (isNone) colors.textSecondary else colors.accent,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false).padding(start = 16.dp)
+        )
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.textSecondary)
+    }
+}
+
+/** ☆ 즐겨찾기에 추가 ............ [스위치] */
+@Composable
+private fun BookmarkRow(isBookMark: Boolean, onToggle: (Boolean) -> Unit) {
+    val colors = AppTheme.colors
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggle(!isBookMark) }
+            .padding(horizontal = AppDimens.Gutter, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            if (isBookMark) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+            contentDescription = null,
+            tint = colors.accent,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Text("즐겨찾기에 추가", style = MaterialTheme.typography.bodyLarge, color = colors.textPrimary, modifier = Modifier.weight(1f))
+        AppSwitch(checked = isBookMark, onCheckedChange = { onToggle(it) })
     }
 }
 
