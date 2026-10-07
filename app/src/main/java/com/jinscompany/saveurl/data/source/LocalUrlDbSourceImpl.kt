@@ -73,24 +73,16 @@ class LocalUrlDbSourceImpl @Inject constructor(
             db.withTransaction {
                 baseSaveUrlDao.insert(data.withNormalizedUrl())
                 val categoryName = data.category ?: FilterDefaults.CATEGORY_ALL
-                if (categoryName == FilterDefaults.CATEGORY_ALL) {
-                    true
-                } else if (categoryName.isNotEmpty()) {
-                    val category = categoryDao.get(categoryName)
-                    if (category != null) {
-                        category.contentCnt += 1
-                        categoryDao.update(category)
-                    } else {
-                        // 자동 추천(도메인/키워드) 카테고리는 아직 DB 에 없을 수 있음
-                        // 링크는 이미 insert 되었으므로 false 를 반환하면 저장 화면이 멈추고 재시도 시 중복 다이얼로그가 뜸
-                        // -> 카테고리를 함께 생성
-                        val orderMaxCnt = categoryDao.getMaxOrder() ?: 0
-                        categoryDao.insert(
-                            CategoryModel(name = categoryName, contentCnt = 1, order = orderMaxCnt + 1)
-                        )
-                    }
-                    true
-                } else true
+                // 자동 추천(도메인/키워드) 카테고리는 아직 DB 에 없을 수 있음
+                // 링크는 이미 insert 되었으므로 false 를 반환하면 저장 화면이 멈추고 재시도 시 중복 다이얼로그가 뜸
+                // -> 카테고리를 함께 생성 (링크 수는 조회 시 BaseSaveUrl 에서 집계하므로 contentCnt 는 갱신하지 않음)
+                if (categoryName.isNotEmpty() && categoryName != FilterDefaults.CATEGORY_ALL &&
+                    categoryDao.get(categoryName) == null
+                ) {
+                    val orderMaxCnt = categoryDao.getMaxOrder() ?: 0
+                    categoryDao.insert(CategoryModel(name = categoryName, order = orderMaxCnt + 1))
+                }
+                true
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -100,20 +92,8 @@ class LocalUrlDbSourceImpl @Inject constructor(
 
     override suspend fun deleteLocalDBUrl(data: UrlData) = withContext(Dispatchers.IO) {
         return@withContext try {
-            db.withTransaction {
-                baseSaveUrlDao.delete(data)
-                val categoryName = data.category ?: ""
-                if (categoryName.isNotEmpty()) {
-                    val category = categoryDao.get(categoryName)
-                    if (category != null) {
-                        if (category.contentCnt > 0) {
-                            category.contentCnt -= 1
-                            categoryDao.update(category)
-                        }
-                        true
-                    } else false
-                } else false
-            }
+            // 링크 수는 조회 시 집계하므로 카테고리 contentCnt 는 갱신하지 않음
+            baseSaveUrlDao.delete(data)
             true
         } catch (e: Exception) {
             e.printStackTrace()
