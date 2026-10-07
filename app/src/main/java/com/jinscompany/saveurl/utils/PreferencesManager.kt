@@ -57,6 +57,6 @@ class PreferencesManager @Inject constructor(
     }
 
     suspend fun setListViewMode(mode: ListViewMode) {
-        context.dataStore.edit { it[LIST_VIEW_MODE] = mode.name }
+        context.dataStore.edit { it[LIST_VIEW_MODE] = mode.key }
     }
 }

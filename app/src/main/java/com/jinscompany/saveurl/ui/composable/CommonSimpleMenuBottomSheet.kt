@@ -64,7 +64,8 @@ fun CommonSimpleMenuBottomSheet(
         sheetState = modalBottomSheetState,
         shape = AppShapes.SheetTop,
         dragHandle = { BottomSheetDefaults.DragHandle(color = AppTheme.colors.outline) },
-        containerColor = AppTheme.colors.background,
+        // 라이트는 흰 시트, 다크는 배경보다 한 단계 올라온 면으로 구분
+        containerColor = if (AppTheme.colors.isDark) AppTheme.colors.surface else AppTheme.colors.background,
     ) {
         CommonSimpleMenuView(
             header = model.header,

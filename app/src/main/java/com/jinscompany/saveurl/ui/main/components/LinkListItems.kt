@@ -351,7 +351,9 @@ private fun LinkThumbnail(imgUrl: String?, size: Dp, radius: Dp = AppDimens.Thum
         modifier = Modifier
             .size(size)
             .clip(shape)
-            .background(colors.surface),
+            .background(colors.surface)
+            // 흰 바탕 썸네일이 배경과 섞이지 않도록 얇은 테두리
+            .border(1.dp, colors.outline, shape),
         contentAlignment = Alignment.Center
     ) {
         if (!imgUrl.isNullOrEmpty()) {

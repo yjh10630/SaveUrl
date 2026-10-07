@@ -19,18 +19,19 @@ enum class ThemeMode {
     }
 }
 
-/** 메인 리스트 보기 방식 */
-enum class ListViewMode {
+/**
+ * 메인 리스트 보기 방식.
+ * [key] 는 DataStore 저장값이므로 바꾸지 않는다 (R8 난독화와 무관하게 고정된 문자열 사용).
+ */
+enum class ListViewMode(val key: String) {
     /** 64dp 썸네일 리스트 (기본) */
-    DEFAULT,
+    DEFAULT("default"),
     /** 16:9 썸네일 카드 */
-    LARGE_CARD,
+    LARGE_CARD("large_card"),
     /** 40dp 썸네일 + 1줄 제목 */
-    COMPACT;
-
-    fun next(): ListViewMode = entries[(ordinal + 1) % entries.size]
+    COMPACT("compact");
 
     companion object {
-        fun fromKey(key: String?): ListViewMode = entries.firstOrNull { it.name == key } ?: DEFAULT
+        fun fromKey(key: String?): ListViewMode = entries.firstOrNull { it.key == key } ?: DEFAULT
     }
 }

@@ -220,6 +220,14 @@ fun MainListScreen(
         }
     }
 
+    // 링크가 하나도 없는 빈 상태에서는 화면 안의 "링크 저장하기" 버튼과 겹치지 않도록 FAB 를 숨긴다
+    val hasNoLinksAtAll = mainListPagingData != null &&
+        mainListPagingData.loadState.refresh is LoadState.NotLoading &&
+        mainListPagingData.itemCount == 0 &&
+        selectedTab == MainTab.RECENT &&
+        filterSelectedItems.categories.contains(FilterDefaults.CATEGORY_ALL) &&
+        filterSelectedItems.siteList.isEmpty() && filterSelectedItems.tagList.isEmpty()
+
     val colors = AppTheme.colors
     Scaffold(
         containerColor = colors.background,
@@ -234,7 +242,9 @@ fun MainListScreen(
         floatingActionButtonPosition = FabPosition.End,
         floatingActionButton = {
             val onFabClick = singleClick { viewModel.onIntent(GoToLinkInsertScreen("")) }
-            if (viewMode == ListViewMode.COMPACT) {
+            if (hasNoLinksAtAll) {
+                // FAB 없음
+            } else if (viewMode == ListViewMode.COMPACT) {
                 FloatingActionButton(
                     onClick = onFabClick,
                     containerColor = colors.accent,
