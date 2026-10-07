@@ -108,8 +108,8 @@ object CsvBackupManager {
                 category = cols[8].ifEmpty { null },
                 isBookMark = cols[9].toBooleanStrictOrNull() ?: false,
                 isRead = cols[10].toBooleanStrictOrNull() ?: false,
-                normalizedUrl = if (cols.size > 11 && cols[11].isNotEmpty()) cols[11]
-                                else UrlNormalizer.normalize(rawUrl ?: ""),
+                // 백업 파일의 값은 이전 정규화 규칙으로 계산되었을 수 있으므로 항상 다시 계산
+                normalizedUrl = UrlNormalizer.normalize(rawUrl ?: ""),
             )
         } catch (e: Exception) {
             null

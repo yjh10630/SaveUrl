@@ -7,6 +7,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import com.jinscompany.saveurl.data.backfill.NormalizedUrlRow
 import com.jinscompany.saveurl.domain.model.UrlData
 
 @Dao
@@ -103,6 +104,17 @@ interface BaseSaveUrlDao {
     // 카테고리 이름 변경 시 해당 카테고리의 링크도 함께 변경
     @Query("UPDATE BaseSaveUrl SET category = :newName WHERE category = :oldName")
     suspend fun renameCategory(oldName: String, newName: String): Int
+
+    // ---- normalizedUrl 백필 ----
+    @Query("SELECT id, url, normalizedUrl FROM BaseSaveUrl WHERE id > :afterId ORDER BY id LIMIT :limit")
+    suspend fun getNormalizedUrlRowsAfter(afterId: Int, limit: Int): List<NormalizedUrlRow>
+
+    @Query("SELECT id, url, normalizedUrl FROM BaseSaveUrl WHERE normalizedUrl = '' AND id > :afterId ORDER BY id LIMIT :limit")
+    suspend fun getEmptyNormalizedUrlRowsAfter(afterId: Int, limit: Int): List<NormalizedUrlRow>
+
+    // 백필 도중 사용자가 같은 행의 url 을 수정했으면 덮어쓰지 않도록 url 도 조건에 포함
+    @Query("UPDATE BaseSaveUrl SET normalizedUrl = :normalizedUrl WHERE id = :id AND url IS :url")
+    suspend fun updateNormalizedUrl(id: Int, url: String?, normalizedUrl: String): Int
 
     @Query("UPDATE BaseSaveUrl SET isRead = 1 WHERE url = :url")
     suspend fun markAsRead(url: String)

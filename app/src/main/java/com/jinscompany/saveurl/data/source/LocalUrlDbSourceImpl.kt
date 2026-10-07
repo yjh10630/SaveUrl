@@ -71,8 +71,7 @@ class LocalUrlDbSourceImpl @Inject constructor(
     override suspend fun saveLocalDBUrl(data: UrlData) = withContext(Dispatchers.IO) {
         return@withContext try {
             db.withTransaction {
-                val normalized = UrlNormalizer.normalize(data.url ?: "")
-                baseSaveUrlDao.insert(data.copy(normalizedUrl = normalized))
+                baseSaveUrlDao.insert(data.withNormalizedUrl())
                 val categoryName = data.category ?: FilterDefaults.CATEGORY_ALL
                 if (categoryName == FilterDefaults.CATEGORY_ALL) {
                     true
@@ -131,7 +130,8 @@ class LocalUrlDbSourceImpl @Inject constructor(
     }
 
     override suspend fun updateLocalDBUrlData(data: UrlData): Boolean = withContext(Dispatchers.IO) {
-        return@withContext baseSaveUrlDao.update(data) > 0
+        // 수정 화면에서 url 이 바뀌었을 수 있으므로 normalizedUrl 도 다시 계산
+        return@withContext baseSaveUrlDao.update(data.withNormalizedUrl()) > 0
     }
 
     override suspend fun getSiteNameList(): List<String> = withContext(Dispatchers.IO) {
@@ -140,7 +140,8 @@ class LocalUrlDbSourceImpl @Inject constructor(
 
     override suspend fun saveUrlDataList(list: List<UrlData>) {
         withContext(Dispatchers.IO) {
-            baseSaveUrlDao.insertAll(*list.toTypedArray())
+            // 휴지통 전체 복원(TrashItem 에는 normalizedUrl 이 없음), CSV 가져오기 등에서도 중복 감지가 되도록 계산
+            baseSaveUrlDao.insertAll(*list.map { it.withNormalizedUrl() }.toTypedArray())
         }
     }
 
@@ -172,4 +173,7 @@ class LocalUrlDbSourceImpl @Inject constructor(
     override fun searchByTitle(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchByTitle(keyword)
     override fun searchByDescription(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchByDescription(keyword)
     override fun searchByTag(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchByTag(keyword)
+
+    private fun UrlData.withNormalizedUrl(): UrlData =
+        copy(normalizedUrl = url?.takeIf { it.isNotBlank() }?.let { UrlNormalizer.normalize(it) } ?: "")
 }

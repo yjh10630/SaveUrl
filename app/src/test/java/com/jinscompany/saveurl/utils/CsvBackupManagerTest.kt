@@ -17,7 +17,8 @@ class CsvBackupManagerTest {
         addDate = 1_700_000_000_000L + id,
         category = "개발",
         isBookMark = true,
-        normalizedUrl = "https://example.com/$id",
+        // 가져오기 시 항상 현재 규칙으로 다시 계산되므로 실제 정규화 값과 같아야 함
+        normalizedUrl = "https://example.com/$id?a=1&b=2",
     )
 
     private fun roundTrip(items: List<UrlData>): List<UrlData> {
