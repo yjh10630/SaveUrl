@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 스플래시는 아이콘 원(지름의 2/3)만 보이므로 런처 전경보다 글리프를 작게 둔다 -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/icon_launcher_foreground"
+    android:inset="14%" />
