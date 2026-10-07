@@ -1,42 +1,44 @@
 package com.jinscompany.saveurl.ui.webview
 
-import com.jinscompany.saveurl.ui.theme.AppTextPrimary
 import android.graphics.Bitmap
+import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavHostController
-import com.jinscompany.saveurl.ui.composable.AdMobBannerAd
-import com.jinscompany.saveurl.ui.composable.FullScreenLoading
+import com.jinscompany.saveurl.ui.composable.AdBannerBar
+import com.jinscompany.saveurl.ui.composable.AppTopBar
+import com.jinscompany.saveurl.ui.theme.AppTheme
 
+/** 사용 방법(튜토리얼) 웹뷰 (Stitch 19): ✕ 사용 방법 + 로딩 진행바 + 하단 광고 */
 @Composable
 fun StaticWebScreen(navController: NavHostController, url: String) {
     val context = LocalContext.current
     var isLoading by remember { mutableStateOf(false) }
+    var progress by remember { mutableIntStateOf(0) }
     val webView = remember {
         WebView(context).apply {
             settings.javaScriptEnabled = true
@@ -57,6 +59,12 @@ fun StaticWebScreen(navController: NavHostController, url: String) {
                     isLoading = false
                 }
             }
+            // 진행바 표시용 (표시 전용)
+            webChromeClient = object : WebChromeClient() {
+                override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                    progress = newProgress
+                }
+            }
         }
     }
     // 화면을 벗어나면 WebView 해제 (Activity Context 를 잡고 있어 누수 및 백그라운드 JS 실행 방지)
@@ -66,36 +74,40 @@ fun StaticWebScreen(navController: NavHostController, url: String) {
             webView.destroy()
         }
     }
+    val colors = AppTheme.colors
     Scaffold(
-        bottomBar = { AdMobBannerAd() }
+        containerColor = colors.background,
+        bottomBar = { AdBannerBar() }
     ) { paddingValue ->
-        Column (
+        Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(colors.background)
                 .padding(paddingValue)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(end = 6.dp),
-                horizontalArrangement = Arrangement.End
-            ) {
-                IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = AppTextPrimary,
+            AppTopBar(
+                title = "사용 방법",
+                onNavigationClick = { navController.popBackStack() },
+                navigationIcon = Icons.Default.Close,
+                navigationContentDescription = "닫기",
+            )
+            Box(modifier = Modifier.fillMaxWidth().height(3.dp)) {
+                if (isLoading) {
+                    LinearProgressIndicator(
+                        progress = { (progress.coerceIn(5, 100)) / 100f },
+                        modifier = Modifier.fillMaxSize(),
+                        color = colors.accent,
+                        trackColor = colors.outline,
                     )
+                } else {
+                    HorizontalDivider(color = colors.outline, thickness = 1.dp)
                 }
             }
-            Box( modifier = Modifier.weight(1f, true) ) {
-                AndroidView(
-                    modifier = Modifier.fillMaxSize(),
-                    factory = { webView },
-                    update = { it.loadUrl(url) }
-                )
-                this@Column.AnimatedVisibility(visible = isLoading, modifier = Modifier.fillMaxSize()) {
-                    FullScreenLoading()
-                }
-            }
+            AndroidView(
+                modifier = Modifier.weight(1f, true).fillMaxWidth(),
+                factory = { webView },
+                update = { it.loadUrl(url) }
+            )
         }
     }
 }

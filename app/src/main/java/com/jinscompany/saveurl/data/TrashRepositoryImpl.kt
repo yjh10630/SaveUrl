@@ -8,6 +8,7 @@ import com.jinscompany.saveurl.SaveUrlApplication.Companion.DEBUG
 import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.room.TrashDao
 import com.jinscompany.saveurl.domain.model.TrashItem
+import com.jinscompany.saveurl.domain.model.TrashRetention
 import com.jinscompany.saveurl.domain.repository.TrashRepository
 import com.jinscompany.saveurl.utils.CmLog
 import com.jinscompany.saveurl.utils.PreferencesManager
@@ -61,11 +62,8 @@ class TrashRepositoryImpl @Inject constructor(
 
     override suspend fun deleteItemsPastEndDate(): Boolean = withContext(Dispatchers.IO) {
         try {
-            val threshold = if (DEBUG) {
-                System.currentTimeMillis() - 15 * 60 * 1000L // 15분 전
-            } else {
-                System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000L // 7일 전
-            }
+            // debug 15분 / release 7일 (TrashRetention 과 휴지통 화면의 남은 기간 표시가 같은 값을 사용)
+            val threshold = TrashRetention.purgeThreshold(System.currentTimeMillis(), DEBUG)
             val items = trashDao.getAll()
             CmLog.d("Trash items cnt > ${items.count()}")
             val expiredItems = items.filter { it.deleteDate < threshold }

@@ -65,6 +65,7 @@ import com.jinscompany.saveurl.domain.model.ListViewMode
 import com.jinscompany.saveurl.domain.model.ThemeMode
 import com.jinscompany.saveurl.ui.composable.singleClick
 import com.jinscompany.saveurl.ui.main.components.labelRes
+import com.jinscompany.saveurl.ui.composable.AdBannerBar
 import com.jinscompany.saveurl.ui.navigation.navigateToStaticWeb
 import com.jinscompany.saveurl.ui.navigation.navigateToTrash
 import com.jinscompany.saveurl.ui.theme.AppDimens
@@ -105,7 +106,10 @@ fun AppSettingScreen(
         }
     }
 
-    Scaffold(containerColor = AppTheme.colors.background) { paddingValue ->
+    Scaffold(
+        containerColor = AppTheme.colors.background,
+        bottomBar = { AdBannerBar() },
+    ) { paddingValue ->
         AppSettingScreen(
             paddingValues = paddingValue,
             popBackStack = { navController.popBackStack() },

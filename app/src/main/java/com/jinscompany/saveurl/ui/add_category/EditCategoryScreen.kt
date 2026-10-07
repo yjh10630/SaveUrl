@@ -1,25 +1,45 @@
 package com.jinscompany.saveurl.ui.add_category
 
-import com.jinscompany.saveurl.ui.theme.AppTextSecondary
-import com.jinscompany.saveurl.ui.theme.AppTextPrimary
-import com.jinscompany.saveurl.ui.theme.AppBackground
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Label
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -28,229 +48,293 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
-import com.jinscompany.saveurl.ui.composable.category.EditCategoryList
+import com.jinscompany.saveurl.domain.model.CategoryModel
+import com.jinscompany.saveurl.ui.composable.AdBannerBar
+import com.jinscompany.saveurl.ui.composable.AppTextField
+import com.jinscompany.saveurl.ui.composable.AppTopBar
+import com.jinscompany.saveurl.ui.composable.ButtonShape
 import com.jinscompany.saveurl.ui.composable.noRippleClickable
+import com.jinscompany.saveurl.ui.composable.singleClick
+import com.jinscompany.saveurl.ui.theme.AppDimens
+import com.jinscompany.saveurl.ui.theme.AppTheme
+import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * 카테고리 편집 (Stitch 13).
+ * 위쪽 입력칸은 추가만 하고, 이름 변경·삭제는 각 행 안에서 한다 (행 탭 또는 ✎ → 인라인 편집).
+ * 드래그 정렬은 새 기능이라 넣지 않았다.
+ */
 @Composable
 fun EditCategoryScreen(navController: NavHostController) {
-
     val viewModel = hiltViewModel<EditCategoryViewModel>()
-    var categoryName by remember {
-        mutableStateOf(
-            TextFieldValue("", selection = TextRange(0)) // 초기에는 커서 맨 앞
-        )
-    }
-    val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
-    var selectItem by remember { mutableStateOf<String>("") }
-
-    val clearEditText: () -> Unit = {
-        categoryName = TextFieldValue(
-            text = "",
-            selection = TextRange(0)
-        )
-        selectItem = ""
-    }
 
     LaunchedEffect(Unit) {
         viewModel.onIntent(EditCategoryIntent.Load)
         focusRequester.requestFocus()
     }
 
-    Scaffold { paddingValues ->
-        Box(
+    EditCategoryContent(
+        categories = viewModel.categoryItemsState.value,
+        addFocusRequester = focusRequester,
+        onBack = { navController.popBackStack() },
+        onInsert = { viewModel.onIntent(EditCategoryIntent.Insert(it)) },
+        onUpdate = { old, new -> viewModel.onIntent(EditCategoryIntent.Update(oldName = old, newName = new)) },
+        onDelete = { viewModel.onIntent(EditCategoryIntent.Delete(it)) },
+    )
+}
+
+@Composable
+private fun EditCategoryContent(
+    categories: List<CategoryModel>,
+    addFocusRequester: FocusRequester = remember { FocusRequester() },
+    onBack: () -> Unit,
+    onInsert: (String) -> Unit,
+    onUpdate: (String, String) -> Unit,
+    onDelete: (String) -> Unit,
+) {
+    val colors = AppTheme.colors
+    val focusManager = LocalFocusManager.current
+    var newName by remember { mutableStateOf("") }
+    var editingName by remember { mutableStateOf<String?>(null) }
+
+    val submitNew = {
+        val name = newName.trim()
+        if (name.isNotEmpty()) onInsert(name)
+        newName = ""
+        focusManager.clearFocus()
+    }
+
+    Scaffold(
+        containerColor = colors.background,
+        bottomBar = { AdBannerBar() },
+    ) { paddingValues ->
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(AppBackground)
-                .noRippleClickable { focusManager.clearFocus() } // 바깥 터치 시 포커스 제거
+                .background(colors.background)
+                .padding(paddingValues)
+                .consumeWindowInsets(paddingValues)
+                .imePadding()
+                .noRippleClickable { focusManager.clearFocus() }
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .imePadding()
+            AppTopBar(title = "카테고리 편집", onNavigationClick = onBack, showDivider = true)
+            Spacer(modifier = Modifier.height(16.dp))
+            // 추가 입력
+            Row(
+                modifier = Modifier.padding(horizontal = AppDimens.Gutter),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                IconButton(onClick = {
-                    navController.popBackStack()
-                }) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = AppTextPrimary,
+                AppTextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    placeholder = "새 카테고리 이름",
+                    onClear = { newName = "" },
+                    imeAction = ImeAction.Done,
+                    keyboardActions = KeyboardActions(onDone = { submitNew() }),
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(addFocusRequester),
+                )
+                Button(
+                    onClick = singleClick { submitNew() },
+                    enabled = newName.isNotBlank(),
+                    shape = ButtonShape,
+                    contentPadding = PaddingValues(horizontal = 18.dp),
+                    modifier = Modifier.height(52.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.accent,
+                        contentColor = colors.onAccent,
+                        disabledContainerColor = colors.surface,
+                        disabledContentColor = colors.textSecondary,
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp, 0.dp, 0.dp, 0.dp),
+                ) { Text("추가", style = MaterialTheme.typography.titleSmall) }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.padding(horizontal = AppDimens.Gutter),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Outlined.Info, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    "카테고리 ${categories.size}개 · 이름을 누르면 수정하거나 삭제할 수 있어요",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = colors.textSecondary
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (categories.isEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 48.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier.size(64.dp).clip(CircleShape).background(colors.accentTint),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Outlined.Label, contentDescription = null, tint = colors.accent, modifier = Modifier.size(28.dp))
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text("아직 카테고리가 없어요", style = MaterialTheme.typography.titleMedium, color = colors.textPrimary)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "위 입력칸에 이름을 적고 추가해 보세요.\n링크를 분류할 때 사용할 수 있어요.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.textSecondary,
+                        textAlign = TextAlign.Center
                     )
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Column(
-                    modifier = Modifier.padding(horizontal = 24.dp)
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
-                    Text("카테고리 편집", color = AppTextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    Text(
-                        "카테고리 를 이용 하여 웹 사이트를 분류 해 보세요..",
-                        fontSize = 14.sp, color = AppTextSecondary
-                    )
-                    Spacer(modifier = Modifier.height(32.dp))
-
-                    OutlinedTextField(
-                        value = categoryName,
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "EditCategory"
+                    items(categories, key = { it.id.toString() + it.name }) { item ->
+                        if (editingName == item.name) {
+                            EditingRow(
+                                name = item.name,
+                                onConfirm = { renamed ->
+                                    val trimmed = renamed.trim()
+                                    if (trimmed.isNotEmpty() && trimmed != item.name) onUpdate(item.name, trimmed)
+                                    editingName = null
+                                    focusManager.clearFocus()
+                                },
+                                onCancel = {
+                                    editingName = null
+                                    focusManager.clearFocus()
+                                },
+                                onDelete = {
+                                    onDelete(item.name)
+                                    editingName = null
+                                    focusManager.clearFocus()
+                                }
                             )
-                        },
-                        textStyle = TextStyle(color = AppTextPrimary),
-                        trailingIcon = {
-                            if (categoryName.text.isNotEmpty()) {
-                                Row(modifier = Modifier.padding(end = 15.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.CheckCircle,
-                                        contentDescription = "Check Category",
-                                        tint = AppTextSecondary,
-                                        modifier = Modifier
-                                            .size(25.dp)
-                                            .clickable {
-                                                handleCategorySubmit(
-                                                    categoryName = categoryName.text,
-                                                    selectItem = selectItem,
-                                                    clearEditText = clearEditText,
-                                                    viewModel = viewModel,
-                                                    focusManager = focusManager
-                                                )
-                                            }
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Default.Cancel,
-                                        contentDescription = "Clear Category",
-                                        tint = AppTextSecondary,
-                                        modifier = Modifier
-                                            .size(25.dp)
-                                            .clickable {
-                                                categoryName = "".toTextFieldValueWithCursorToEnd()
-                                            }
-                                    )
-                                }
-                            }
-                        },
-                        supportingText = {
-                            val txt = if (viewModel.categoryItemsState.value.isEmpty())
-                                "카테고리를 만들려면 여기에 입력하세요!"
-                            else {
-                                if (selectItem.isNotEmpty()) {
-                                    "선택된 카테고리 이름을 수정해 보세요."
-                                } else {
-                                    ""
-                                }
-                            }
-                            Text(txt, color = AppTextSecondary)
-                        },
-                        onValueChange = {
-                            categoryName = it
-                        },
-                        singleLine = true,
-                        modifier = Modifier
-                            .focusRequester(focusRequester)
-                            .fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                handleCategorySubmit(
-                                    categoryName = categoryName.text,
-                                    selectItem = selectItem,
-                                    clearEditText = clearEditText,
-                                    viewModel = viewModel,
-                                    focusManager = focusManager
-                                )
-                            }
-                        ),
-                        label = { Text("카테고리 이름", color = AppTextSecondary) },
-                        placeholder = { Text("입력해 주세요.", color = AppTextSecondary) },
-                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                            focusedBorderColor = AppTextPrimary,
-                            unfocusedBorderColor = AppTextSecondary,
-                            focusedLabelColor = AppTextPrimary,
-                            unfocusedLabelColor = AppTextSecondary,
-                            focusedLeadingIconColor = AppTextPrimary,
-                            unfocusedLeadingIconColor = AppTextSecondary,
-                            focusedTrailingIconColor = AppTextPrimary,
-                            unfocusedTrailingIconColor = AppTextSecondary
-                        )
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        "카테고리",
-                        fontSize = 14.sp, color = AppTextSecondary
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    EditCategoryList(
-                        list = viewModel.categoryItemsState.value,
-                        selectedItemName = selectItem,
-                        onClick = {
-                            if (selectItem == it) {
-                                clearEditText.invoke()
-                                focusManager.clearFocus()
-                            } else {
-                                selectItem = it
-                                categoryName = it.toTextFieldValueWithCursorToEnd()
-                                focusRequester.requestFocus()
-                            }
-                        },
-                        deleteClick = {
-                            viewModel.onIntent(EditCategoryIntent.Delete(it))
-                            clearEditText.invoke()
+                        } else {
+                            CategoryRow(
+                                name = item.name,
+                                count = item.contentCnt,
+                                onEdit = { editingName = item.name }
+                            )
                         }
-                    )
+                        HorizontalDivider(
+                            color = colors.outline, thickness = 1.dp,
+                            modifier = Modifier.padding(horizontal = AppDimens.Gutter)
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-fun String.toTextFieldValueWithCursorToEnd(): TextFieldValue {
-    return TextFieldValue(
-        text = this,
-        selection = TextRange(this.length)
-    )
-}
-
-fun handleCategorySubmit(
-    categoryName: String,
-    selectItem: String,
-    clearEditText: () -> Unit,
-    viewModel: EditCategoryViewModel,
-    focusManager: FocusManager
-) {
-    focusManager.clearFocus()
-    if (selectItem.isEmpty()) {
-        viewModel.onIntent(EditCategoryIntent.Insert(categoryName))
-    } else {
-        viewModel.onIntent(EditCategoryIntent.Update(oldName = selectItem, newName = categoryName))
+@Composable
+private fun CategoryRow(name: String, count: Int, onEdit: () -> Unit) {
+    val colors = AppTheme.colors
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .clickable(onClick = onEdit)
+            .padding(start = AppDimens.Gutter, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            name,
+            style = MaterialTheme.typography.bodyLarge,
+            color = colors.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Text("$count", style = MaterialTheme.typography.labelLarge, color = colors.textSecondary)
+        IconButton(onClick = onEdit) {
+            Icon(Icons.Outlined.Edit, contentDescription = "이름 수정", tint = colors.textSecondary, modifier = Modifier.size(20.dp))
+        }
     }
-    clearEditText()
 }
 
 @Composable
-@Preview
-private fun CreateCategoryScreenPreview() {
-    EditCategoryScreen(rememberNavController())
+private fun EditingRow(
+    name: String,
+    onConfirm: (String) -> Unit,
+    onCancel: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val colors = AppTheme.colors
+    var value by remember(name) { mutableStateOf(TextFieldValue(name, selection = TextRange(name.length))) }
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(name) { focusRequester.requestFocus() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = AppDimens.Gutter - 8.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(colors.accentTint)
+            .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        BasicTextField(
+            value = value,
+            onValueChange = { value = it },
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.textPrimary),
+            cursorBrush = SolidColor(colors.accent),
+            keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onConfirm(value.text) }),
+            modifier = Modifier
+                .weight(1f)
+                .focusRequester(focusRequester),
+            decorationBox = { inner ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(sheetFieldColor())
+                        .border(1.5.dp, colors.accent, RoundedCornerShape(10.dp))
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                ) { inner() }
+            }
+        )
+        IconButton(onClick = { onConfirm(value.text) }) {
+            Icon(Icons.Rounded.Check, contentDescription = "저장", tint = colors.accent)
+        }
+        IconButton(onClick = onCancel) {
+            Icon(Icons.Rounded.Close, contentDescription = "취소", tint = colors.textSecondary)
+        }
+        IconButton(onClick = onDelete) {
+            Icon(Icons.Outlined.DeleteOutline, contentDescription = "삭제", tint = colors.danger)
+        }
+    }
+}
+
+@Composable
+private fun sheetFieldColor() = AppTheme.colors.background
+
+@Preview(showBackground = true)
+@Composable
+private fun EditCategoryPreview() {
+    SaveUrlTheme(darkTheme = false) {
+        EditCategoryContent(
+            categories = listOf(CategoryModel(name = "개발", contentCnt = 24), CategoryModel(name = "뉴스", contentCnt = 8)),
+            onBack = {}, onInsert = {}, onUpdate = { _, _ -> }, onDelete = {}
+        )
+    }
 }
