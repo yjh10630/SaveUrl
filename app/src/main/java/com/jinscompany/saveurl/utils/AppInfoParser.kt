@@ -15,6 +15,8 @@ import com.jinscompany.saveurl.domain.model.AppInfo
  */
 object AppInfoParser {
 
+    /** Remote Config 매개변수 이름 */
+    const val KEY_REMOTE_CONFIG = "app_info"
     const val KEY_LATEST = "latest_version"
     const val KEY_MIN = "min_version"
     private const val ALIAS_LATEST = "latestVersion"

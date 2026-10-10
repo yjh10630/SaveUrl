@@ -54,7 +54,9 @@ class MainActivity : ComponentActivity() {
     private val immediateLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         inAppUpdateCheck.onImmediateActivityResult(resultCode = result.resultCode)
     }
-    private val flexibleLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { }
+    private val flexibleLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        inAppUpdateCheck.onFlexibleActivityResult(resultCode = result.resultCode)
+    }
 
     private var backPressedTime: Long = 0L
 
@@ -71,7 +73,14 @@ class MainActivity : ComponentActivity() {
             sharedViewModel.themeMode.value == null && SystemClock.uptimeMillis() - splashStart < SPLASH_MAX_WAIT_MS
         }
         super.onCreate(savedInstanceState)
-        inAppUpdateCheck = InAppUpdateCheck(this, immediateLauncher, flexibleLauncher, sharedViewModel)
+        // 재생성(회전, 폴드, 창 크기·언어 변경)이면 업데이트 확인을 다시 하지 않는다 (진행 중인 업데이트 재개는 onResume 에서 계속)
+        inAppUpdateCheck = InAppUpdateCheck(
+            activity = this,
+            immediateLauncher = immediateLauncher,
+            flexibleLauncher = flexibleLauncher,
+            sharedViewModel = sharedViewModel,
+            isRecreated = savedInstanceState != null,
+        )
         setupBackPressedHandler()
 
         // 첫 프레임은 시스템 설정 기준으로 시스템 바를 맞추고, 테마가 정해지면 아래 DisposableEffect 에서 다시 적용
@@ -168,7 +177,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (!SaveUrlApplication.DEBUG) inAppUpdateCheck.resumeUpdateIfNeeded()
+        inAppUpdateCheck.onResume()
     }
 
     override fun onDestroy() {

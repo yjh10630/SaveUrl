@@ -5,11 +5,13 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.jinscompany.saveurl.domain.model.ListViewMode
 import com.jinscompany.saveurl.domain.model.ThemeDefaultMigration
 import com.jinscompany.saveurl.domain.model.ThemeMode
+import com.jinscompany.saveurl.utils.InAppUpdatePolicy.FlexibleDecline
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -33,6 +35,9 @@ class PreferencesManager @Inject constructor(
     private val TUTORIAL_VIEWED_TOPICS = stringSetPreferencesKey("tutorial_viewed_topics")
     /** 메인 목록 첫 실행 안내 카드("SaveLink 사용 방법 보기")를 보여줄지. 새로 설치한 사용자만 true 로 시작한다. */
     private val TUTORIAL_CARD_VISIBLE = booleanPreferencesKey("tutorial_card_visible")
+    /** 권장(FLEXIBLE) 업데이트 동의 창에서 "나중에" 를 누른 버전(versionCode)과 시각. 3일 동안 다시 묻지 않는 데 쓴다 */
+    private val FLEXIBLE_UPDATE_DECLINED_VERSION = intPreferencesKey("flexible_update_declined_version")
+    private val FLEXIBLE_UPDATE_DECLINED_AT = longPreferencesKey("flexible_update_declined_at")
 
     val autoDeleteEnabled: Flow<Boolean> = context.dataStore.data
         .map { it[TRASH_ENABLE] ?: true }
@@ -119,5 +124,19 @@ class PreferencesManager @Inject constructor(
 
     suspend fun setNormalizedUrlVersion(version: Int) {
         context.dataStore.edit { it[NORMALIZED_URL_VERSION] = version }
+    }
+
+    suspend fun getFlexibleUpdateDecline(): FlexibleDecline? {
+        val prefs = context.dataStore.data.first()
+        val version = prefs[FLEXIBLE_UPDATE_DECLINED_VERSION] ?: return null
+        val at = prefs[FLEXIBLE_UPDATE_DECLINED_AT] ?: return null
+        return FlexibleDecline(versionCode = version, declinedAtMillis = at)
+    }
+
+    suspend fun setFlexibleUpdateDecline(decline: FlexibleDecline) {
+        context.dataStore.edit { prefs ->
+            prefs[FLEXIBLE_UPDATE_DECLINED_VERSION] = decline.versionCode
+            prefs[FLEXIBLE_UPDATE_DECLINED_AT] = decline.declinedAtMillis
+        }
     }
 }
