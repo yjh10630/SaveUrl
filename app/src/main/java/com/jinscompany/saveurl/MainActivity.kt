@@ -35,6 +35,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.rememberNavController
 import com.jinscompany.saveurl.R
 import com.jinscompany.saveurl.ui.adaptive.LocalWindowLayout
+import com.jinscompany.saveurl.ui.composable.ForceUpdateDialog
 import com.jinscompany.saveurl.ui.adaptive.currentWindowLayout
 import com.jinscompany.saveurl.ui.navigation.AppNavigation
 import com.jinscompany.saveurl.ui.navigation.navigateToSaveLink
@@ -44,6 +45,7 @@ import com.jinscompany.saveurl.ui.theme.isDarkTheme
 import com.jinscompany.saveurl.utils.CmLog
 import com.jinscompany.saveurl.utils.InAppUpdateCheck
 import com.jinscompany.saveurl.utils.extractUrlFromText
+import com.jinscompany.saveurl.utils.openPlayStorePage
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -129,6 +131,8 @@ class MainActivity : ComponentActivity() {
                 onDispose {}
             }
             val isFlexibleUpdateDownloaded by sharedViewModel.isFlexibleUpdateDownloaded.collectAsState()
+            val forceUpdateBlock by sharedViewModel.forceUpdateBlock.collectAsState()
+            val isForceUpdateRechecking by sharedViewModel.isForceUpdateRechecking.collectAsState()
             val snackbarHostState = remember { SnackbarHostState() }
 
             LaunchedEffect(isFlexibleUpdateDownloaded) {
@@ -157,6 +161,15 @@ class MainActivity : ComponentActivity() {
                         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                             AppNavigation(navController)
                         }
+                    }
+                    forceUpdateBlock?.let { reason ->
+                        ForceUpdateDialog(
+                            reason = reason,
+                            isRechecking = isForceUpdateRechecking,
+                            onPlayStoreClick = { openPlayStorePage() },
+                            onRetryClick = { inAppUpdateCheck.recheckForceUpdate() },
+                            onExitClick = { finish() },
+                        )
                     }
                 }
             }

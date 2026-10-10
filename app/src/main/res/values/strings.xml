@@ -16,6 +16,14 @@
     <string name="back_press_exit_message">뒤로 버튼을 한 번 더 누르면 종료됩니다</string>
     <string name="update_downloaded_message">새 버전이 준비되었습니다.</string>
     <string name="update_install_action">지금 설치</string>
+    <string name="force_update_title">업데이트가 필요해요</string>
+    <string name="force_update_message_canceled">이 버전은 더 이상 쓸 수 없어요. 최신 버전으로 업데이트한 뒤 계속 이용해 주세요.</string>
+    <string name="force_update_message_failed">업데이트를 마치지 못했어요. 저장 공간과 네트워크 연결을 확인한 뒤 다시 시도해 주세요.</string>
+    <string name="force_update_message_not_offered">이 버전은 더 이상 쓸 수 없어요. Play 스토어에서 최신 버전으로 업데이트해 주세요. 업데이트가 보이지 않으면 잠시 후 다시 확인해 주세요.</string>
+    <string name="force_update_play_store">Play 스토어에서 업데이트</string>
+    <string name="force_update_retry">다시 시도</string>
+    <string name="force_update_recheck">다시 확인</string>
+    <string name="force_update_exit">종료</string>
 
     <!-- 링크 공유/URL -->
     <string name="error_url_missing">Url 정보가 누락 되어 이동할 수 없습니다.</string>

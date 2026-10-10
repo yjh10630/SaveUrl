@@ -94,3 +94,18 @@ fun Context.openUrlInBrowser(url: String?) {
         Toast.makeText(this, R.string.error_url_open_failed, Toast.LENGTH_SHORT).show()
     }
 }
+
+/**
+ * Play 스토어의 이 앱 페이지 열기. Play 스토어 앱이 없으면 웹 페이지로, 그것도 열 수 없으면 토스트.
+ */
+fun Context.openPlayStorePage() {
+    try {
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$packageName")))
+    } catch (e: ActivityNotFoundException) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$packageName")))
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(this, R.string.error_url_open_failed, Toast.LENGTH_SHORT).show()
+        }
+    }
+}

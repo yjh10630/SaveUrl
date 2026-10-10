@@ -1,6 +1,5 @@
 package com.jinscompany.saveurl.ui.setting
 
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -86,6 +85,7 @@ import com.jinscompany.saveurl.ui.theme.AppDimens
 import com.jinscompany.saveurl.ui.theme.AppTheme
 import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
 import com.jinscompany.saveurl.utils.getCurrentAppVersion
+import com.jinscompany.saveurl.utils.openPlayStorePage
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -154,16 +154,7 @@ fun AppSettingScreen(
                 }
                 context.startActivity(Intent.createChooser(sendIntent, ""))
             },
-            updateClick = {
-                val playStoreIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${context.packageName}"))
-                try {
-                    context.startActivity(playStoreIntent)
-                } catch (e: ActivityNotFoundException) {
-                    context.startActivity(
-                        Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=${context.packageName}"))
-                    )
-                }
-            },
+            updateClick = { context.openPlayStorePage() },
             emailClick = {
                 val emailSelectorIntent = Intent(Intent.ACTION_SENDTO).apply {
                     data = Uri.parse("mailto:")
