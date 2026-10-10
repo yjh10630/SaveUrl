@@ -15,6 +15,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
@@ -31,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.rememberNavController
 import com.jinscompany.saveurl.R
@@ -64,6 +66,7 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val SPLASH_MAX_WAIT_MS = 1500L
+        val SNACKBAR_BOTTOM_OFFSET = 56.dp
     }
     private lateinit var toast: Toast
 
@@ -140,6 +143,8 @@ class MainActivity : ComponentActivity() {
                     val result = snackbarHostState.showSnackbar(
                         message = getString(R.string.update_downloaded_message),
                         actionLabel = getString(R.string.update_install_action),
+                        // 닫기(X): 이번에는 설치하지 않음. 다음에 앱으로 돌아올 때 다시 안내한다 (onResume 재개 경로)
+                        withDismissAction = true,
                         duration = SnackbarDuration.Indefinite,
                     )
                     if (result == SnackbarResult.ActionPerformed) {
@@ -155,7 +160,12 @@ class MainActivity : ComponentActivity() {
             SaveUrlTheme(darkTheme = isDark) {
                 CompositionLocalProvider(LocalWindowLayout provides windowLayout) {
                     Scaffold(
-                        snackbarHost = { SnackbarHost(snackbarHostState) { data -> Snackbar(snackbarData = data) } },
+                        // 각 화면 바닥의 광고 배너(약 50dp)를 가리지 않도록 그 위에 띄운다
+                        snackbarHost = {
+                            SnackbarHost(snackbarHostState, modifier = Modifier.padding(bottom = SNACKBAR_BOTTOM_OFFSET)) { data ->
+                                Snackbar(snackbarData = data)
+                            }
+                        },
                         containerColor = MaterialTheme.colorScheme.background,
                     ) { _ ->
                         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
