@@ -30,6 +30,7 @@ import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SEARCH
 import com.jinscompany.saveurl.domain.repository.TrashRepository
 import com.jinscompany.saveurl.utils.ClipboardReader
 import com.jinscompany.saveurl.utils.PreferencesManager
+import com.jinscompany.saveurl.ui.tutorial.TutorialBadgePrefs
 import com.jinscompany.saveurl.ui.tutorial.isTutorialLink
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -80,6 +81,10 @@ class MainListViewModel @Inject constructor(
     /** 메인 목록 맨 위 첫 실행 안내 카드 (새로 설치한 사용자, ✕ 로 닫기 전까지) */
     val tutorialCardVisible: StateFlow<Boolean> = preferencesManager.tutorialCardVisible
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** 새 기능 안내 카드·NEW 판단 재료. null = 읽는 중 (화면에서 보이는 주제로 거른다: TutorialNews.cardMode) */
+    val tutorialBadgePrefs: StateFlow<TutorialBadgePrefs?> = preferencesManager.tutorialBadgePrefs
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
         getLinkList()
@@ -161,6 +166,7 @@ class MainListViewModel @Inject constructor(
                 is MainListIntent.ShowLinkInfoDialog -> showLinkInfoDialog(intent.data)
                 MainListIntent.OpenTutorial -> _mainListEffect.emit(OpenTutorial)
                 MainListIntent.DismissTutorialCard -> preferencesManager.dismissTutorialCard()
+                is MainListIntent.DismissTutorialNewCard -> preferencesManager.dismissTutorialNewCard(intent.versionCode)
             }
         }
     }

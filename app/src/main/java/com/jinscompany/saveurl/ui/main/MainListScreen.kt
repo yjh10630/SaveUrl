@@ -102,7 +102,10 @@ import com.jinscompany.saveurl.ui.navigation.navigateToEditCategory
 import com.jinscompany.saveurl.ui.navigation.navigateToSaveLink
 import com.jinscompany.saveurl.ui.navigation.navigateToSearch
 import com.jinscompany.saveurl.ui.navigation.navigateToTutorial
+import com.jinscompany.saveurl.ui.tutorial.TutorialCardMode
 import com.jinscompany.saveurl.ui.tutorial.TutorialEntryCard
+import com.jinscompany.saveurl.ui.tutorial.TutorialNews
+import com.jinscompany.saveurl.ui.tutorial.currentVisibleTutorialTopics
 import com.jinscompany.saveurl.ui.theme.AppTheme
 import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
 import com.jinscompany.saveurl.utils.openUrlInBrowser
@@ -150,6 +153,13 @@ fun MainListScreen(
     val categoryNames by viewModel.categoryNames.collectAsState()
     val viewMode by sharedViewModel.listViewMode.collectAsState()
     val tutorialCardVisible by viewModel.tutorialCardVisible.collectAsState()
+    val tutorialBadgePrefs by viewModel.tutorialBadgePrefs.collectAsState()
+    val visibleTutorialTopics = currentVisibleTutorialTopics()
+    val tutorialCard = TutorialNews.cardMode(
+        introCardVisible = tutorialCardVisible,
+        newTopics = TutorialNews.newTopics(visibleTutorialTopics, tutorialBadgePrefs),
+        dismissedVersionCode = tutorialBadgePrefs?.newCardDismissedVersionCode ?: 0,
+    )
 
     val mainListPagingData = when (val uiState = mainListUiState) {
         is MainListUiState.Success -> uiState.urlFlowState.collectAsLazyPagingItems()
@@ -381,8 +391,13 @@ fun MainListScreen(
             },
             onSaveClick = { viewModel.onIntent(GoToLinkInsertScreen("")) },
             onTutorialClick = { viewModel.onIntent(MainListIntent.OpenTutorial) },
-            tutorialCardVisible = tutorialCardVisible,
-            onTutorialCardDismiss = { viewModel.onIntent(MainListIntent.DismissTutorialCard) },
+            tutorialCard = tutorialCard,
+            onTutorialCardDismiss = {
+                when (tutorialCard) {
+                    is TutorialCardMode.News -> viewModel.onIntent(MainListIntent.DismissTutorialNewCard(tutorialCard.latestVersionCode))
+                    else -> viewModel.onIntent(MainListIntent.DismissTutorialCard)
+                }
+            },
             listState = listState,
             selectedUrl = pane?.selectedUrl,
             itemMenu = itemMenu,
@@ -411,14 +426,16 @@ fun MainListScreen(
     onSortChange: (String) -> Unit = {},
     onSaveClick: () -> Unit = {},
     onTutorialClick: () -> Unit = {},
-    /** 첫 실행 안내 카드 (새로 설치한 사용자, ✕ 로 닫기 전까지) */
-    tutorialCardVisible: Boolean = false,
+    /** 맨 위 튜토리얼 카드: 첫 실행 안내(새로 설치, ✕ 전까지) 또는 새 기능 안내 */
+    tutorialCard: TutorialCardMode = TutorialCardMode.Hidden,
     onTutorialCardDismiss: () -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
     selectedUrl: String? = null,
     itemMenu: (@Composable (UrlData) -> Unit)? = null,
 ) {
     val colors = AppTheme.colors
+    val tutorialCardVisible = tutorialCard != TutorialCardMode.Hidden
+    val tutorialNewCount = (tutorialCard as? TutorialCardMode.News)?.count
     val selectedCategories = filterParams.categories
     // "전체" + 사용자 카테고리. 필터 시트에서 고른 값 중 목록에 없는 항목(예: 북마크)은 앞쪽에 함께 보여준다
     val chips = buildList {
@@ -488,7 +505,7 @@ fun MainListScreen(
         if (isEmpty) {
             Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                 if (tutorialCardVisible) {
-                    TutorialEntryCard(onOpen = onTutorialClick, onDismiss = onTutorialCardDismiss)
+                    TutorialEntryCard(onOpen = onTutorialClick, onDismiss = onTutorialCardDismiss, newCount = tutorialNewCount)
                 }
                 MainEmptyState(
                     type = emptyType,
@@ -511,6 +528,7 @@ fun MainListScreen(
                     TutorialEntryCard(
                         onOpen = onTutorialClick,
                         onDismiss = onTutorialCardDismiss,
+                        newCount = tutorialNewCount,
                         modifier = Modifier.animateItem()
                     )
                 }

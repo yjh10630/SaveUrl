@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.NewReleases
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -40,16 +41,22 @@ import com.jinscompany.saveurl.ui.theme.AppTheme
 import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
 
 /**
- * 메인 목록 맨 위 첫 실행 안내 카드 (Stitch E1).
- * 카드나 "둘러보기"를 누르면 튜토리얼을 열고, ✕ 를 누르면 다시 보이지 않는다.
+ * 메인 목록 맨 위 튜토리얼 카드 (Stitch E1).
+ * - [newCount] = null: 첫 실행 안내 카드. 카드나 "둘러보기"를 누르면 튜토리얼을 열고, ✕ 를 누르면 다시 보이지 않는다.
+ * - [newCount] = n: 새 기능 안내 카드 ("새 기능 안내 n개"). ✕ 는 이번 NEW 묶음만 닫는다 ([TutorialNews.cardMode]).
  */
 @Composable
 fun TutorialEntryCard(
     onOpen: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    newCount: Int? = null,
 ) {
     val colors = AppTheme.colors
+    val title = if (newCount != null) stringResource(R.string.tutorial_new_card_title, newCount) else stringResource(R.string.tutorial_card_title)
+    val body = stringResource(if (newCount != null) R.string.tutorial_new_card_body else R.string.tutorial_card_body)
+    val action = stringResource(if (newCount != null) R.string.tutorial_new_card_action else R.string.tutorial_card_action)
+    val icon = if (newCount != null) Icons.Outlined.NewReleases else Icons.AutoMirrored.Outlined.MenuBook
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -67,18 +74,18 @@ fun TutorialEntryCard(
                     .background(colors.background),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.AutoMirrored.Outlined.MenuBook, contentDescription = null, tint = colors.accent, modifier = Modifier.size(22.dp))
+                Icon(icon, contentDescription = null, tint = colors.accent, modifier = Modifier.size(22.dp))
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(R.string.tutorial_card_title),
+                    text = title,
                     style = MaterialTheme.typography.titleMedium,
                     color = colors.textPrimary,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = stringResource(R.string.tutorial_card_body),
+                    text = body,
                     style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
                     color = colors.textSecondary,
                 )
@@ -91,7 +98,7 @@ fun TutorialEntryCard(
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accent, contentColor = colors.onAccent),
                     elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp, 0.dp, 0.dp, 0.dp),
                 ) {
-                    Text(stringResource(R.string.tutorial_card_action), style = MaterialTheme.typography.labelLarge)
+                    Text(action, style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
@@ -113,4 +120,10 @@ fun TutorialEntryCard(
 @Composable
 private fun TutorialEntryCardPreview() {
     SaveUrlTheme(darkTheme = false) { TutorialEntryCard(onOpen = {}, onDismiss = {}) }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun TutorialEntryCardNewPreview() {
+    SaveUrlTheme(darkTheme = true) { TutorialEntryCard(onOpen = {}, onDismiss = {}, newCount = 2) }
 }
