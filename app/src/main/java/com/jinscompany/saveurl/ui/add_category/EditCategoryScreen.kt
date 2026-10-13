@@ -26,12 +26,16 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Label
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -39,9 +43,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,7 +60,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
@@ -62,13 +73,22 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import android.widget.Toast
+import com.jinscompany.saveurl.R
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.ui.composable.AdBannerBar
 import com.jinscompany.saveurl.ui.composable.AppTextField
 import com.jinscompany.saveurl.ui.composable.AppTopBar
 import com.jinscompany.saveurl.ui.composable.ButtonShape
+import com.jinscompany.saveurl.ui.composable.TextAction
 import com.jinscompany.saveurl.ui.composable.noRippleClickable
 import com.jinscompany.saveurl.ui.composable.singleClick
+import com.jinscompany.saveurl.ui.lock.LocalCategoryLockSession
+import com.jinscompany.saveurl.ui.lock.LockAuthResult
+import com.jinscompany.saveurl.ui.lock.NeedDeviceLockSheet
+import com.jinscompany.saveurl.ui.lock.hasDeviceCredential
+import com.jinscompany.saveurl.ui.lock.rememberLockAuthenticator
+import com.jinscompany.saveurl.ui.lock.rememberOpenLockedCategories
 import com.jinscompany.saveurl.ui.theme.AppDimens
 import com.jinscompany.saveurl.ui.theme.AppTheme
 import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
@@ -82,35 +102,128 @@ import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
 fun EditCategoryScreen(navController: NavHostController) {
     val viewModel = hiltViewModel<EditCategoryViewModel>()
     val focusRequester = remember { FocusRequester() }
+    val context = LocalContext.current
+    val session = LocalCategoryLockSession.current
+    val authenticator = rememberLockAuthenticator()
+    val openLocked = rememberOpenLockedCategories()
+    val isUnlocked by viewModel.isUnlocked.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var showNeedDeviceLock by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.onIntent(EditCategoryIntent.Load)
         focusRequester.requestFocus()
     }
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                is EditCategoryEffect.LockChanged -> snackbarHostState.showSnackbar(
+                    context.getString(
+                        if (effect.locked) R.string.category_locked_snackbar else R.string.category_unlocked_snackbar,
+                        effect.name
+                    )
+                )
+            }
+        }
+    }
+    if (showNeedDeviceLock) NeedDeviceLockSheet(onDismiss = { showNeedDeviceLock = false })
+
+    // 37번 기획서 4.3: 잠그기는 세션이 열려 있으면 바로, 아니면 인증 후 잠그고 세션을 연다. 풀기는 항상 인증
+    val onToggleLock: (CategoryModel) -> Unit = { item ->
+        if (item.isLocked) {
+            authenticator.authenticate(
+                title = context.getString(R.string.prompt_unlock_category, item.name),
+                subtitle = context.getString(R.string.prompt_identity_subtitle),
+                allowWithoutCredential = true,
+            ) { result ->
+                when (result) {
+                    LockAuthResult.Success -> viewModel.onIntent(EditCategoryIntent.SetLocked(item.name, false))
+                    LockAuthResult.PassedWithoutCredential -> {
+                        Toast.makeText(context, R.string.lock_opened_without_auth, Toast.LENGTH_SHORT).show()
+                        viewModel.onIntent(EditCategoryIntent.SetLocked(item.name, false))
+                    }
+                    LockAuthResult.Error -> Toast.makeText(context, R.string.lock_unavailable_retry, Toast.LENGTH_SHORT).show()
+                    else -> Unit
+                }
+            }
+        } else if (!context.hasDeviceCredential()) {
+            showNeedDeviceLock = true
+        } else if (session.isUnlocked.value) {
+            viewModel.onIntent(EditCategoryIntent.SetLocked(item.name, true))
+        } else {
+            authenticator.authenticate(
+                title = context.getString(R.string.prompt_lock_category, item.name),
+                subtitle = context.getString(R.string.prompt_identity_subtitle),
+                allowWithoutCredential = false,
+            ) { result ->
+                when (result) {
+                    LockAuthResult.Success -> {
+                        session.unlock()
+                        viewModel.onIntent(EditCategoryIntent.SetLocked(item.name, true))
+                    }
+                    LockAuthResult.NoCredential -> showNeedDeviceLock = true
+                    LockAuthResult.Error -> Toast.makeText(context, R.string.lock_unavailable_retry, Toast.LENGTH_SHORT).show()
+                    else -> Unit
+                }
+            }
+        }
+    }
 
     EditCategoryContent(
         categories = viewModel.categoryItemsState.value,
+        isUnlocked = isUnlocked,
+        snackbarHostState = snackbarHostState,
         addFocusRequester = focusRequester,
         onBack = { navController.popBackStack() },
         onInsert = { viewModel.onIntent(EditCategoryIntent.Insert(it)) },
         onUpdate = { old, new -> viewModel.onIntent(EditCategoryIntent.Update(oldName = old, newName = new)) },
         onDelete = { viewModel.onIntent(EditCategoryIntent.Delete(it)) },
+        onToggleLock = onToggleLock,
+        onShowLocked = { openLocked(R.string.prompt_open_locked) {} },
     )
 }
 
 @Composable
 private fun EditCategoryContent(
     categories: List<CategoryModel>,
+    isUnlocked: Boolean = false,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     addFocusRequester: FocusRequester = remember { FocusRequester() },
     onBack: () -> Unit,
     onInsert: (String) -> Unit,
     onUpdate: (String, String) -> Unit,
     onDelete: (String) -> Unit,
+    onToggleLock: (CategoryModel) -> Unit = {},
+    onShowLocked: () -> Unit = {},
 ) {
     val colors = AppTheme.colors
     val focusManager = LocalFocusManager.current
     var newName by remember { mutableStateOf("") }
     var editingName by remember { mutableStateOf<String?>(null) }
+    // 잠금 카테고리 삭제 확인 (링크가 미분류로 옮겨지며 잠금이 풀린다)
+    var confirmDeleteLocked by remember { mutableStateOf<CategoryModel?>(null) }
+    // 세션이 닫혀 있으면 잠금 카테고리는 목록 맨 아래 "잠금 카테고리 n개 · 보기" 한 행으로 접는다
+    val visibleCategories = if (isUnlocked) categories else categories.filterNot { it.isLocked }
+    val hiddenLockedCount = categories.size - visibleCategories.size
+    val hasLocked = categories.any { it.isLocked }
+
+    confirmDeleteLocked?.let { target ->
+        AlertDialog(
+            onDismissRequest = { confirmDeleteLocked = null },
+            title = { Text(stringResource(R.string.category_locked_delete_title)) },
+            text = { Text(stringResource(R.string.category_locked_delete_body, target.contentCnt)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDelete(target.name)
+                    confirmDeleteLocked = null
+                    editingName = null
+                }) { Text(stringResource(R.string.btn_delete), color = colors.danger) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDeleteLocked = null }) { Text(stringResource(R.string.btn_cancel)) }
+            },
+        )
+    }
 
     val submitNew = {
         val name = newName.trim()
@@ -122,6 +235,7 @@ private fun EditCategoryContent(
     Scaffold(
         containerColor = colors.background,
         bottomBar = { AdBannerBar() },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -174,14 +288,15 @@ private fun EditCategoryContent(
                 Icon(Icons.Outlined.Info, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    "카테고리 ${categories.size}개 · 이름을 누르면 수정하거나 삭제할 수 있어요",
+                    if (hasLocked) "카테고리 ${visibleCategories.size}개 · 이름을 누르면 수정하거나 삭제할 수 있어요"
+                    else stringResource(R.string.category_lock_hint, visibleCategories.size),
                     style = MaterialTheme.typography.labelMedium,
                     color = colors.textSecondary
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (categories.isEmpty()) {
+            if (visibleCategories.isEmpty() && hiddenLockedCount == 0) {
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 48.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -207,7 +322,7 @@ private fun EditCategoryContent(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
-                    items(categories, key = { it.id.toString() + it.name }) { item ->
+                    items(visibleCategories, key = { it.id.toString() + it.name }) { item ->
                         if (editingName == item.name) {
                             EditingRow(
                                 name = item.name,
@@ -222,8 +337,12 @@ private fun EditCategoryContent(
                                     focusManager.clearFocus()
                                 },
                                 onDelete = {
-                                    onDelete(item.name)
-                                    editingName = null
+                                    if (item.isLocked) {
+                                        confirmDeleteLocked = item
+                                    } else {
+                                        onDelete(item.name)
+                                        editingName = null
+                                    }
                                     focusManager.clearFocus()
                                 }
                             )
@@ -231,13 +350,23 @@ private fun EditCategoryContent(
                             CategoryRow(
                                 name = item.name,
                                 count = item.contentCnt,
-                                onEdit = { editingName = item.name }
+                                isLocked = item.isLocked,
+                                onEdit = { editingName = item.name },
+                                onToggleLock = { onToggleLock(item) },
                             )
                         }
                         HorizontalDivider(
                             color = colors.outline, thickness = 1.dp,
                             modifier = Modifier.padding(horizontal = AppDimens.Gutter)
                         )
+                    }
+                    if (hiddenLockedCount > 0) {
+                        item(key = "locked_hidden_row") {
+                            LockedHiddenRow(count = hiddenLockedCount, onShow = onShowLocked)
+                        }
+                    }
+                    if (hasLocked) {
+                        item(key = "lock_limits_note") { LockLimitsNote() }
                     }
                 }
             }
@@ -246,7 +375,7 @@ private fun EditCategoryContent(
 }
 
 @Composable
-private fun CategoryRow(name: String, count: Int, onEdit: () -> Unit) {
+private fun CategoryRow(name: String, count: Int, isLocked: Boolean, onEdit: () -> Unit, onToggleLock: () -> Unit) {
     val colors = AppTheme.colors
     Row(
         modifier = Modifier
@@ -265,9 +394,78 @@ private fun CategoryRow(name: String, count: Int, onEdit: () -> Unit) {
             modifier = Modifier.weight(1f)
         )
         Text("$count", style = MaterialTheme.typography.labelLarge, color = colors.textSecondary)
+        Spacer(modifier = Modifier.width(4.dp))
+        LockToggle(name = name, isLocked = isLocked, onClick = onToggleLock)
         IconButton(onClick = onEdit) {
             Icon(Icons.Outlined.Edit, contentDescription = "이름 수정", tint = colors.textSecondary, modifier = Modifier.size(20.dp))
         }
+    }
+}
+
+/** 행의 자물쇠 토글 (Stitch 07): 안 잠김 = 열린 자물쇠(회색), 잠김 = accentTint 원 안 강조색 자물쇠 */
+@Composable
+private fun LockToggle(name: String, isLocked: Boolean, onClick: () -> Unit) {
+    val colors = AppTheme.colors
+    val description = stringResource(if (isLocked) R.string.category_unlock_cd else R.string.category_lock_cd, name)
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .clickable(onClick = singleClick { onClick() }, role = Role.Button, onClickLabel = description),
+        contentAlignment = Alignment.Center
+    ) {
+        if (isLocked) {
+            Box(
+                modifier = Modifier.size(32.dp).clip(CircleShape).background(colors.accentTint),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.Lock, contentDescription = description, tint = colors.accent, modifier = Modifier.size(18.dp))
+            }
+        } else {
+            Icon(Icons.Outlined.LockOpen, contentDescription = description, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+/** 세션이 닫혀 있을 때 잠금 카테고리를 접은 행: 자물쇠 + "잠금 카테고리 n개" + "보기" */
+@Composable
+private fun LockedHiddenRow(count: Int, onShow: () -> Unit) {
+    val colors = AppTheme.colors
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .clickable(onClick = singleClick { onShow() })
+            .padding(start = AppDimens.Gutter, end = AppDimens.Gutter - 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Outlined.Lock, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            stringResource(R.string.category_locked_hidden_row, count),
+            style = MaterialTheme.typography.bodyLarge,
+            color = colors.textPrimary,
+            modifier = Modifier.weight(1f)
+        )
+        TextAction(stringResource(R.string.category_locked_show), onClick = onShow, color = colors.accent)
+    }
+}
+
+/** 잠금의 한계 안내 (암호화가 아님) */
+@Composable
+private fun LockLimitsNote() {
+    val colors = AppTheme.colors
+    Row(
+        modifier = Modifier.padding(start = AppDimens.Gutter, end = AppDimens.Gutter, top = 16.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(Icons.Outlined.Info, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.padding(top = 2.dp).size(14.dp))
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            stringResource(R.string.lock_limits_note),
+            style = MaterialTheme.typography.labelMedium,
+            color = colors.textSecondary
+        )
     }
 }
 
@@ -333,7 +531,11 @@ private fun inlineFieldColor() = AppTheme.colors.background
 private fun EditCategoryPreview() {
     SaveUrlTheme(darkTheme = false) {
         EditCategoryContent(
-            categories = listOf(CategoryModel(name = "개발", contentCnt = 24), CategoryModel(name = "뉴스", contentCnt = 8)),
+            categories = listOf(
+                CategoryModel(name = "개발", contentCnt = 24),
+                CategoryModel(name = "뉴스", contentCnt = 8),
+                CategoryModel(name = "쇼핑", contentCnt = 3, isLocked = true),
+            ),
             onBack = {}, onInsert = {}, onUpdate = { _, _ -> }, onDelete = {}
         )
     }

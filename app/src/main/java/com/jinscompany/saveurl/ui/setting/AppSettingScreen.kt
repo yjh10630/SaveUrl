@@ -33,6 +33,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.ViewAgenda
@@ -45,6 +46,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -80,6 +84,9 @@ import com.jinscompany.saveurl.ui.composable.singleClick
 import com.jinscompany.saveurl.ui.main.components.labelRes
 import com.jinscompany.saveurl.ui.composable.AdBannerBar
 import com.jinscompany.saveurl.ui.navigation.navigateToTutorial
+import com.jinscompany.saveurl.ui.navigation.navigateToEditCategory
+import com.jinscompany.saveurl.ui.lock.LockAuthResult
+import com.jinscompany.saveurl.ui.lock.rememberLockAuthenticator
 import com.jinscompany.saveurl.ui.tutorial.NewPill
 import com.jinscompany.saveurl.ui.tutorial.TutorialNews
 import com.jinscompany.saveurl.ui.tutorial.TutorialViewModel
@@ -119,9 +126,47 @@ fun AppSettingScreen(
     val context = LocalContext.current
     val isFlexibleUpdatable by sharedViewModel.isFlexibleUpdatable.collectAsState()
 
+    val lockedCategoryCount by settingViewModel.lockedCategoryCount.collectAsState()
+    val authenticator = rememberLockAuthenticator()
+    var showCsvExportSheet by remember { mutableStateOf(false) }
+    // 백업 시트에서 "잠금 카테고리도 포함"을 고르고 인증을 마쳤는지 (파일 선택 결과를 받을 때 쓴다)
+    var exportIncludeLocked by remember { mutableStateOf(false) }
+
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
-    ) { uri -> uri?.let { settingViewModel.exportCsv(it) } }
+    ) { uri -> uri?.let { settingViewModel.exportCsv(it, includeLocked = exportIncludeLocked) } }
+    val launchExport: (Boolean) -> Unit = { includeLocked ->
+        exportIncludeLocked = includeLocked
+        val dateStr = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        exportLauncher.launch("savelink_backup_$dateStr.csv")
+    }
+    if (showCsvExportSheet) {
+        CsvExportSheet(
+            onDismiss = { showCsvExportSheet = false },
+            onConfirm = { includeLocked ->
+                if (!includeLocked) {
+                    showCsvExportSheet = false
+                    launchExport(false)
+                } else {
+                    // 체크를 켜는 순간이 아니라 [파일 만들기]에서 인증. 취소하면 시트에 머문다
+                    authenticator.authenticate(
+                        title = context.getString(R.string.prompt_csv_include_locked),
+                        subtitle = context.getString(R.string.prompt_csv_include_locked_subtitle),
+                        allowWithoutCredential = true,
+                    ) { result ->
+                        when (result) {
+                            LockAuthResult.Success, LockAuthResult.PassedWithoutCredential -> {
+                                showCsvExportSheet = false
+                                launchExport(true)
+                            }
+                            LockAuthResult.Error -> Toast.makeText(context, R.string.lock_unavailable_retry, Toast.LENGTH_SHORT).show()
+                            else -> Unit
+                        }
+                    }
+                }
+            },
+        )
+    }
 
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -147,8 +192,13 @@ fun AppSettingScreen(
                 else navController.popBackStack()
             },
             exportCsvClick = {
-                val dateStr = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                exportLauncher.launch("savelink_backup_$dateStr.csv")
+                // 잠금 카테고리가 있으면 포함 여부를 먼저 묻는다 (기본 미포함)
+                if (lockedCategoryCount > 0) showCsvExportSheet = true else launchExport(false)
+            },
+            lockedCategoryCount = lockedCategoryCount,
+            lockedCategoriesClick = {
+                if (isListPane) navController.navigateInSettingsPane(Navigation.Routes.EDIT_CATEGORY)
+                else navController.navigateToEditCategory()
             },
             importCsvClick = {
                 importLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "*/*"))
@@ -226,6 +276,9 @@ fun AppSettingScreen(
     isUpdatable: Boolean = false,
     categoryEditClick: (() -> Unit)? = null,
     selectedRow: SettingPaneRow? = null,
+    /** 잠금 카테고리 개수 ("데이터" 섹션의 "잠금 카테고리" 행 값) */
+    lockedCategoryCount: Int = 0,
+    lockedCategoriesClick: () -> Unit = {},
 ) {
     val colors = AppTheme.colors
     LazyColumn(
@@ -289,6 +342,16 @@ fun AppSettingScreen(
 
         // 데이터
         item { SectionLabel("데이터") }
+        // 폰에는 카테고리 편집 행이 없으므로 이 행이 폰에서도 카테고리 편집(잠금 토글)으로 가는 길이 된다
+        item {
+            SettingRow(
+                icon = Icons.Outlined.Lock,
+                label = stringResource(R.string.setting_locked_categories),
+                onClick = lockedCategoriesClick,
+                value = if (lockedCategoryCount > 0) stringResource(R.string.setting_locked_categories_count, lockedCategoryCount)
+                    else stringResource(R.string.setting_locked_categories_none),
+            )
+        }
         if (categoryEditClick != null) {
             item {
                 SettingRow(
@@ -396,9 +459,19 @@ private fun SettingRow(
     selected: Boolean = false,
     /** 오른쪽 화살표 앞 작은 알약 (예: "새 기능 2") */
     badge: String? = null,
+    /** 오른쪽 화살표 앞 회색 값 (예: "2개") */
+    value: String? = null,
 ) {
     SettingRowContainer(onClick = onClick, selected = selected) {
         RowIconLabel(icon = icon, label = label, modifier = Modifier.weight(1f), selected = selected)
+        if (value != null) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                color = AppTheme.colors.textSecondary,
+                modifier = Modifier.padding(start = 8.dp, end = 4.dp)
+            )
+        }
         if (badge != null) {
             NewPill(text = badge, modifier = Modifier.padding(start = 8.dp, end = 4.dp))
         }
