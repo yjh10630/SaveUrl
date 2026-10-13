@@ -31,7 +31,7 @@ class TrashRepositoryImpl @Inject constructor(
         preferencesManager.setAutoDeleteEnabled(isEnable)
     }
 
-    override fun getTrashItems(): PagingSource<Int, TrashItem> = trashDao.getPagingItemAll()
+    override fun getTrashItems(includeLocked: Boolean): PagingSource<Int, TrashItem> = trashDao.getPagingItems(includeLocked)
     override suspend fun getAllTrashItems(): List<TrashItem> = withContext(Dispatchers.IO) {
         return@withContext trashDao.getAll()
     }
@@ -39,13 +39,14 @@ class TrashRepositoryImpl @Inject constructor(
         return@withContext trashDao.insert(item) > -1
     }
 
-    override suspend fun getAllItemsAfterDeleteAll(): List<TrashItem> =
+    override suspend fun getAllItemsAfterDeleteAll(includeLocked: Boolean): List<TrashItem> =
         withContext(Dispatchers.IO) {
             return@withContext try {
                 db.withTransaction {
-                    val list = trashDao.getAll()
+                    // 닫힌 잠금 카테고리 항목은 보이지 않으므로 건드리지 않는다
+                    val list = trashDao.getVisible(includeLocked)
                     if (list.isNotEmpty()) {
-                        trashDao.deleteAll()
+                        trashDao.deleteItems(list)
                     }
                     list
                 }

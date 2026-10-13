@@ -16,60 +16,53 @@ import com.jinscompany.saveurl.domain.model.UrlData
 @Dao
 interface BaseSaveUrlDao {
 
-    @Query("SELECT * FROM basesaveurl ORDER BY addDate DESC")
-    fun getUrlDataLatest(): PagingSource<Int, UrlData>
+    // ---- 메인 목록. 잠금 카테고리 숨김은 LockSql.VISIBLE (includeLocked 는 유스케이스가 세션으로 정함) ----
+    @Query("SELECT * FROM basesaveurl WHERE ${LockSql.VISIBLE} ORDER BY addDate DESC")
+    fun getUrlDataLatest(includeLocked: Boolean): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM basesaveurl ORDER BY addDate ASC")
-    fun getUrlDataOldest(): PagingSource<Int, UrlData>
+    @Query("SELECT * FROM basesaveurl WHERE ${LockSql.VISIBLE} ORDER BY addDate ASC")
+    fun getUrlDataOldest(includeLocked: Boolean): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM basesaveurl WHERE isBookMark = 1 ORDER BY addDate DESC")
-    fun getTargetBookMarkUrlDataLatest(): PagingSource<Int, UrlData>
+    @Query("SELECT * FROM basesaveurl WHERE isBookMark = 1 AND ${LockSql.VISIBLE} ORDER BY addDate DESC")
+    fun getTargetBookMarkUrlDataLatest(includeLocked: Boolean): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM basesaveurl WHERE isBookMark = 1 ORDER BY addDate ASC")
-    fun getTargetBookMarkUrlDataOldest(): PagingSource<Int, UrlData>
+    @Query("SELECT * FROM basesaveurl WHERE isBookMark = 1 AND ${LockSql.VISIBLE} ORDER BY addDate ASC")
+    fun getTargetBookMarkUrlDataOldest(includeLocked: Boolean): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM basesaveurl WHERE category = :categoryName ORDER BY addDate DESC")
-    fun getTargetCategoryUrlData(categoryName: String): PagingSource<Int, UrlData>
+    @Query("SELECT * FROM basesaveurl WHERE category IN (:categoryNames) AND ${LockSql.VISIBLE} ORDER BY addDate DESC")
+    fun getTargetCategoryUrlDataLatest(categoryNames: List<String>, includeLocked: Boolean): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM basesaveurl WHERE category IN (:categoryNames) ORDER BY addDate DESC")
-    fun getTargetCategoryUrlDataLatest(categoryNames: List<String>): PagingSource<Int, UrlData>
+    @Query("SELECT * FROM basesaveurl WHERE category IN (:categoryNames) AND ${LockSql.VISIBLE} ORDER BY addDate ASC")
+    fun getTargetCategoryUrlDataOldest(categoryNames: List<String>, includeLocked: Boolean): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM basesaveurl WHERE category IN (:categoryNames) ORDER BY addDate ASC")
-    fun getTargetCategoryUrlDataOldest(categoryNames: List<String>): PagingSource<Int, UrlData>
+    @Query("SELECT * FROM basesaveurl WHERE siteName IN (:siteNames) AND ${LockSql.VISIBLE} ORDER BY addDate DESC")
+    fun getUrlDataLatestBySites(siteNames: List<String>, includeLocked: Boolean): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM basesaveurl WHERE siteName IN (:siteNames) ORDER BY addDate DESC")
-    fun getUrlDataLatestBySites(siteNames: List<String>): PagingSource<Int, UrlData>
+    @Query("SELECT * FROM basesaveurl WHERE siteName IN (:siteNames) AND ${LockSql.VISIBLE} ORDER BY addDate ASC")
+    fun getUrlDataOldestBySites(siteNames: List<String>, includeLocked: Boolean): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM basesaveurl WHERE siteName IN (:siteNames) ORDER BY addDate ASC")
-    fun getUrlDataOldestBySites(siteNames: List<String>): PagingSource<Int, UrlData>
+    @Query("SELECT * FROM basesaveurl WHERE isBookMark = 1 AND siteName IN (:siteNames) AND ${LockSql.VISIBLE} ORDER BY addDate DESC")
+    fun getTargetBookMarkUrlDataLatestBySites(siteNames: List<String>, includeLocked: Boolean): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM basesaveurl WHERE isBookMark = 1 AND siteName IN (:siteNames) ORDER BY addDate DESC")
-    fun getTargetBookMarkUrlDataLatestBySites(siteNames: List<String>): PagingSource<Int, UrlData>
+    @Query("SELECT * FROM basesaveurl WHERE isBookMark = 1 AND siteName IN (:siteNames) AND ${LockSql.VISIBLE} ORDER BY addDate ASC")
+    fun getTargetBookMarkUrlDataOldestBySites(siteNames: List<String>, includeLocked: Boolean): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM basesaveurl WHERE isBookMark = 1 AND siteName IN (:siteNames) ORDER BY addDate ASC")
-    fun getTargetBookMarkUrlDataOldestBySites(siteNames: List<String>): PagingSource<Int, UrlData>
+    @Query("SELECT * FROM basesaveurl WHERE category IN (:categories) AND siteName IN (:siteNames) AND ${LockSql.VISIBLE} ORDER BY addDate DESC")
+    fun getTargetCategoryUrlDataLatestBySites(categories: List<String>, siteNames: List<String>, includeLocked: Boolean): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM basesaveurl WHERE category IN (:categories) AND siteName IN (:siteNames) ORDER BY addDate DESC")
-    fun getTargetCategoryUrlDataLatestBySites(categories: List<String>, siteNames: List<String>): PagingSource<Int, UrlData>
+    @Query("SELECT * FROM basesaveurl WHERE category IN (:categories) AND siteName IN (:siteNames) AND ${LockSql.VISIBLE} ORDER BY addDate ASC")
+    fun getTargetCategoryUrlDataOldestBySites(categories: List<String>, siteNames: List<String>, includeLocked: Boolean): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM basesaveurl WHERE category IN (:categories) AND siteName IN (:siteNames) ORDER BY addDate ASC")
-    fun getTargetCategoryUrlDataOldestBySites(categories: List<String>, siteNames: List<String>): PagingSource<Int, UrlData>
-
-
-
-
-
+    /** 잠금과 관계없이 전체 (테스트·내부용). 화면·내보내기는 [getAll] 을 쓴다 */
     @Query("SELECT * FROM basesaveurl ORDER BY addDate DESC")
     suspend fun get(): List<UrlData>
 
+    /** CSV 내보내기 */
+    @Query("SELECT * FROM basesaveurl WHERE ${LockSql.VISIBLE} ORDER BY addDate DESC")
+    suspend fun getAll(includeLocked: Boolean): List<UrlData>
+
     @Query("SELECT * FROM basesaveurl WHERE url = :url")
     suspend fun get(url: String): UrlData?
-
-    @Query("SELECT * FROM basesaveurl WHERE category = :categoryName ORDER BY addDate DESC")
-    suspend fun getTargetCategory(categoryName: String): List<UrlData>
-
-    @Query("SELECT * FROM basesaveurl WHERE isBookMark = 1 ORDER BY addDate DESC")
-    suspend fun getTargetBookMark(): List<UrlData>
 
     @Query("SELECT COUNT(*) FROM basesaveurl WHERE url = :url")
     suspend fun exists(url: String): Int
@@ -77,52 +70,53 @@ interface BaseSaveUrlDao {
     @Query("SELECT * FROM basesaveurl WHERE normalizedUrl = :normalizedUrl AND normalizedUrl != '' LIMIT 1")
     suspend fun findByNormalizedUrl(normalizedUrl: String): UrlData?
     
-    @Query("SELECT * FROM BaseSaveUrl \n" +
-            "        WHERE title LIKE '%' || :keyword || '%' \n" +
-            "        OR description LIKE '%' || :keyword || '%' \n" +
-            "        OR tagList LIKE '%' || :keyword || '%'")
-    fun searchAll(keyword: String): PagingSource<Int, UrlData>
+    // ---- 검색 (잠금 카테고리 숨김은 LockSql.VISIBLE) ----
+    @Query("SELECT * FROM BaseSaveUrl WHERE (title LIKE '%' || :keyword || '%' " +
+            "OR description LIKE '%' || :keyword || '%' " +
+            "OR tagList LIKE '%' || :keyword || '%') AND ${LockSql.VISIBLE}")
+    fun searchAll(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM BaseSaveUrl WHERE title LIKE '%' || :keyword || '%'")
-    fun searchByTitle(keyword: String): PagingSource<Int, UrlData>
+    @Query("SELECT * FROM BaseSaveUrl WHERE title LIKE '%' || :keyword || '%' AND ${LockSql.VISIBLE}")
+    fun searchByTitle(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM BaseSaveUrl WHERE description LIKE '%' || :keyword || '%'")
-    fun searchByDescription(keyword: String): PagingSource<Int, UrlData>
+    @Query("SELECT * FROM BaseSaveUrl WHERE description LIKE '%' || :keyword || '%' AND ${LockSql.VISIBLE}")
+    fun searchByDescription(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM BaseSaveUrl WHERE tagList LIKE '%' || :keyword || '%'")
-    fun searchByTag(keyword: String): PagingSource<Int, UrlData>
+    @Query("SELECT * FROM BaseSaveUrl WHERE tagList LIKE '%' || :keyword || '%' AND ${LockSql.VISIBLE}")
+    fun searchByTag(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData>
 
     // ---- 정렬 지정 검색 (2분할 검색 화면의 필터 패널에서만 사용. 폰 검색은 위 쿼리 그대로) ----
     // oldest = 1 이면 addDate 오름차순, 0 이면 첫 정렬 키가 모두 NULL 이라 두 번째 키(addDate 내림차순)로 정렬된다.
     @Query("SELECT * FROM BaseSaveUrl WHERE (title LIKE '%' || :keyword || '%' OR description LIKE '%' || :keyword || '%' OR tagList LIKE '%' || :keyword || '%') " +
-            "ORDER BY CASE WHEN :oldest = 1 THEN addDate END ASC, addDate DESC")
-    fun searchAllSorted(keyword: String, oldest: Boolean): PagingSource<Int, UrlData>
+            "AND ${LockSql.VISIBLE} ORDER BY CASE WHEN :oldest = 1 THEN addDate END ASC, addDate DESC")
+    fun searchAllSorted(keyword: String, oldest: Boolean, includeLocked: Boolean): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM BaseSaveUrl WHERE title LIKE '%' || :keyword || '%' ORDER BY CASE WHEN :oldest = 1 THEN addDate END ASC, addDate DESC")
-    fun searchByTitleSorted(keyword: String, oldest: Boolean): PagingSource<Int, UrlData>
+    @Query("SELECT * FROM BaseSaveUrl WHERE title LIKE '%' || :keyword || '%' AND ${LockSql.VISIBLE} ORDER BY CASE WHEN :oldest = 1 THEN addDate END ASC, addDate DESC")
+    fun searchByTitleSorted(keyword: String, oldest: Boolean, includeLocked: Boolean): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM BaseSaveUrl WHERE description LIKE '%' || :keyword || '%' ORDER BY CASE WHEN :oldest = 1 THEN addDate END ASC, addDate DESC")
-    fun searchByDescriptionSorted(keyword: String, oldest: Boolean): PagingSource<Int, UrlData>
+    @Query("SELECT * FROM BaseSaveUrl WHERE description LIKE '%' || :keyword || '%' AND ${LockSql.VISIBLE} ORDER BY CASE WHEN :oldest = 1 THEN addDate END ASC, addDate DESC")
+    fun searchByDescriptionSorted(keyword: String, oldest: Boolean, includeLocked: Boolean): PagingSource<Int, UrlData>
 
-    @Query("SELECT * FROM BaseSaveUrl WHERE tagList LIKE '%' || :keyword || '%' ORDER BY CASE WHEN :oldest = 1 THEN addDate END ASC, addDate DESC")
-    fun searchByTagSorted(keyword: String, oldest: Boolean): PagingSource<Int, UrlData>
+    @Query("SELECT * FROM BaseSaveUrl WHERE tagList LIKE '%' || :keyword || '%' AND ${LockSql.VISIBLE} ORDER BY CASE WHEN :oldest = 1 THEN addDate END ASC, addDate DESC")
+    fun searchByTagSorted(keyword: String, oldest: Boolean, includeLocked: Boolean): PagingSource<Int, UrlData>
 
     // ---- 홈 패널 요약 (2분할). 테이블을 한 번만 훑어 세 숫자를 함께 집계하고, 링크가 바뀌면 다시 내보낸다 ----
+    // 잠금 카테고리는 세션과 관계없이 항상 세지 않는다 ("전체" 에 섞지 않는 규칙과 같음)
     @Query("SELECT COUNT(*) AS total, IFNULL(SUM(isBookMark), 0) AS bookmarks, " +
-            "IFNULL(SUM(CASE WHEN addDate >= :since THEN 1 ELSE 0 END), 0) AS thisWeek FROM BaseSaveUrl")
+            "IFNULL(SUM(CASE WHEN addDate >= :since THEN 1 ELSE 0 END), 0) AS thisWeek FROM BaseSaveUrl WHERE ${LockSql.NOT_LOCKED}")
     fun observeLinkCounts(since: Long): Flow<LinkCounts>
 
     /** 링크 수가 많은 카테고리 순 (미분류 = null/빈 값/[excluded] 제외) */
     @Query("SELECT category AS name, COUNT(*) AS count FROM BaseSaveUrl " +
-            "WHERE category IS NOT NULL AND TRIM(category) != '' AND category != :excluded " +
+            "WHERE category IS NOT NULL AND TRIM(category) != '' AND category != :excluded AND ${LockSql.NOT_LOCKED} " +
             "GROUP BY category ORDER BY count DESC, name ASC LIMIT :limit")
     fun observeTopCategoryCounts(excluded: String, limit: Int): Flow<List<CategoryCount>>
 
-    @Query("SELECT tagList FROM BaseSaveUrl WHERE tagList IS NOT NULL")
-    suspend fun getAllTagListJson(): List<String>
+    @Query("SELECT tagList FROM BaseSaveUrl WHERE tagList IS NOT NULL AND ${LockSql.VISIBLE}")
+    suspend fun getAllTagListJson(includeLocked: Boolean): List<String>
 
-    @Query("SELECT DISTINCT siteName FROM BaseSaveUrl WHERE siteName IS NOT NULL AND TRIM(siteName) != ''")
-    suspend fun getDistinctNonEmptySiteNames(): List<String>
+    @Query("SELECT DISTINCT siteName FROM BaseSaveUrl WHERE siteName IS NOT NULL AND TRIM(siteName) != '' AND ${LockSql.VISIBLE}")
+    suspend fun getDistinctNonEmptySiteNames(includeLocked: Boolean): List<String>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(vararg entity: UrlData)

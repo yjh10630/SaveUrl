@@ -265,4 +265,55 @@
     <string name="tut_contact_title">문의</string>
     <string name="tut_contact_subtitle">앱 오류 신고</string>
     <string name="tut_contact_body">문제가 있으면 설정 &gt; **앱 오류 신고**로 알려 주세요. SaveLink를 써 주셔서 고마워요.</string>
+    <!-- 잠금 카테고리 (37번 기획서) -->
+    <string name="setting_locked_categories">잠금 카테고리</string>
+    <string name="setting_locked_categories_count">%d개</string>
+    <string name="setting_locked_categories_none">없음</string>
+    <string name="lock_need_credential_title">휴대폰 화면 잠금이 필요해요</string>
+    <string name="lock_need_credential_body">잠금 카테고리를 쓰려면 휴대폰 화면 잠금이 있어야 해요. 따로 비밀번호를 만들지 않아서, 비밀번호를 잊어 못 여는 일이 없어요.</string>
+    <string name="lock_need_credential_hint">설정 › 보안 › 화면 잠금에서 PIN이나 패턴을 먼저 설정해 주세요.</string>
+    <string name="lock_open_security_settings">화면 잠금 설정하기</string>
+    <string name="lock_unavailable_retry">지금은 확인할 수 없어요. 잠시 후 다시 시도해 주세요.</string>
+    <string name="lock_opened_without_auth">휴대폰 화면 잠금이 꺼져 있어 확인 없이 열었어요</string>
+    <string name="prompt_open_locked">잠금 카테고리 열기</string>
+    <string name="prompt_lock_category">‘%s’ 잠그기</string>
+    <string name="prompt_unlock_category">‘%s’ 잠금 풀기</string>
+    <string name="prompt_identity_subtitle">본인 확인이 필요해요</string>
+    <string name="prompt_save_to_locked">잠금 카테고리에 저장</string>
+    <string name="prompt_csv_include_locked">잠금 카테고리 포함해서 백업</string>
+    <string name="prompt_csv_include_locked_subtitle">CSV 파일은 잠기지 않아요</string>
+    <string name="category_lock_hint">카테고리 %d개 · 자물쇠를 누르면 잠금 카테고리가 돼요</string>
+    <string name="category_lock_cd">‘%s’ 잠그기</string>
+    <string name="category_unlock_cd">‘%s’ 잠금 풀기</string>
+    <string name="category_locked_snackbar">‘%s’을(를) 잠갔어요. 전체·검색에서 보이지 않아요</string>
+    <string name="category_unlocked_snackbar">‘%s’ 잠금을 풀었어요</string>
+    <string name="category_locked_hidden_row">잠금 카테고리 %d개</string>
+    <string name="category_locked_show">보기</string>
+    <string name="category_locked_delete_title">잠금 카테고리를 삭제할까요?</string>
+    <string name="category_locked_delete_body">이 카테고리의 링크 %d개가 미분류로 옮겨지고 더 이상 잠기지 않아요.</string>
+    <string name="lock_limits_note">잠금은 옆 사람이 내 링크를 보지 못하게 하는 기능이에요. 저장된 링크를 암호화하지는 않아요.</string>
+    <string name="chip_locked_cd">잠금 카테고리 열기</string>
+    <string name="chip_relock">다시 잠그기</string>
+    <string name="chip_relock_cd">잠금 카테고리 다시 잠그기</string>
+    <string name="locked_viewing_banner">잠금 카테고리를 보고 있어요 · 앱을 나가면 곧 다시 잠겨요</string>
+    <string name="picker_save_to_locked">잠금 카테고리에 저장…</string>
+    <string name="picker_save_to_locked_desc">지문이나 화면 잠금으로 확인한 뒤 고를 수 있어요</string>
+    <string name="search_include_locked">잠금 카테고리도 검색</string>
+    <string name="home_locked_not_counted">잠금 카테고리는 여기에서 세지 않아요</string>
+    <string name="trash_show_locked">잠금 카테고리 항목 보기</string>
+    <string name="csv_export_title">백업 파일 만들기</string>
+    <string name="csv_export_desc">링크를 CSV 파일로 저장해요</string>
+    <string name="csv_include_locked">잠금 카테고리도 포함</string>
+    <string name="csv_include_locked_warn">CSV 파일은 잠기지 않아요. 파일을 연 사람은 누구나 내용을 볼 수 있어요. 포함하려면 지문이나 화면 잠금으로 확인해요.</string>
+    <string name="csv_export_confirm">파일 만들기</string>
+    <string name="csv_import_with_locked">%1$d개 항목을 가져왔습니다. 그중 %2$d개는 잠금 카테고리에 있어요.</string>
+
+    <!-- 튜토리얼: 잠금 카테고리 -->
+    <string name="tut_category_lock_title">잠금 카테고리</string>
+    <string name="tut_category_lock_subtitle">남에게 보이기 싫은 카테고리 숨기기</string>
+    <string name="tut_category_lock_body">카테고리를 잠그면 그 카테고리 링크가 **전체·검색·통계**에서 보이지 않아요. 지문이나 휴대폰 화면 잠금으로 확인해야 열려서, 따로 외울 비밀번호가 없어요.</string>
+    <string name="tut_category_lock_step1">설정 › 잠금 카테고리(또는 카테고리 편집)에서 카테고리 옆 자물쇠를 눌러요.</string>
+    <string name="tut_category_lock_step2">카테고리 줄 맨 끝의 자물쇠 칩을 눌러 확인하면 잠금 카테고리가 보여요.</string>
+    <string name="tut_category_lock_step3">다 봤으면 **다시 잠그기**를 눌러요. 앱을 나가고 1분이 지나도 다시 잠겨요.</string>
+    <string name="tut_category_lock_tip">잠금은 옆 사람이 보지 못하게 하는 기능이에요. 링크를 암호화하지는 않아서, 휴대폰 화면 잠금을 아는 사람은 열 수 있어요.</string>
 </resources>

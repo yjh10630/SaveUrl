@@ -5,6 +5,7 @@ import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.room.CategoryDao
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -97,6 +98,44 @@ class CategoryDBSourceImpl @Inject constructor (
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+
+    override fun observeLockedNames(): Flow<List<String>> = categoryDao.observeLockedNames()
+
+    override suspend fun isLocked(name: String): Boolean = withContext(Dispatchers.IO) {
+        categoryDao.countLocked(name) > 0
+    }
+
+    override suspend fun setLocked(name: String, locked: Boolean): Boolean = withContext(Dispatchers.IO) {
+        return@withContext try {
+            db.withTransaction {
+                val target = categoryDao.get(name) ?: return@withTransaction false
+                // "미분류" 는 편집 화면에 나오지 않고 삭제된 카테고리의 링크가 모이는 곳이라 잠그지 않는다
+                if (!target.isEditable || target.name == CategoryModel.UNCATEGORIZED) return@withTransaction false
+                categoryDao.setLocked(name, locked)
+                // 잠금 카테고리는 자동 추천에 쓰지 않으므로 도메인 학습값도 지운다
+                if (locked) db.domainCategoryDao().deleteByCategory(name)
+                true
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    override suspend fun lockOrCreate(names: Collection<String>) = withContext(Dispatchers.IO) {
+        db.withTransaction {
+            names.filter { it.isNotBlank() && it != CategoryModel.UNCATEGORIZED }.distinct().forEach { name ->
+                val existing = categoryDao.get(name)
+                if (existing == null) {
+                    val orderMaxCnt = categoryDao.getMaxOrder() ?: 0
+                    categoryDao.insert(CategoryModel(name = name, order = orderMaxCnt + 1, isLocked = true))
+                } else if (existing.isEditable && !existing.isLocked) {
+                    categoryDao.setLocked(name, true)
+                }
+            }
+            db.domainCategoryDao().let { dao -> names.forEach { dao.deleteByCategory(it) } }
         }
     }
 }

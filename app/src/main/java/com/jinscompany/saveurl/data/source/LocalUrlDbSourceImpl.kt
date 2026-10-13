@@ -28,40 +28,39 @@ class LocalUrlDbSourceImpl @Inject constructor(
     private val trashDao: TrashDao,
 ): LocalUrlDBSource {
 
-    override fun getLocalSaveDBUrlList(params: FilterParams?): PagingSource<Int, UrlData> {
-        return with(baseSaveUrlDao) {
-            val categories = params?.categories ?: listOf(FilterDefaults.CATEGORY_ALL)
-            val siteNames = params?.siteList.orEmpty()
-            val sortDesc = (params?.sort ?: FilterDefaults.SORT_LATEST) == FilterDefaults.SORT_LATEST
+    override fun getLocalSaveDBUrlList(params: FilterParams?, includeLocked: Boolean): PagingSource<Int, UrlData> {
+        val categories = params?.categories ?: listOf(FilterDefaults.CATEGORY_ALL)
+        val siteNames = params?.siteList.orEmpty()
+        val sortDesc = (params?.sort ?: FilterDefaults.SORT_LATEST) == FilterDefaults.SORT_LATEST
 
-            return when {
+        return with(baseSaveUrlDao) {
+            when {
                 categories.contains(FilterDefaults.CATEGORY_ALL) -> {
                     if (siteNames.isEmpty()) {
-                        if (sortDesc) baseSaveUrlDao.getUrlDataLatest()
-                        else baseSaveUrlDao.getUrlDataOldest()
+                        if (sortDesc) getUrlDataLatest(includeLocked) else getUrlDataOldest(includeLocked)
                     } else {
-                        if (sortDesc) getUrlDataLatestBySites(siteNames)
-                        else getUrlDataOldestBySites(siteNames)
+                        if (sortDesc) getUrlDataLatestBySites(siteNames, includeLocked)
+                        else getUrlDataOldestBySites(siteNames, includeLocked)
                     }
                 }
 
                 categories.contains(FilterDefaults.CATEGORY_BOOKMARK) -> {
                     if (siteNames.isEmpty()) {
-                        if (sortDesc) getTargetBookMarkUrlDataLatest()
-                        else getTargetBookMarkUrlDataOldest()
+                        if (sortDesc) getTargetBookMarkUrlDataLatest(includeLocked)
+                        else getTargetBookMarkUrlDataOldest(includeLocked)
                     } else {
-                        if (sortDesc) getTargetBookMarkUrlDataLatestBySites(siteNames)
-                        else getTargetBookMarkUrlDataOldestBySites(siteNames)
+                        if (sortDesc) getTargetBookMarkUrlDataLatestBySites(siteNames, includeLocked)
+                        else getTargetBookMarkUrlDataOldestBySites(siteNames, includeLocked)
                     }
                 }
 
                 else -> {
                     if (siteNames.isEmpty()) {
-                        if (sortDesc) getTargetCategoryUrlDataLatest(categories)
-                        else getTargetCategoryUrlDataOldest(categories)
+                        if (sortDesc) getTargetCategoryUrlDataLatest(categories, includeLocked)
+                        else getTargetCategoryUrlDataOldest(categories, includeLocked)
                     } else {
-                        if (sortDesc) getTargetCategoryUrlDataLatestBySites(categories, siteNames)
-                        else getTargetCategoryUrlDataOldestBySites(categories, siteNames)
+                        if (sortDesc) getTargetCategoryUrlDataLatestBySites(categories, siteNames, includeLocked)
+                        else getTargetCategoryUrlDataOldestBySites(categories, siteNames, includeLocked)
                     }
                 }
             }
@@ -118,8 +117,8 @@ class LocalUrlDbSourceImpl @Inject constructor(
         return@withContext baseSaveUrlDao.update(data.withNormalizedUrl()) > 0
     }
 
-    override suspend fun getSiteNameList(): List<String> = withContext(Dispatchers.IO) {
-        return@withContext baseSaveUrlDao.getDistinctNonEmptySiteNames()
+    override suspend fun getSiteNameList(includeLocked: Boolean): List<String> = withContext(Dispatchers.IO) {
+        return@withContext baseSaveUrlDao.getDistinctNonEmptySiteNames(includeLocked)
     }
 
     override suspend fun saveUrlDataList(list: List<UrlData>) {
@@ -129,11 +128,11 @@ class LocalUrlDbSourceImpl @Inject constructor(
         }
     }
 
-    override suspend fun getTagList(): List<String> = withContext(Dispatchers.IO) {
+    override suspend fun getTagList(includeLocked: Boolean): List<String> = withContext(Dispatchers.IO) {
         val gson = Gson()
         // R8 full mode 대응: 익명 TypeToken 서브클래스 대신 getParameterized 사용
         val type = TypeToken.getParameterized(List::class.java, String::class.java).type
-        return@withContext baseSaveUrlDao.getAllTagListJson().flatMap { json ->
+        return@withContext baseSaveUrlDao.getAllTagListJson(includeLocked).flatMap { json ->
             try {
                 gson.fromJson<List<String>>(json, type) ?: emptyList() // "null" 문자열이면 null 반환
             } catch (e: Exception) {
@@ -149,19 +148,23 @@ class LocalUrlDbSourceImpl @Inject constructor(
         baseSaveUrlDao.markAsRead(url)
     }
 
-    override suspend fun getAllUrlData(): List<UrlData> = withContext(Dispatchers.IO) {
-        baseSaveUrlDao.get()
+    override suspend fun getAllUrlData(includeLocked: Boolean): List<UrlData> = withContext(Dispatchers.IO) {
+        baseSaveUrlDao.getAll(includeLocked)
     }
 
-    override fun searchAll(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchAll(keyword)
-    override fun searchByTitle(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchByTitle(keyword)
-    override fun searchByDescription(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchByDescription(keyword)
-    override fun searchByTag(keyword: String): PagingSource<Int, UrlData> = baseSaveUrlDao.searchByTag(keyword)
-    override fun searchSorted(keyword: String, scope: SearchScope, oldest: Boolean): PagingSource<Int, UrlData> = when (scope) {
-        SearchScope.ALL -> baseSaveUrlDao.searchAllSorted(keyword, oldest)
-        SearchScope.TITLE -> baseSaveUrlDao.searchByTitleSorted(keyword, oldest)
-        SearchScope.DESCRIPTION -> baseSaveUrlDao.searchByDescriptionSorted(keyword, oldest)
-        SearchScope.TAG -> baseSaveUrlDao.searchByTagSorted(keyword, oldest)
+    override fun searchAll(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData> =
+        baseSaveUrlDao.searchAll(keyword, includeLocked)
+    override fun searchByTitle(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData> =
+        baseSaveUrlDao.searchByTitle(keyword, includeLocked)
+    override fun searchByDescription(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData> =
+        baseSaveUrlDao.searchByDescription(keyword, includeLocked)
+    override fun searchByTag(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData> =
+        baseSaveUrlDao.searchByTag(keyword, includeLocked)
+    override fun searchSorted(keyword: String, scope: SearchScope, oldest: Boolean, includeLocked: Boolean): PagingSource<Int, UrlData> = when (scope) {
+        SearchScope.ALL -> baseSaveUrlDao.searchAllSorted(keyword, oldest, includeLocked)
+        SearchScope.TITLE -> baseSaveUrlDao.searchByTitleSorted(keyword, oldest, includeLocked)
+        SearchScope.DESCRIPTION -> baseSaveUrlDao.searchByDescriptionSorted(keyword, oldest, includeLocked)
+        SearchScope.TAG -> baseSaveUrlDao.searchByTagSorted(keyword, oldest, includeLocked)
     }
     override fun observeLinkCounts(since: Long): Flow<LinkCounts> = baseSaveUrlDao.observeLinkCounts(since)
     override fun observeTopCategoryCounts(limit: Int): Flow<List<CategoryCount>> =
