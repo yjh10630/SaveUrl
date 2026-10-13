@@ -9,6 +9,8 @@ import com.jinscompany.saveurl.data.mapper.toUrlData
 import com.jinscompany.saveurl.domain.model.TrashItem
 import androidx.annotation.StringRes
 import com.jinscompany.saveurl.R
+import com.jinscompany.saveurl.domain.lock.CategoryLockSession
+import com.jinscompany.saveurl.domain.usecase.ObserveLockedCategoriesUseCase
 import com.jinscompany.saveurl.domain.usecase.DeleteTrashItemUseCase
 import com.jinscompany.saveurl.domain.usecase.GetAllTrashItemsAfterDeleteAllUseCase
 import com.jinscompany.saveurl.domain.usecase.GetTrashItemsUseCase
@@ -22,6 +24,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -34,7 +39,9 @@ class TrashViewModel @Inject constructor(
     private val deleteTrashItemUseCase: DeleteTrashItemUseCase,
     private val getAllTrashItemsAfterDeleteAllUseCase: GetAllTrashItemsAfterDeleteAllUseCase,
     private val saveUrlListUseCase: SaveUrlListUseCase,
-    private val restoreWithUrlDataUseCase: RestoreWithUrlDataUseCase
+    private val restoreWithUrlDataUseCase: RestoreWithUrlDataUseCase,
+    private val lockSession: CategoryLockSession,
+    private val observeLockedCategoriesUseCase: ObserveLockedCategoriesUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TrashUiState())
@@ -55,6 +62,19 @@ class TrashViewModel @Inject constructor(
     init {
         initGetTrashStateValue()
         initGetTrashItems()
+        observeLockState()
+    }
+
+    private fun observeLockState() {
+        // 세션이 바뀌면 목록을 다시 만든다 (includeLocked 는 PagingSource 를 만들 때 정해짐)
+        viewModelScope.launch {
+            lockSession.isUnlocked.drop(1).collect { initGetTrashItems() }
+        }
+        viewModelScope.launch {
+            combine(observeLockedCategoriesUseCase(), lockSession.isUnlocked) { locked, unlocked -> locked.isNotEmpty() && !unlocked }
+                .distinctUntilChanged()
+                .collect { show -> _uiState.update { it.copy(showLockedEntry = show) } }
+        }
     }
 
     private fun showMenuAlert(item: TrashItem) {

@@ -11,9 +11,11 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.filter
+import com.jinscompany.saveurl.domain.lock.CategoryLockSession
 import com.jinscompany.saveurl.domain.model.FilterParams
 import com.jinscompany.saveurl.domain.model.SearchScope
 import com.jinscompany.saveurl.domain.model.UrlData
+import com.jinscompany.saveurl.domain.usecase.ObserveLockedCategoriesUseCase
 import com.jinscompany.saveurl.domain.usecase.SearchAllUseCase
 import com.jinscompany.saveurl.domain.usecase.SearchByDescriptionUseCase
 import com.jinscompany.saveurl.domain.usecase.SearchByTagUseCase
@@ -22,7 +24,13 @@ import com.jinscompany.saveurl.domain.usecase.SearchSortedUseCase
 import com.jinscompany.saveurl.ui.FilterDefaults
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -40,7 +48,14 @@ class SearchViewModel @Inject constructor(
     private val searchByDescriptionUseCase: SearchByDescriptionUseCase,
     private val searchByTagUseCase: SearchByTagUseCase,
     private val searchSortedUseCase: SearchSortedUseCase,
+    lockSession: CategoryLockSession,
+    observeLockedCategoriesUseCase: ObserveLockedCategoriesUseCase,
 ) : ViewModel() {
+
+    /** 잠금 카테고리가 있고 세션이 닫혀 있으면 결과 아래 "잠금 카테고리도 검색" (잠금 항목이 맞는지와 관계없이) */
+    val showIncludeLocked: StateFlow<Boolean> =
+        combine(observeLockedCategoriesUseCase(), lockSession.isUnlocked) { locked, unlocked -> locked.isNotEmpty() && !unlocked }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val filterList = listOf(FilterDefaults.CATEGORY_ALL, "제목", "내용", "태그")
 
@@ -57,6 +72,13 @@ class SearchViewModel @Inject constructor(
     private var filterEnabled = false
     /** 마지막으로 실행한 검색 (필터가 바뀌면 같은 검색어로 다시 검색) */
     private var lastSearch: Pair<String, String>? = null
+
+    init {
+        // 세션이 바뀌면 같은 검색어로 다시 검색한다 (includeLocked 는 PagingSource 를 만들 때 정해짐)
+        viewModelScope.launch {
+            lockSession.isUnlocked.drop(1).collect { lastSearch?.let { (k, f) -> search(k, f) } }
+        }
+    }
 
     fun onKeywordChange(value: String) {
         keyword = value

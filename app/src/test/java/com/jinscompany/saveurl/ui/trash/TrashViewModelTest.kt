@@ -11,7 +11,11 @@ import com.jinscompany.saveurl.domain.usecase.RestoreWithUrlDataUseCase
 import com.jinscompany.saveurl.domain.usecase.SaveUrlListUseCase
 import com.jinscompany.saveurl.domain.usecase.SetTrashStateUseCase
 import com.jinscompany.saveurl.util.MainDispatcherRule
+import com.jinscompany.saveurl.domain.lock.CategoryLockSession
+import com.jinscompany.saveurl.domain.usecase.ObserveLockedCategoriesUseCase
 import io.mockk.coEvery
+import io.mockk.every
+import kotlinx.coroutines.flow.flowOf
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -37,6 +41,10 @@ class TrashViewModelTest {
     private val getAllTrashItemsAfterDeleteAllUseCase: GetAllTrashItemsAfterDeleteAllUseCase = mockk(relaxed = true)
     private val saveUrlListUseCase: SaveUrlListUseCase = mockk(relaxed = true)
     private val restoreWithUrlDataUseCase: RestoreWithUrlDataUseCase = mockk(relaxed = true)
+    private val lockSession = CategoryLockSession { 0L }
+    private val observeLockedCategoriesUseCase: ObserveLockedCategoriesUseCase = mockk {
+        every { this@mockk.invoke() } returns flowOf(emptyList())
+    }
 
     @Before
     fun setUp() {
@@ -44,7 +52,7 @@ class TrashViewModelTest {
         viewModel = TrashViewModel(
             getTrashItemsUseCase, getTrashStateUseCase, setTrashStateUseCase,
             deleteTrashItemUseCase, getAllTrashItemsAfterDeleteAllUseCase,
-            saveUrlListUseCase, restoreWithUrlDataUseCase
+            saveUrlListUseCase, restoreWithUrlDataUseCase, lockSession, observeLockedCategoriesUseCase
         )
     }
 
@@ -66,7 +74,7 @@ class TrashViewModelTest {
         viewModel = TrashViewModel(
             getTrashItemsUseCase, getTrashStateUseCase, setTrashStateUseCase,
             deleteTrashItemUseCase, getAllTrashItemsAfterDeleteAllUseCase,
-            saveUrlListUseCase, restoreWithUrlDataUseCase
+            saveUrlListUseCase, restoreWithUrlDataUseCase, lockSession, observeLockedCategoriesUseCase
         )
         advanceUntilIdle()
 

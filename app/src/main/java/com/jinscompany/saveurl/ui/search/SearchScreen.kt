@@ -77,6 +77,12 @@ import com.jinscompany.saveurl.ui.tutorial.isTutorialLink
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.ui.res.stringResource
+import com.jinscompany.saveurl.R
+import androidx.compose.runtime.collectAsState
+import com.jinscompany.saveurl.ui.lock.rememberOpenLockedCategories
 
 /** 폰 검색 화면 (전체 화면). 필터 없이 검색한다 (기존 동작). */
 @Composable
@@ -105,6 +111,8 @@ private fun SearchScreenStateful(
     val selectedFilter = viewModel.selectedScope
     val filterOptions = viewModel.filterList
     val searchResult = viewModel.searchResultFlow?.collectAsLazyPagingItems()
+    val showIncludeLocked by viewModel.showIncludeLocked.collectAsState()
+    val openLocked = rememberOpenLockedCategories()
 
     LaunchedEffect(isListPane) {
         viewModel.setFilterEnabled(isListPane)
@@ -133,6 +141,8 @@ private fun SearchScreenStateful(
             searchKeyword = { keyword -> viewModel.onIntent(SearchIntent.Search(keyword, selectedFilter)) },
             context = context,
             onOpenTutorial = onOpenTutorial,
+            showIncludeLocked = showIncludeLocked,
+            onIncludeLocked = { openLocked(R.string.prompt_open_locked) {} },
         )
     }
 }
@@ -153,6 +163,9 @@ fun SearchScreen(
     searchKeyword: (String) -> Unit,
     /** 첫 실행 시드 항목(예전 튜토리얼 링크)을 누르면 브라우저 대신 앱 안 튜토리얼 */
     onOpenTutorial: () -> Unit = {},
+    /** 결과 아래 "잠금 카테고리도 검색" (세션이 열리면 같은 검색어로 다시 검색됨) */
+    showIncludeLocked: Boolean = false,
+    onIncludeLocked: () -> Unit = {},
 ) {
     val colors = AppTheme.colors
     val focusManager = LocalFocusManager.current
@@ -272,6 +285,30 @@ fun SearchScreen(
                                 },
                                 onLongClick = {},
                             )
+                        }
+                    }
+                }
+            }
+            if (showIncludeLocked && keyword.isNotEmpty() && searchResult != null &&
+                searchResult.loadState.refresh is LoadState.NotLoading
+            ) {
+                item(key = "search_include_locked") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = AppDimens.Gutter - 8.dp, vertical = 8.dp),
+                        horizontalArrangement = if (itemCnt == 0) Arrangement.Center else Arrangement.Start,
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable(onClick = onIncludeLocked)
+                                .padding(horizontal = 8.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Outlined.Lock, contentDescription = null, tint = colors.accent, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(stringResource(R.string.search_include_locked), style = MaterialTheme.typography.labelLarge, color = colors.accent)
                         }
                     }
                 }

@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.flowOf
 data class TrashUiState (
     val isActivate: Boolean = true, // 휴지통 기능 사용 여부
     val trashList: Flow<PagingData<TrashItem>> = flowOf(PagingData.from(listOf<TrashItem>())),
+    /** 잠금 카테고리가 있고 세션이 닫혀 있으면 목록 아래 "잠금 카테고리 항목 보기" */
+    val showLockedEntry: Boolean = false,
 )
 
 sealed class TrashIntent {
