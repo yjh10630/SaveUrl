@@ -26,6 +26,68 @@ class TutorialContentTest {
     }
 
     @Test
+    fun `2분할 주제만 TwoPaneOnly 이고 나머지는 Always, 2_0_0 주제는 addedInVersionCode 가 없다`() {
+        TutorialTopics.all.forEach { topic ->
+            val expected = if (topic.id == TutorialTopics.TWO_PANE) TutorialAvailability.TwoPaneOnly else TutorialAvailability.Always
+            assertEquals(topic.id, expected, topic.availability)
+            assertNull(topic.id, topic.addedInVersionCode)
+        }
+    }
+
+    @Test
+    fun `표시 조건 - Always, TwoPaneOnly, Flag`() {
+        val flags = TutorialFeatureFlags { it == "on" }
+        val phone = TutorialAvailabilityContext(isTwoPane = false)
+        val wide = TutorialAvailabilityContext(isTwoPane = true)
+        val phoneWithFlags = TutorialAvailabilityContext(isTwoPane = false, flags = flags)
+
+        assertTrue(TutorialAvailability.Always.isAvailable(phone))
+        assertFalse(TutorialAvailability.TwoPaneOnly.isAvailable(phone))
+        assertTrue(TutorialAvailability.TwoPaneOnly.isAvailable(wide))
+        // 기본 플래그 제공자는 모두 꺼짐
+        assertFalse(TutorialAvailability.Flag("on").isAvailable(wide))
+        assertTrue(TutorialAvailability.Flag("on").isAvailable(phoneWithFlags))
+        assertFalse(TutorialAvailability.Flag("off").isAvailable(phoneWithFlags))
+    }
+
+    @Test
+    fun `플래그 주제는 플래그가 켜졌을 때만 보이고, 숨겨진 주제를 건너뛰어 다음 주제로 이어진다`() {
+        val topics = listOf(
+            fakeTopic("a"),
+            fakeTopic("flagged", availability = TutorialAvailability.Flag("new_feature")),
+            fakeTopic("wide", availability = TutorialAvailability.TwoPaneOnly),
+            fakeTopic("z"),
+        )
+        val off = TutorialTopics.visible(TutorialAvailabilityContext(isTwoPane = false), topics)
+        assertEquals(listOf("a", "z"), off.map { it.id })
+        val on = TutorialTopics.visible(
+            TutorialAvailabilityContext(isTwoPane = false, flags = { it == "new_feature" }), topics
+        )
+        assertEquals(listOf("a", "flagged", "z"), on.map { it.id })
+
+        assertEquals("z", TutorialTopics.next(off, "a", topics)?.id)
+        assertEquals("flagged", TutorialTopics.next(on, "a", topics)?.id)
+        // 숨겨진 주제를 열고 있던 중이면 전체 순서상 다음에 보이는 주제
+        assertEquals("z", TutorialTopics.next(off, "flagged", topics)?.id)
+        assertNull(TutorialTopics.position(off, "flagged"))
+        assertEquals(2, TutorialTopics.position(off, "z"))
+        assertEquals(2, TutorialProgress.of(off, setOf("a", "flagged", "z")).viewed)
+        assertEquals(2, TutorialProgress.of(off, emptySet()).total)
+    }
+
+    @Test
+    fun `visible(isTwoPane) 는 context 버전과 같다`() {
+        assertEquals(
+            TutorialTopics.visible(TutorialAvailabilityContext(isTwoPane = false)),
+            TutorialTopics.visible(isTwoPane = false),
+        )
+        assertEquals(
+            TutorialTopics.visible(TutorialAvailabilityContext(isTwoPane = true)),
+            TutorialTopics.visible(isTwoPane = true),
+        )
+    }
+
+    @Test
     fun `그룹 순서대로 묶여 있다 (홈 목록 groupBy 가 순서를 유지)`() {
         val groups = TutorialTopics.all.map { it.group }
         assertEquals(groups.sortedBy { it.ordinal }, groups)
@@ -112,3 +174,14 @@ class TutorialContentTest {
         assertEquals("a b c**d", TutorialText.annotated("a **b** c**d").text)
     }
 }
+
+/** 테스트용 주제 (리소스 id 는 쓰지 않으므로 0) */
+internal fun fakeTopic(
+    id: String,
+    group: TutorialGroup = TutorialGroup.MORE,
+    availability: TutorialAvailability = TutorialAvailability.Always,
+    addedInVersionCode: Int? = null,
+) = TutorialTopic(
+    id = id, group = group, titleRes = 0, subtitleRes = 0, bodyRes = 0,
+    availability = availability, addedInVersionCode = addedInVersionCode,
+)

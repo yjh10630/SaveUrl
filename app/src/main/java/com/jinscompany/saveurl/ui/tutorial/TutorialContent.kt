@@ -11,6 +11,17 @@ import com.jinscompany.saveurl.utils.tutorialUrl
  * 문구는 res/values/strings.xml 의 `tutorial_*`, `tut_*` 문자열에 있고, 여기서는 순서·그룹·이미지만 정한다.
  * 스크린샷은 라이트/다크 짝(`res/drawable-nodpi/tut_*_{light,dark}.webp`)으로 두고,
  * 앱 화면 모드(시스템 설정과 다를 수 있음)에 맞춰 코드에서 고른다.
+ *
+ * ## 주제 추가 체크리스트
+ * 1. [TutorialTopics] 에 id 상수를 추가한다. id 는 DataStore(본 주제)에 저장되므로 한 번 정하면 바꾸지 않는다.
+ * 2. [TutorialTopics.all] 의 알맞은 그룹 위치에 [TutorialTopic] 을 넣는다 (그룹 순서대로 묶여 있어야 한다).
+ * 3. strings.xml 에 `tut_<name>_title` / `_subtitle` / `_body` / `_step1..3` / (선택) `_tip` / 이미지 설명 `_image_cd` 를 추가한다.
+ * 4. 스크린샷을 라이트/다크 짝으로 `res/drawable-nodpi/tut_<name>_light.webp`, `tut_<name>_dark.webp` 에 넣는다.
+ * 5. `addedInVersionCode` = 이 주제가 처음 나가는 버전의 versionCode (app/build.gradle.kts). 기존 사용자에게 "NEW" 로 보인다.
+ *    새로 설치한 사용자에게는 보이지 않는다 ([TutorialNews] 참고). 2.0.0 까지의 주제는 null.
+ * 6. (선택) 특정 조건에서만 보일 주제는 `availability` 를 정한다: [TutorialAvailability.TwoPaneOnly],
+ *    [TutorialAvailability.Flag] (원격 설정 등 [TutorialFeatureFlags] 로 켬). 기본은 [TutorialAvailability.Always].
+ * 7. TutorialScreen.kt 의 `topicIcon` 에 아이콘을 추가하고, TutorialContentTest 의 개수(전체/폰/2분할)를 고친다.
  */
 enum class TutorialGroup(@StringRes val labelRes: Int) {
     START(R.string.tutorial_group_start),
@@ -42,9 +53,50 @@ data class TutorialTopic(
     @StringRes val tipRes: Int? = null,
     /** 한 줄에 한 묶음. 묶음 안의 이미지는 나란히 놓는다. */
     val imageRows: List<List<TutorialImage>> = emptyList(),
-    /** 2분할(폴드 펼침·태블릿)에서만 보이는 주제 */
-    val wideOnly: Boolean = false,
+    /** 이 주제를 보여줄 조건. 기본은 항상 */
+    val availability: TutorialAvailability = TutorialAvailability.Always,
+    /**
+     * 이 주제가 추가된 버전의 versionCode. null = 2.0.0 기본 주제 (NEW 로 표시하지 않음).
+     * 값이 있으면 이 버전 전부터 앱을 쓰던 사용자에게 "NEW" 로 보인다 ([TutorialNews.isNew]).
+     */
+    val addedInVersionCode: Int? = null,
 )
+
+/** 주제를 보여줄지 판단할 때 쓰는 기능 플래그. 나중에 Remote Config 등으로 구현한다. */
+fun interface TutorialFeatureFlags {
+    fun isEnabled(key: String): Boolean
+
+    companion object {
+        /** 켜진 플래그 없음 (지금 기본값) */
+        val None: TutorialFeatureFlags = TutorialFeatureFlags { false }
+    }
+}
+
+/** 주제 표시 조건을 평가할 때의 화면/기능 상태 */
+data class TutorialAvailabilityContext(
+    val isTwoPane: Boolean,
+    val flags: TutorialFeatureFlags = TutorialFeatureFlags.None,
+)
+
+/** 주제 표시 조건 */
+sealed interface TutorialAvailability {
+    fun isAvailable(context: TutorialAvailabilityContext): Boolean
+
+    /** 항상 보인다 */
+    data object Always : TutorialAvailability {
+        override fun isAvailable(context: TutorialAvailabilityContext): Boolean = true
+    }
+
+    /** 2분할(폴드 펼침·태블릿)에서만 보인다 */
+    data object TwoPaneOnly : TutorialAvailability {
+        override fun isAvailable(context: TutorialAvailabilityContext): Boolean = context.isTwoPane
+    }
+
+    /** 기능 플래그 [key] 가 켜졌을 때만 보인다 */
+    data class Flag(val key: String) : TutorialAvailability {
+        override fun isAvailable(context: TutorialAvailabilityContext): Boolean = context.flags.isEnabled(key)
+    }
+}
 
 object TutorialTopics {
     const val SHARE = "share"
@@ -163,7 +215,7 @@ object TutorialTopics {
             titleRes = R.string.tut_twopane_title, subtitleRes = R.string.tut_twopane_subtitle, bodyRes = R.string.tut_twopane_body,
             stepRes = listOf(R.string.tut_twopane_step1, R.string.tut_twopane_step2, R.string.tut_twopane_step3),
             imageRows = listOf(listOf(TutorialImage(R.drawable.tut_twopane_light, R.drawable.tut_twopane_dark, R.string.tut_twopane_image_cd, wide = true))),
-            wideOnly = true,
+            availability = TutorialAvailability.TwoPaneOnly,
         ),
         TutorialTopic(
             id = CONTACT, group = TutorialGroup.MORE,
@@ -172,21 +224,28 @@ object TutorialTopics {
     )
 
     /**
-     * 지금 화면에서 보여줄 주제.
+     * 지금 화면에서 보여줄 주제 (각 주제의 [TutorialTopic.availability] 로 거른다).
      * "큰 화면에서는 2분할" 은 2분할 구성일 때만 보인다 (폰 13개 / 펼친 화면 14개).
-     * 진행 표시("N개 주제 중 M개")와 "n / N" 도 이 목록 기준으로 센다.
+     * 진행 표시("N개 주제 중 M개"), "n / N", 다음 주제, NEW 개수도 이 목록 기준으로 센다.
      */
-    fun visible(isTwoPane: Boolean): List<TutorialTopic> = all.filter { isTwoPane || !it.wideOnly }
+    fun visible(context: TutorialAvailabilityContext, topics: List<TutorialTopic> = all): List<TutorialTopic> =
+        topics.filter { it.availability.isAvailable(context) }
+
+    fun visible(isTwoPane: Boolean, flags: TutorialFeatureFlags = TutorialFeatureFlags.None): List<TutorialTopic> =
+        visible(TutorialAvailabilityContext(isTwoPane, flags))
 
     fun find(id: String?): TutorialTopic? = all.firstOrNull { it.id == id }
 
-    /** [visible] 안에서 [id] 다음 주제. 마지막이면 null. [id] 가 목록에 없으면(접어서 숨겨진 주제) 전체 순서상 다음에 보이는 주제. */
-    fun next(visible: List<TutorialTopic>, id: String): TutorialTopic? {
+    /**
+     * [visible] 안에서 [id] 다음 주제. 마지막이면 null.
+     * [id] 가 목록에 없으면(접어서 숨겨진 주제, 플래그가 꺼진 주제) [topics] 순서상 다음에 보이는 주제.
+     */
+    fun next(visible: List<TutorialTopic>, id: String, topics: List<TutorialTopic> = all): TutorialTopic? {
         val index = visible.indexOfFirst { it.id == id }
         if (index >= 0) return visible.getOrNull(index + 1)
-        val allIndex = all.indexOfFirst { it.id == id }
+        val allIndex = topics.indexOfFirst { it.id == id }
         if (allIndex < 0) return null
-        return all.drop(allIndex + 1).firstOrNull { candidate -> visible.any { it.id == candidate.id } }
+        return topics.drop(allIndex + 1).firstOrNull { candidate -> visible.any { it.id == candidate.id } }
     }
 
     /** 1부터 세는 위치. 목록에 없으면 null */
