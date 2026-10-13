@@ -61,6 +61,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -103,6 +104,7 @@ fun EditCategoryScreen(navController: NavHostController) {
     val viewModel = hiltViewModel<EditCategoryViewModel>()
     val focusRequester = remember { FocusRequester() }
     val context = LocalContext.current
+    val resources = LocalResources.current
     val session = LocalCategoryLockSession.current
     val authenticator = rememberLockAuthenticator()
     val openLocked = rememberOpenLockedCategories()
@@ -118,7 +120,7 @@ fun EditCategoryScreen(navController: NavHostController) {
         viewModel.effect.collect { effect ->
             when (effect) {
                 is EditCategoryEffect.LockChanged -> snackbarHostState.showSnackbar(
-                    context.getString(
+                    resources.getString(
                         if (effect.locked) R.string.category_locked_snackbar else R.string.category_unlocked_snackbar,
                         effect.name
                     )
@@ -132,8 +134,8 @@ fun EditCategoryScreen(navController: NavHostController) {
     val onToggleLock: (CategoryModel) -> Unit = { item ->
         if (item.isLocked) {
             authenticator.authenticate(
-                title = context.getString(R.string.prompt_unlock_category, item.name),
-                subtitle = context.getString(R.string.prompt_identity_subtitle),
+                title = resources.getString(R.string.prompt_unlock_category, item.name),
+                subtitle = resources.getString(R.string.prompt_identity_subtitle),
                 allowWithoutCredential = true,
             ) { result ->
                 when (result) {
@@ -152,8 +154,8 @@ fun EditCategoryScreen(navController: NavHostController) {
             viewModel.onIntent(EditCategoryIntent.SetLocked(item.name, true))
         } else {
             authenticator.authenticate(
-                title = context.getString(R.string.prompt_lock_category, item.name),
-                subtitle = context.getString(R.string.prompt_identity_subtitle),
+                title = resources.getString(R.string.prompt_lock_category, item.name),
+                subtitle = resources.getString(R.string.prompt_identity_subtitle),
                 allowWithoutCredential = false,
             ) { result ->
                 when (result) {

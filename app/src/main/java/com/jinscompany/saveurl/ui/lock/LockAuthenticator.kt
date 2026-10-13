@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.jinscompany.saveurl.R
@@ -116,14 +117,15 @@ fun rememberLockAuthenticator(): LockAuthenticator {
 @Composable
 fun rememberOpenLockedCategories(): (titleRes: Int, onOpened: () -> Unit) -> Unit {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val session = LocalCategoryLockSession.current
     val authenticator = rememberLockAuthenticator()
-    return remember(context, session, authenticator) {
+    return remember(context, resources, session, authenticator) {
         { titleRes: Int, onOpened: () -> Unit ->
             if (session.isUnlocked.value) {
                 onOpened()
             } else {
-                authenticator.authenticate(title = context.getString(titleRes), allowWithoutCredential = true) { result ->
+                authenticator.authenticate(title = resources.getString(titleRes), allowWithoutCredential = true) { result ->
                     when (result) {
                         LockAuthResult.Success -> {
                             session.unlock()

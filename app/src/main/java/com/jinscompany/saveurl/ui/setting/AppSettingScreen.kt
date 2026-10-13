@@ -54,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -128,6 +129,7 @@ fun AppSettingScreen(
 
     val lockedCategoryCount by settingViewModel.lockedCategoryCount.collectAsState()
     val authenticator = rememberLockAuthenticator()
+    val resources = LocalResources.current
     var showCsvExportSheet by remember { mutableStateOf(false) }
     // 백업 시트에서 "잠금 카테고리도 포함"을 고르고 인증을 마쳤는지 (파일 선택 결과를 받을 때 쓴다)
     var exportIncludeLocked by remember { mutableStateOf(false) }
@@ -150,8 +152,8 @@ fun AppSettingScreen(
                 } else {
                     // 체크를 켜는 순간이 아니라 [파일 만들기]에서 인증. 취소하면 시트에 머문다
                     authenticator.authenticate(
-                        title = context.getString(R.string.prompt_csv_include_locked),
-                        subtitle = context.getString(R.string.prompt_csv_include_locked_subtitle),
+                        title = resources.getString(R.string.prompt_csv_include_locked),
+                        subtitle = resources.getString(R.string.prompt_csv_include_locked_subtitle),
                         allowWithoutCredential = true,
                     ) { result ->
                         when (result) {
