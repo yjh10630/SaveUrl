@@ -11,6 +11,8 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.jinscompany.saveurl.domain.model.ListViewMode
 import com.jinscompany.saveurl.domain.model.ThemeDefaultMigration
 import com.jinscompany.saveurl.domain.model.ThemeMode
+import com.jinscompany.saveurl.ui.tutorial.TutorialBadgePrefs
+import com.jinscompany.saveurl.ui.tutorial.TutorialNews
 import com.jinscompany.saveurl.utils.InAppUpdatePolicy.FlexibleDecline
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -35,6 +37,10 @@ class PreferencesManager @Inject constructor(
     private val TUTORIAL_VIEWED_TOPICS = stringSetPreferencesKey("tutorial_viewed_topics")
     /** 메인 목록 첫 실행 안내 카드("SaveLink 사용 방법 보기")를 보여줄지. 새로 설치한 사용자만 true 로 시작한다. */
     private val TUTORIAL_CARD_VISIBLE = booleanPreferencesKey("tutorial_card_visible")
+    /** 튜토리얼 NEW 판단 기준 versionCode. 한 번만 기록한다 ([TutorialNews.initialBaseline]) */
+    private val TUTORIAL_BASELINE_VERSION_CODE = intPreferencesKey("tutorial_baseline_version_code")
+    /** 메인 목록 "새 기능 안내" 카드를 닫았을 때의 최신 NEW 주제 versionCode */
+    private val TUTORIAL_NEW_CARD_DISMISSED_VERSION_CODE = intPreferencesKey("tutorial_new_card_dismissed_version_code")
     /** 권장(FLEXIBLE) 업데이트 동의 창에서 "나중에" 를 누른 버전(versionCode)과 시각. 3일 동안 다시 묻지 않는 데 쓴다 */
     private val FLEXIBLE_UPDATE_DECLINED_VERSION = intPreferencesKey("flexible_update_declined_version")
     private val FLEXIBLE_UPDATE_DECLINED_AT = longPreferencesKey("flexible_update_declined_at")
@@ -68,6 +74,33 @@ class PreferencesManager @Inject constructor(
         context.dataStore.edit { prefs ->
             val current = prefs[TUTORIAL_VIEWED_TOPICS] ?: emptySet()
             if (id !in current) prefs[TUTORIAL_VIEWED_TOPICS] = current + id
+        }
+    }
+
+    /** NEW 표시 판단 재료 (본 주제, 기준 versionCode, 새 기능 카드 닫은 버전) */
+    val tutorialBadgePrefs: Flow<TutorialBadgePrefs> = context.dataStore.data.map { prefs ->
+        TutorialBadgePrefs(
+            viewedIds = prefs[TUTORIAL_VIEWED_TOPICS] ?: emptySet(),
+            baselineVersionCode = prefs[TUTORIAL_BASELINE_VERSION_CODE],
+            newCardDismissedVersionCode = prefs[TUTORIAL_NEW_CARD_DISMISSED_VERSION_CODE] ?: 0,
+        )
+    }
+
+    /** 튜토리얼 기준 versionCode 가 없으면 기록한다 (이미 있으면 그대로). 앱 시작 시 1회 호출 */
+    suspend fun ensureTutorialBaseline(hadPriorData: Boolean, currentVersionCode: Int) {
+        if (context.dataStore.data.first()[TUTORIAL_BASELINE_VERSION_CODE] != null) return
+        context.dataStore.edit { prefs ->
+            if (prefs[TUTORIAL_BASELINE_VERSION_CODE] == null) {
+                prefs[TUTORIAL_BASELINE_VERSION_CODE] = TutorialNews.initialBaseline(hadPriorData, currentVersionCode)
+            }
+        }
+    }
+
+    /** "새 기능 안내" 카드 ✕: [versionCode] 이하 주제로는 다시 보이지 않는다 */
+    suspend fun dismissTutorialNewCard(versionCode: Int) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[TUTORIAL_NEW_CARD_DISMISSED_VERSION_CODE] ?: 0
+            if (versionCode > current) prefs[TUTORIAL_NEW_CARD_DISMISSED_VERSION_CODE] = versionCode
         }
     }
 

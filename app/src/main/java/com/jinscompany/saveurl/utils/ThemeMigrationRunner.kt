@@ -1,6 +1,7 @@
 package com.jinscompany.saveurl.utils
 
 import android.content.Context
+import com.jinscompany.saveurl.BuildConfig
 import com.jinscompany.saveurl.domain.model.ThemeDefaultMigration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,6 +17,7 @@ import javax.inject.Singleton
  * [ThemeDefaultMigration] 실행기.
  * Application.onCreate 에서 [snapshotPriorData] 로 이전 데이터 유무를 먼저 확인한 뒤 [start] 한다.
  * 화면 모드는 [awaitDone] 이후에 읽어서 첫 화면이 잘못된 테마로 그려지지 않게 한다 (스플래시가 그동안 유지됨).
+ * 같은 hadPriorData 로 튜토리얼 NEW 기준 versionCode 도 기록한다 (PreferencesManager.ensureTutorialBaseline).
  */
 @Singleton
 class ThemeMigrationRunner @Inject constructor(
@@ -34,6 +36,13 @@ class ThemeMigrationRunner @Inject constructor(
                 CmLog.e("ThemeDefaultMigration failed: ${e.message}")
             } finally {
                 done.value = true
+            }
+            // 튜토리얼 NEW 기준 versionCode 를 한 번만 기록 (새로 설치 = 이번 버전, 기존 사용자 = 2.0.0). 같은 hadPriorData 를 쓴다
+            try {
+                preferencesManager.ensureTutorialBaseline(hadPriorData, BuildConfig.VERSION_CODE)
+            } catch (e: Exception) {
+                // 기록 전에는 NEW 를 보이지 않으므로 실패해도 문제없다 (다음 실행에서 다시 시도)
+                CmLog.e("ensureTutorialBaseline failed: ${e.message}")
             }
         }
     }
