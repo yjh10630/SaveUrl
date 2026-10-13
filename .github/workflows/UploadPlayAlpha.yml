@@ -3,7 +3,8 @@ name: Android Release Build and Upload to Google Play
 on:
   push:
     tags:
-      - 'UPAv*' # 태그가 'UPAv'로 시작하는 경우에만 워크플로우 실행됨 (예: UPAv1.0.4)
+      - 'UPAv*' # 공개 테스트(beta) 트랙으로 업로드 (예: UPAv2.0.1-39)
+      - 'UPPv*' # 프로덕션(production) 트랙으로 업로드 (예: UPPv2.0.1-39)
 
 jobs:
   build:
@@ -72,6 +73,17 @@ jobs:
           VERSION_NAME=$(grep versionName app/build.gradle.kts | head -n 1 | sed -E 's/.*"([^"]+)".*/\1/')
           echo "name=v$VERSION_NAME" >> "$GITHUB_OUTPUT"
 
+    # 태그 접두어로 배포 트랙 결정 (UPPv* = production, 그 외 UPAv* = beta)
+      - name: Select Play track from tag
+        id: track
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == UPPv* ]]; then
+            echo "name=production" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=beta" >> "$GITHUB_OUTPUT"
+          fi
+          echo "tag=${GITHUB_REF_NAME}"
+
     # Google Play 콘솔의 지정 트랙(tracks)으로 AAB 업로드 (릴리스 노트 포함, status 에 따라 바로 출시 또는 draft)
       - name: Upload AAB to Google Play
         uses: r0adkll/upload-google-play@v1
@@ -81,5 +93,5 @@ jobs:
           releaseFiles: app/build/outputs/bundle/release/app-release.aab   # 업로드할 AAB 파일 경로
           whatsNewDirectory: distribution/whatsnew                             # 릴리스 노트 경로
           releaseName: ${{ steps.version.outputs.name }}                   # versionName 기반 릴리스 이름 (예: v1.0.4)
-          tracks: beta                                                     # 배포 트랙 (internal=내부, alpha=비공개, beta=공개 테스트, production=프로덕션)
+          tracks: ${{ steps.track.outputs.name }}                          # 배포 트랙 (태그 접두어로 결정) (internal=내부, alpha=비공개, beta=공개 테스트, production=프로덕션)
           status: completed                                                    # 배포 상태 (completed - 자동 배포,  draft - 임시 저장, 직접 승인 필요, inProgress - 점진적 배포 userFraction: 0.2  # 20% 사용자에게만 배포 )
