@@ -6,8 +6,8 @@ import android.os.Build
 import android.os.SystemClock
 import android.content.Intent
 import android.os.Bundle
+import android.view.WindowManager
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -34,8 +34,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.jinscompany.saveurl.R
+import com.jinscompany.saveurl.domain.lock.CategoryLockSession
+import com.jinscompany.saveurl.ui.lock.LocalCategoryLockSession
 import com.jinscompany.saveurl.ui.adaptive.LocalWindowLayout
 import com.jinscompany.saveurl.ui.composable.ForceUpdateDialog
 import com.jinscompany.saveurl.ui.adaptive.currentWindowLayout
@@ -49,9 +53,15 @@ import com.jinscompany.saveurl.utils.InAppUpdateCheck
 import com.jinscompany.saveurl.utils.extractUrlFromText
 import com.jinscompany.saveurl.utils.openPlayStorePage
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+// BiometricPrompt(잠금 카테고리 인증)가 FragmentActivity 를 요구한다 (ComponentActivity 의 하위 클래스라 다른 동작은 같음)
+class MainActivity : FragmentActivity() {
+
+    @Inject
+    lateinit var categoryLockSession: CategoryLockSession
 
     private val sharedViewModel by viewModels<SharedViewModel>()
     private lateinit var inAppUpdateCheck: InAppUpdateCheck
@@ -87,6 +97,7 @@ class MainActivity : ComponentActivity() {
             isRecreated = savedInstanceState != null,
         )
         setupBackPressedHandler()
+        hideFromRecentsWhileLockedCategoriesOpen()
 
         // 첫 프레임은 시스템 설정 기준으로 시스템 바를 맞추고, 테마가 정해지면 아래 DisposableEffect 에서 다시 적용
         enableEdgeToEdge(
@@ -158,7 +169,10 @@ class MainActivity : ComponentActivity() {
             val windowLayout = currentWindowLayout()
 
             SaveUrlTheme(darkTheme = isDark) {
-                CompositionLocalProvider(LocalWindowLayout provides windowLayout) {
+                CompositionLocalProvider(
+                    LocalWindowLayout provides windowLayout,
+                    LocalCategoryLockSession provides categoryLockSession,
+                ) {
                     Scaffold(
                         // 각 화면 바닥의 광고 배너(약 50dp)를 가리지 않도록 그 위에 띄운다
                         snackbarHost = {
@@ -196,6 +210,24 @@ class MainActivity : ComponentActivity() {
         }
         runCatching { uiModeManager.setApplicationNightMode(target) }
             .onFailure { CmLog.e("setApplicationNightMode failed: ${it.message}") }
+    }
+
+    /**
+     * 잠금 카테고리 세션이 열린 동안만 최근 앱 화면에서 내용을 가린다 (잠긴 링크가 화면에 있을 수 있는 유일한 때).
+     * API 33+: 최근 앱 미리보기만 끈다(스크린샷은 됨). 32 이하: FLAG_SECURE (그동안 스크린샷도 막힘).
+     */
+    private fun hideFromRecentsWhileLockedCategoriesOpen() {
+        lifecycleScope.launch {
+            categoryLockSession.isUnlocked.collect { unlocked ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    setRecentsScreenshotEnabled(!unlocked)
+                } else if (unlocked) {
+                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                } else {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+            }
+        }
     }
 
     override fun onResume() {
