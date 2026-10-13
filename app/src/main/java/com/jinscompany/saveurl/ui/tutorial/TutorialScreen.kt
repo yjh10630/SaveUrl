@@ -61,6 +61,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,6 +70,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -93,6 +96,20 @@ import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
 /** 넓은 패널·태블릿에서 본문이 너무 길어지지 않게 하는 최대 폭 */
 private val ContentMaxWidth = 720.dp
 
+/**
+ * 튜토리얼 주제 표시 조건([TutorialAvailability.Flag])에 쓰는 기능 플래그.
+ * 지금은 켜진 플래그가 없다. Remote Config 등을 붙일 때 MainActivity 에서 provide 한다.
+ */
+val LocalTutorialFeatureFlags = staticCompositionLocalOf { TutorialFeatureFlags.None }
+
+/** 지금 화면 구성(2분할 여부)과 기능 플래그로 거른 주제 목록 */
+@Composable
+fun currentVisibleTutorialTopics(): List<TutorialTopic> {
+    val isTwoPane = LocalWindowLayout.current.isTwoPane
+    val flags = LocalTutorialFeatureFlags.current
+    return remember(isTwoPane, flags) { TutorialTopics.visible(TutorialAvailabilityContext(isTwoPane, flags)) }
+}
+
 // -------------------------------------------------------------------------------------------------
 // 홈 (주제 목록)
 // -------------------------------------------------------------------------------------------------
@@ -108,10 +125,12 @@ fun TutorialHomeScreen(
     viewModel: TutorialViewModel = hiltViewModel(),
 ) {
     val viewed by viewModel.viewedTopicIds.collectAsState()
-    val visible = TutorialTopics.visible(LocalWindowLayout.current.isTwoPane)
+    val badgePrefs by viewModel.badgePrefs.collectAsState()
+    val visible = currentVisibleTutorialTopics()
     TutorialHomeContent(
         topics = visible,
         viewedIds = viewed,
+        newIds = TutorialNews.newIds(visible, badgePrefs),
         onClose = onClose,
         onOpenTopic = onOpenTopic,
     )
@@ -123,6 +142,8 @@ fun TutorialHomeContent(
     viewedIds: Set<String>?,
     onClose: () -> Unit,
     onOpenTopic: (String) -> Unit,
+    /** "NEW" 표시할 주제 id ([TutorialNews.newIds]) */
+    newIds: Set<String> = emptySet(),
 ) {
     val colors = AppTheme.colors
     Scaffold(
@@ -175,6 +196,7 @@ fun TutorialHomeContent(
                                 TopicRow(
                                     topic = topic,
                                     viewed = viewedIds?.contains(topic.id) == true,
+                                    isNew = topic.id in newIds,
                                     onClick = { onOpenTopic(topic.id) },
                                 )
                                 if (index < groupTopics.lastIndex) {
@@ -275,15 +297,18 @@ private fun TutorialIntro(topics: List<TutorialTopic>, viewedIds: Set<String>?, 
 }
 
 @Composable
-private fun TopicRow(topic: TutorialTopic, viewed: Boolean, onClick: () -> Unit) {
+private fun TopicRow(topic: TutorialTopic, viewed: Boolean, onClick: () -> Unit, isNew: Boolean = false) {
     val colors = AppTheme.colors
     val viewedLabel = stringResource(R.string.tutorial_viewed_cd)
+    val newLabel = stringResource(R.string.tutorial_new_badge_cd)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 68.dp)
             .clickable(onClick = singleClick { onClick() })
-            .semantics(mergeDescendants = true) { if (viewed) stateDescription = viewedLabel }
+            .semantics(mergeDescendants = true) {
+                if (viewed) stateDescription = viewedLabel else if (isNew) stateDescription = newLabel
+            }
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -298,11 +323,18 @@ private fun TopicRow(topic: TutorialTopic, viewed: Boolean, onClick: () -> Unit)
         }
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = stringResource(topic.titleRes),
-                style = MaterialTheme.typography.titleMedium,
-                color = colors.textPrimary,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(topic.titleRes),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = colors.textPrimary,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (isNew) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    NewPill()
+                }
+            }
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = stringResource(topic.subtitleRes),
@@ -317,6 +349,23 @@ private fun TopicRow(topic: TutorialTopic, viewed: Boolean, onClick: () -> Unit)
             Icon(Icons.AutoMirrored.Filled.NavigateNext, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(22.dp))
         }
     }
+}
+
+/** 새 주제 표시 알약 (강조색 바탕). 화면 읽기 프로그램에는 행의 상태("새 기능")로 읽힌다 */
+@Composable
+fun NewPill(text: String = stringResource(R.string.tutorial_new_badge), modifier: Modifier = Modifier) {
+    val colors = AppTheme.colors
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.4.sp),
+        color = colors.onAccent,
+        maxLines = 1,
+        modifier = modifier
+            .clip(CircleShape)
+            .background(colors.accent)
+            .padding(horizontal = 7.dp, vertical = 2.dp)
+            .clearAndSetSemantics {}
+    )
 }
 
 private fun topicIcon(id: String): ImageVector = when (id) {
@@ -361,7 +410,7 @@ fun TutorialTopicScreen(
         LaunchedEffect(Unit) { onBackToList() }
         return
     }
-    val visible = TutorialTopics.visible(LocalWindowLayout.current.isTwoPane)
+    val visible = currentVisibleTutorialTopics()
     TutorialTopicContent(
         topic = topic,
         position = TutorialTopics.position(visible, topic.id),
@@ -671,6 +720,22 @@ private fun TutorialHomePreview() {
         TutorialHomeContent(
             topics = TutorialTopics.visible(isTwoPane = false),
             viewedIds = setOf(TutorialTopics.SHARE, TutorialTopics.DIRECT),
+            onClose = {}, onOpenTopic = {},
+        )
+    }
+}
+
+/** NEW 표시 확인용 (가짜 주제는 미리보기 안에서만 쓴다) */
+@Preview(showBackground = true, heightDp = 700)
+@Composable
+private fun TutorialHomeNewPreview() {
+    val fake = TutorialTopics.all.first().copy(id = "preview_new", group = TutorialGroup.START, addedInVersionCode = 99)
+    val topics = listOf(fake) + TutorialTopics.visible(isTwoPane = false)
+    SaveUrlTheme(darkTheme = true) {
+        TutorialHomeContent(
+            topics = topics,
+            viewedIds = setOf(TutorialTopics.SHARE),
+            newIds = TutorialNews.newIds(topics, TutorialBadgePrefs(viewedIds = setOf(TutorialTopics.SHARE), baselineVersionCode = 38)),
             onClose = {}, onOpenTopic = {},
         )
     }

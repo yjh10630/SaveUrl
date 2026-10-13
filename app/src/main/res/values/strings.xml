@@ -122,6 +122,14 @@
     <string name="tutorial_card_action">둘러보기</string>
     <string name="tutorial_card_dismiss_cd">안내 카드 닫기</string>
 
+    <!-- 새 기능 표시 (TutorialNews) -->
+    <string name="tutorial_new_badge">NEW</string>
+    <string name="tutorial_new_badge_cd">새 기능</string>
+    <string name="tutorial_new_count">새 기능 %d</string>
+    <string name="tutorial_new_card_title">새 기능 안내 %d개</string>
+    <string name="tutorial_new_card_body">업데이트로 추가된 기능을 사용 방법에서 확인해 보세요.</string>
+    <string name="tutorial_new_card_action">확인하기</string>
+
     <!-- 1. 다른 앱에서 바로 저장 -->
     <string name="tut_share_title">다른 앱에서 바로 저장</string>
     <string name="tut_share_subtitle">공유 → SaveLink</string>

@@ -80,6 +80,10 @@ import com.jinscompany.saveurl.ui.composable.singleClick
 import com.jinscompany.saveurl.ui.main.components.labelRes
 import com.jinscompany.saveurl.ui.composable.AdBannerBar
 import com.jinscompany.saveurl.ui.navigation.navigateToTutorial
+import com.jinscompany.saveurl.ui.tutorial.NewPill
+import com.jinscompany.saveurl.ui.tutorial.TutorialNews
+import com.jinscompany.saveurl.ui.tutorial.TutorialViewModel
+import com.jinscompany.saveurl.ui.tutorial.currentVisibleTutorialTopics
 import com.jinscompany.saveurl.ui.navigation.navigateToTrash
 import com.jinscompany.saveurl.ui.theme.AppDimens
 import com.jinscompany.saveurl.ui.theme.AppTheme
@@ -106,8 +110,11 @@ fun AppSettingScreen(
     selectedPaneRoute: String? = null,
     sharedViewModel: SharedViewModel = hiltViewModel(LocalActivity.current as MainActivity),
     settingViewModel: AppSettingViewModel = hiltViewModel(),
+    tutorialViewModel: TutorialViewModel = hiltViewModel(),
 ) {
     val themeMode by sharedViewModel.themeMode.collectAsState()
+    val tutorialBadgePrefs by tutorialViewModel.badgePrefs.collectAsState()
+    val tutorialNewCount = TutorialNews.newTopics(currentVisibleTutorialTopics(), tutorialBadgePrefs).size
     val listViewMode by sharedViewModel.listViewMode.collectAsState()
     val context = LocalContext.current
     val isFlexibleUpdatable by sharedViewModel.isFlexibleUpdatable.collectAsState()
@@ -187,6 +194,7 @@ fun AppSettingScreen(
                 Navigation.Routes.TUTORIAL, Navigation.Routes.TUTORIAL_TOPIC -> SettingPaneRow.TUTORIAL
                 else -> null
             },
+            tutorialNewCount = tutorialNewCount,
             currentAppVersion = getCurrentAppVersion(context),
             isUpdatable = isFlexibleUpdatable,
             themeMode = themeMode ?: ThemeMode.SYSTEM,
@@ -206,6 +214,8 @@ fun AppSettingScreen(
     updateClick: () -> Unit = {},
     emailClick: () -> Unit = {},
     tutorialClick: () -> Unit = {},
+    /** 사용 방법 행의 "새 기능 n" (0 이면 표시 안 함) */
+    tutorialNewCount: Int = 0,
     trashClick: () -> Unit = {},
     exportCsvClick: () -> Unit = {},
     importCsvClick: () -> Unit = {},
@@ -297,6 +307,7 @@ fun AppSettingScreen(
             SettingRow(
                 icon = Icons.AutoMirrored.Outlined.MenuBook, label = "사용 방법 (튜토리얼)", onClick = tutorialClick,
                 selected = selectedRow == SettingPaneRow.TUTORIAL,
+                badge = if (tutorialNewCount > 0) stringResource(R.string.tutorial_new_count, tutorialNewCount) else null,
             )
         }
         item { SettingRow(icon = Icons.Outlined.Share, label = "친구에게 추천하기", onClick = shareMyApp) }
@@ -383,9 +394,14 @@ private fun SettingRow(
     label: String,
     onClick: () -> Unit,
     selected: Boolean = false,
+    /** 오른쪽 화살표 앞 작은 알약 (예: "새 기능 2") */
+    badge: String? = null,
 ) {
     SettingRowContainer(onClick = onClick, selected = selected) {
         RowIconLabel(icon = icon, label = label, modifier = Modifier.weight(1f), selected = selected)
+        if (badge != null) {
+            NewPill(text = badge, modifier = Modifier.padding(start = 8.dp, end = 4.dp))
+        }
         Icon(
             imageVector = Icons.AutoMirrored.Filled.NavigateNext,
             contentDescription = null,
@@ -587,6 +603,6 @@ fun AppSettingScreenPreview() {
 @Preview(showBackground = true, backgroundColor = 0xFF0F1115)
 fun AppSettingScreenDarkPreview() {
     SaveUrlTheme(darkTheme = true) {
-        AppSettingScreen(isUpdatable = false, themeMode = ThemeMode.DARK)
+        AppSettingScreen(isUpdatable = false, themeMode = ThemeMode.DARK, tutorialNewCount = 2)
     }
 }
