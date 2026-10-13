@@ -31,7 +31,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -86,7 +88,7 @@ fun InsertLinkScreen(
     var openCategorySelector by remember { mutableStateOf<List<CategoryModel>?>(null) }
     var openPreviewContentEditor by remember { mutableStateOf<UrlData?>(null) }
     var showCrawlFailedDialog by remember { mutableStateOf<UrlData?>(null) }
-    var showDuplicateDialog by remember { mutableStateOf<UrlData?>(null) }
+    var showDuplicateDialog by remember { mutableStateOf<LinkSaveUiEffect.ShowDuplicateDialog?>(null) }
 
     LaunchedEffect(Unit) {
         uiEffect.filterNotIsInstance<LinkSaveUiEffect.GotoNextScreen>()
@@ -98,19 +100,21 @@ fun InsertLinkScreen(
                     is LinkSaveUiEffect.ShowCrawlFailedDialog -> {
                         showCrawlFailedDialog = UrlData(url = it.url, description = it.url)
                     }
-                    is LinkSaveUiEffect.ShowDuplicateDialog -> showDuplicateDialog = it.existing
+                    is LinkSaveUiEffect.ShowDuplicateDialog -> showDuplicateDialog = it
                 }
             }
     }
 
     if (showDuplicateDialog != null) {
-        val existing = showDuplicateDialog!!
+        val duplicate = showDuplicateDialog!!
+        val existing = duplicate.existing
         AlertDialog(
             onDismissRequest = { showDuplicateDialog = null },
             title = { Text("이미 저장된 URL") },
             text = {
                 Text(
-                    text = if (!existing.title.isNullOrEmpty()) {
+                    // 닫힌 잠금 카테고리의 링크면 제목을 보여 주지 않는다
+                    text = if (!existing.title.isNullOrEmpty() && !duplicate.hideTitle) {
                         "\"${existing.title}\"\n\n이미 저장된 링크예요. 그래도 저장할까요?"
                     } else {
                         "이미 저장된 링크예요. 그래도 저장할까요?"
@@ -178,7 +182,8 @@ fun InsertLinkScreen(
         }
         if (openCategorySelector != null) {
             CategorySelectorDialog(
-                categoryList = openCategorySelector?.map { it.name } ?: listOf(),
+                categoryList = openCategorySelector?.filterNot { it.isLocked }?.map { it.name } ?: listOf(),
+                lockedCategoryList = openCategorySelector?.filter { it.isLocked }?.map { it.name } ?: listOf(),
                 dismiss = {
                     event.invoke(LinkSaveIntent.CategorySelectedItem(it))
                     openCategorySelector = null
@@ -239,6 +244,7 @@ fun InsertLinkScreen(
                 HorizontalDivider(color = colors.outline, thickness = 1.dp, modifier = Modifier.padding(horizontal = AppDimens.Gutter))
                 CategoryRow(
                     categoryName = uiState.categoryName,
+                    isLocked = uiState.categoryName in uiState.lockedCategoryNames,
                     onClick = singleClick { event.invoke(LinkSaveIntent.OpenCategorySelector(uiState.categoryName)) }
                 )
                 HorizontalDivider(color = colors.outline, thickness = 1.dp, modifier = Modifier.padding(horizontal = AppDimens.Gutter))
@@ -261,7 +267,7 @@ fun InsertLinkScreen(
 
 /** "카테고리 ........ 레시피 ›" (선택 안 함 = 전체) */
 @Composable
-private fun CategoryRow(categoryName: String, onClick: () -> Unit) {
+private fun CategoryRow(categoryName: String, isLocked: Boolean, onClick: () -> Unit) {
     val colors = AppTheme.colors
     val isNone = categoryName.isEmpty() || categoryName == FilterDefaults.CATEGORY_ALL
     Row(
@@ -272,15 +278,24 @@ private fun CategoryRow(categoryName: String, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text("카테고리", style = MaterialTheme.typography.bodyLarge, color = colors.textPrimary)
-        Text(
-            text = if (isNone) "선택 안 함" else categoryName,
-            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = if (isNone) FontWeight.Normal else FontWeight.SemiBold),
-            color = if (isNone) colors.textSecondary else colors.accent,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.End,
-            modifier = Modifier.weight(1f).padding(start = 16.dp)
-        )
+        Row(
+            modifier = Modifier.weight(1f).padding(start = 16.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isLocked && !isNone) {
+                Icon(Icons.Outlined.Lock, contentDescription = null, tint = colors.accent, modifier = Modifier.padding(end = 4.dp).size(14.dp))
+            }
+            Text(
+                text = if (isNone) "선택 안 함" else categoryName,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = if (isNone) FontWeight.Normal else FontWeight.SemiBold),
+                color = if (isNone) colors.textSecondary else colors.accent,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.End,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+        }
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.textSecondary)
     }
 }

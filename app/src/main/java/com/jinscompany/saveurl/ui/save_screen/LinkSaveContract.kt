@@ -11,6 +11,8 @@ data class LinkSaveUiState (
     val categoryName: String = FilterDefaults.CATEGORY_ALL,
     val linkUrlPreviewUiState: LinkUrlPreviewUiState = LinkUrlPreviewUiState.Idle,
     val isEditScreen: Boolean = false,  // 수정 모드 일경우 true
+    /** 잠금 카테고리 이름 (카테고리 행에 자물쇠 표시) */
+    val lockedCategoryNames: List<String> = emptyList(),
 ) {
     fun getSaveData(): UrlData? {
         return (linkUrlPreviewUiState as? LinkUrlPreviewUiState.LinkUrlData) ?.let {
@@ -52,5 +54,6 @@ sealed class LinkSaveUiEffect {
     data class OpenPreviewContentEdit(val urlData: UrlData): LinkSaveUiEffect()
     data class StartCrawling(val url: String): LinkSaveUiEffect()
     data class ShowCrawlFailedDialog(val url: String): LinkSaveUiEffect()
-    data class ShowDuplicateDialog(val existing: UrlData): LinkSaveUiEffect()
+    /** [hideTitle] = 기존 링크가 닫힌 잠금 카테고리에 있어 제목을 보여 주면 안 됨 */
+    data class ShowDuplicateDialog(val existing: UrlData, val hideTitle: Boolean = false): LinkSaveUiEffect()
 }

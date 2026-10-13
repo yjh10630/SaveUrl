@@ -2,12 +2,14 @@ package com.jinscompany.saveurl.ui.save_screen
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jinscompany.saveurl.domain.lock.CategoryLockSession
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.domain.usecase.FindUrlDataUseCase
 import com.jinscompany.saveurl.domain.usecase.GetCategoriesUseCase
 import com.jinscompany.saveurl.domain.usecase.InsertCategoryUseCase
 import com.jinscompany.saveurl.domain.usecase.LearnDomainCategoryUseCase
+import com.jinscompany.saveurl.domain.usecase.ObserveLockedCategoriesUseCase
 import com.jinscompany.saveurl.domain.usecase.ParseUrlUseCase
 import com.jinscompany.saveurl.domain.usecase.SaveUrlUseCase
 import com.jinscompany.saveurl.domain.usecase.SaveResult
@@ -24,6 +26,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -38,6 +41,8 @@ class LinkSaveViewModel @Inject constructor(
     private val suggestCategoryUseCase: SuggestCategoryUseCase,
     private val learnDomainCategoryUseCase: LearnDomainCategoryUseCase,
     private val insertCategoryUseCase: InsertCategoryUseCase,
+    private val lockSession: CategoryLockSession,
+    private val observeLockedCategoriesUseCase: ObserveLockedCategoriesUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LinkSaveUiState())
@@ -49,6 +54,21 @@ class LinkSaveViewModel @Inject constructor(
     private var parseJob: Job? = null
     private var suggestedCategory: String? = null
     private var isInitialUrlHandled = false
+
+    init {
+        viewModelScope.launch {
+            observeLockedCategoriesUseCase().collect { names ->
+                _uiState.update { it.copy(lockedCategoryNames = names) }
+            }
+        }
+    }
+
+    /** 닫힌 잠금 카테고리에 있는 링크: 수정 모드로 열거나 제목을 보여 주면 안 된다 (37번 기획서 6.3) */
+    private suspend fun UrlData.isHiddenByLock(): Boolean {
+        val name = category ?: return false
+        // 공유로 바로 열린 경우 위 수집보다 먼저 불릴 수 있으므로 DB 에서 직접 확인한다
+        return !lockSession.isUnlocked.value && name in observeLockedCategoriesUseCase().first()
+    }
 
     // 네비게이션 인자로 받은 URL 은 최초 진입 시 한 번만 처리
     fun startInitialCrawling(url: String?) {
@@ -127,7 +147,7 @@ class LinkSaveViewModel @Inject constructor(
                 } else {
                     when (val result = saveUrlUseCase(urlData)) {
                         is SaveResult.Duplicate -> {
-                            _uiEffect.emit(LinkSaveUiEffect.ShowDuplicateDialog(result.existing))
+                            _uiEffect.emit(LinkSaveUiEffect.ShowDuplicateDialog(result.existing, hideTitle = result.existing.isHiddenByLock()))
                             return@launch
                         }
                         is SaveResult.Success -> afterSave(urlData)
@@ -229,7 +249,8 @@ class LinkSaveViewModel @Inject constructor(
             try {
                 val realUrl = extractUrlFromText(url)
                 if (!realUrl.isNullOrEmpty()) {
-                    findUrlDataUseCase(realUrl)?.let {
+                    // 닫힌 잠금 카테고리의 링크는 수정 모드로 열지 않고 새 링크처럼 다룬다 (저장하면 중복 안내, 제목 없이)
+                    findUrlDataUseCase(realUrl)?.takeUnless { it.isHiddenByLock() }?.let {
                         _uiState.update { current ->
                             current.copy(
                                 isEditScreen = true,
@@ -249,7 +270,7 @@ class LinkSaveViewModel @Inject constructor(
                             // 공유 텍스트 전체가 아닌 추출된 URL 로 WebView 폴백 (리다이렉트 해석된 URL 우선)
                             _uiEffect.emit(LinkSaveUiEffect.StartCrawling(data.url?.takeIf { it.startsWith("http") } ?: realUrl))
                         } else {
-                            val checkData = findUrlDataUseCase(data.url ?: "")
+                            val checkData = findUrlDataUseCase(data.url ?: "")?.takeUnless { it.isHiddenByLock() }
                             val suggested = suggestCategoryUseCase(
                                 url = data.url ?: realUrl,
                                 title = data.title,
@@ -284,7 +305,8 @@ class LinkSaveViewModel @Inject constructor(
 
     private fun openCategorySelector(currentCategoryName: String) {
         viewModelScope.launch {
-            val categories = getCategoriesUseCase()
+            // 잠금 카테고리도 넘긴다. 시트가 세션이 닫혀 있으면 "잠금 카테고리에 저장…" 한 행으로 접는다
+            val categories = getCategoriesUseCase(includeLocked = true)
             categories.firstOrNull { it.name == currentCategoryName }?.isSelected = true
             _uiEffect.emit(LinkSaveUiEffect.OpenCategorySelector(categories))
         }

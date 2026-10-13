@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -28,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,11 +39,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.jinscompany.saveurl.R
 import com.jinscompany.saveurl.ui.FilterDefaults
+import com.jinscompany.saveurl.ui.lock.LocalCategoryLockSession
+import com.jinscompany.saveurl.ui.lock.rememberOpenLockedCategories
 import com.jinscompany.saveurl.ui.composable.AppBottomSheet
 import com.jinscompany.saveurl.ui.composable.PrimaryButton
 import com.jinscompany.saveurl.ui.composable.SheetHeader
@@ -61,15 +68,22 @@ fun CategorySelectorDialog(
     dismiss: (String) -> Unit,
     categoryList: List<String>,
     goToCateEdit: () -> Unit,
-    selectedItem: String
+    selectedItem: String,
+    /** 잠금 카테고리. 세션이 닫혀 있으면 "잠금 카테고리에 저장…" 한 행으로 접고, 인증하면 같은 시트 안에서 펼친다 */
+    lockedCategoryList: List<String> = emptyList(),
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var selectItem by remember { mutableStateOf(selectedItem) }
+    val isUnlocked by LocalCategoryLockSession.current.isUnlocked.collectAsState()
+    val openLocked = rememberOpenLockedCategories()
 
     AppBottomSheet(onDismissRequest = { dismiss.invoke(selectItem) }, sheetState = sheetState, dialogWidth = 400.dp) {
         CategorySelectorContent(
             categoryList = categoryList,
+            lockedCategoryList = lockedCategoryList,
+            isUnlocked = isUnlocked,
+            onOpenLocked = { openLocked(R.string.prompt_save_to_locked) {} },
             selected = selectItem,
             onSelect = { selectItem = it },
             onEdit = {
@@ -85,6 +99,9 @@ fun CategorySelectorDialog(
 @Composable
 private fun CategorySelectorContent(
     categoryList: List<String>,
+    lockedCategoryList: List<String> = emptyList(),
+    isUnlocked: Boolean = false,
+    onOpenLocked: () -> Unit = {},
     selected: String,
     onSelect: (String) -> Unit,
     onEdit: () -> Unit,
@@ -115,6 +132,19 @@ private fun CategorySelectorContent(
                     HorizontalDivider(color = colors.outline, thickness = 1.dp, modifier = Modifier.padding(horizontal = 8.dp))
                 }
             }
+            if (lockedCategoryList.isNotEmpty()) {
+                HorizontalDivider(color = colors.outline, thickness = 1.dp, modifier = Modifier.padding(horizontal = 8.dp))
+                if (isUnlocked) {
+                    lockedCategoryList.forEachIndexed { index, name ->
+                        RadioRow(label = name, selected = selected == name, onClick = { onSelect(name) }, locked = true)
+                        if (index < lockedCategoryList.lastIndex) {
+                            HorizontalDivider(color = colors.outline, thickness = 1.dp, modifier = Modifier.padding(horizontal = 8.dp))
+                        }
+                    }
+                } else {
+                    SaveToLockedRow(onClick = onOpenLocked)
+                }
+            }
         }
         Spacer(modifier = Modifier.height(16.dp))
         PrimaryButton(
@@ -127,8 +157,29 @@ private fun CategorySelectorContent(
     }
 }
 
+/** 세션이 닫혀 있을 때 잠금 카테고리를 접은 행 (이름을 보이지 않는다) */
 @Composable
-private fun RadioRow(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun SaveToLockedRow(onClick: () -> Unit) {
+    val colors = AppTheme.colors
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Outlined.Lock, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
+        Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+            Text(stringResource(R.string.picker_save_to_locked), style = MaterialTheme.typography.bodyLarge, color = colors.textPrimary)
+            Text(stringResource(R.string.picker_save_to_locked_desc), style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
+        }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.textSecondary)
+    }
+}
+
+@Composable
+private fun RadioRow(label: String, selected: Boolean, onClick: () -> Unit, locked: Boolean = false) {
     val colors = AppTheme.colors
     Row(
         modifier = Modifier
@@ -139,6 +190,13 @@ private fun RadioRow(label: String, selected: Boolean, onClick: () -> Unit) {
             .padding(horizontal = 8.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (locked) {
+            Icon(
+                Icons.Outlined.Lock, contentDescription = null,
+                tint = if (selected) colors.accent else colors.textSecondary,
+                modifier = Modifier.padding(end = 6.dp).size(14.dp)
+            )
+        }
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
@@ -165,6 +223,9 @@ private fun RadioRow(label: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun CategorySelectorPreview() {
     SaveUrlTheme(darkTheme = false) {
-        CategorySelectorContent(listOf("개발", "뉴스", "레시피"), "레시피", {}, {}, {})
+        CategorySelectorContent(
+            categoryList = listOf("개발", "뉴스", "레시피"), lockedCategoryList = listOf("쇼핑"),
+            selected = "레시피", onSelect = {}, onEdit = {}, onConfirm = {},
+        )
     }
 }
