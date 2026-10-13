@@ -67,6 +67,9 @@ import com.jinscompany.saveurl.ui.main.MainListViewModel
 import com.jinscompany.saveurl.ui.theme.AppTheme
 import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
 import com.jinscompany.saveurl.utils.extractUrlFromText
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.ui.res.stringResource
+import com.jinscompany.saveurl.R
 
 /** 오른쪽 패널이 이 폭보다 좁으면(예: 펼친 폭 673dp → 약 313dp) 요약을 카드 하나(3열)로 합치고 여백을 줄인다 (Stitch 3번) */
 private val NARROW_PANEL_WIDTH = 400.dp
@@ -88,9 +91,11 @@ fun HomePanel(
     val stats by viewModel.stats.collectAsState()
     val suggestion by viewModel.clipboardSuggestion.collectAsState()
     val filter by mainListViewModel.filterSelectedItems.collectAsState()
+    val lockedCategoryNames by mainListViewModel.lockedCategoryNames.collectAsState()
 
     HomePanelContent(
         stats = stats,
+        hasLockedCategories = lockedCategoryNames.isNotEmpty(),
         clipboardSuggestion = suggestion,
         selectedCategories = filter.categories,
         onQuickSaveFocused = viewModel::onQuickSaveFocused,
@@ -117,6 +122,8 @@ fun HomePanel(
 fun HomePanelContent(
     stats: LinkStats?,
     clipboardSuggestion: String?,
+    /** 잠금 카테고리가 있으면 "카테고리별" 아래에 "여기에서 세지 않아요" 한 줄 (통계는 항상 잠금 카테고리를 뺀다) */
+    hasLockedCategories: Boolean = false,
     selectedCategories: List<String> = emptyList(),
     onQuickSaveFocused: () -> Unit = {},
     onQuickSave: (String) -> Unit = {},
@@ -156,6 +163,18 @@ fun HomePanelContent(
                 selectedCategories = selectedCategories,
                 onClick = onCategoryClick,
             )
+            if (hasLockedCategories) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.Lock, contentDescription = null, tint = AppTheme.colors.textSecondary, modifier = Modifier.size(13.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.home_locked_not_counted),
+                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp),
+                        color = AppTheme.colors.textSecondary,
+                    )
+                }
+            }
         }
     }
 }

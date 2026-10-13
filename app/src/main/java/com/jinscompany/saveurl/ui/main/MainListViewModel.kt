@@ -10,6 +10,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.cachedIn
 import androidx.paging.filter
+import com.jinscompany.saveurl.domain.lock.CategoryLockSession
 import com.jinscompany.saveurl.domain.model.FilterParams
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.domain.usecase.DeleteWithTrashUseCase
@@ -18,6 +19,7 @@ import com.jinscompany.saveurl.domain.usecase.GetTrashStateUseCase
 import com.jinscompany.saveurl.domain.usecase.GetUrlListUseCase
 import com.jinscompany.saveurl.domain.usecase.IsSavedUrlUseCase
 import com.jinscompany.saveurl.domain.usecase.MarkAsReadUseCase
+import com.jinscompany.saveurl.domain.usecase.ObserveLockedCategoriesUseCase
 import com.jinscompany.saveurl.domain.usecase.RemoveUrlUseCase
 import com.jinscompany.saveurl.R
 import com.jinscompany.saveurl.ui.FilterDefaults
@@ -39,6 +41,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -58,7 +61,16 @@ class MainListViewModel @Inject constructor(
     private val clipboardReader: ClipboardReader,
     private val markAsReadUseCase: MarkAsReadUseCase,
     private val getCategoriesUseCase: GetCategoriesUseCase,
+    private val lockSession: CategoryLockSession,
+    observeLockedCategoriesUseCase: ObserveLockedCategoriesUseCase,
 ) : ViewModel() {
+
+    /** 잠금 카테고리 세션 (칩 줄: 닫힘 = 🔒 칩, 열림 = 잠금 카테고리 칩 + 다시 잠그기) */
+    val isUnlocked: StateFlow<Boolean> = lockSession.isUnlocked
+
+    /** 잠금 카테고리 이름. 세션이 닫혀 있으면 화면은 개수(🔒 칩 표시 여부)만 쓴다 */
+    val lockedCategoryNames: StateFlow<List<String>> = observeLockedCategoriesUseCase()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _mainListUiState = MutableStateFlow<MainListUiState>(MainListUiState.Idle)
     val mainListUiState: StateFlow<MainListUiState> = _mainListUiState.asStateFlow()
@@ -74,7 +86,7 @@ class MainListViewModel @Inject constructor(
     private val _selectedTab = MutableStateFlow(MainTab.RECENT)
     val selectedTab: StateFlow<MainTab> = _selectedTab.asStateFlow()
 
-    /** 카테고리 칩 행에 보여줄 사용자 카테고리 이름 ("전체" 제외) */
+    /** 카테고리 칩 행에 보여줄 사용자 카테고리 이름 ("전체" 제외, 잠금 카테고리 제외: 잠금 카테고리 칩은 [lockedCategoryNames]) */
     private val _categoryNames = MutableStateFlow<List<String>>(emptyList())
     val categoryNames: StateFlow<List<String>> = _categoryNames.asStateFlow()
 
@@ -90,11 +102,30 @@ class MainListViewModel @Inject constructor(
         getLinkList()
         deleteExpiredTrash()
         loadCategories()
+        observeLockState()
+    }
+
+    private fun observeLockState() {
+        // 잠그거나 풀면 보이는 카테고리 칩이 바뀐다 (목록 자체는 Room 이 Category 테이블 변경으로 다시 읽음)
+        viewModelScope.launch {
+            lockedCategoryNames.drop(1).collect { loadCategories() }
+        }
+        // 세션이 바뀌면 목록을 다시 만든다 (includeLocked 는 PagingSource 를 만들 때 정해지므로).
+        // 닫힐 때 잠금 카테고리를 보고 있었으면 "전체"로 돌아간다.
+        viewModelScope.launch {
+            lockSession.isUnlocked.drop(1).collect { unlocked ->
+                val current = _filterSelectedItems.value
+                if (!unlocked && current.categories.any { it in lockedCategoryNames.value }) {
+                    _filterSelectedItems.value = current.copy(categories = listOf(FilterDefaults.CATEGORY_ALL))
+                }
+                getLinkList()
+            }
+        }
     }
 
     private fun loadCategories() {
         viewModelScope.launch {
-            _categoryNames.value = runCatching { getCategoriesUseCase() }.getOrDefault(emptyList())
+            _categoryNames.value = runCatching { getCategoriesUseCase(includeLocked = false) }.getOrDefault(emptyList())
                 .map { it.name }
                 .filter { it != FilterDefaults.CATEGORY_ALL && it != FilterDefaults.CATEGORY_BOOKMARK }
                 .distinct()
@@ -167,6 +198,7 @@ class MainListViewModel @Inject constructor(
                 MainListIntent.OpenTutorial -> _mainListEffect.emit(OpenTutorial)
                 MainListIntent.DismissTutorialCard -> preferencesManager.dismissTutorialCard()
                 is MainListIntent.DismissTutorialNewCard -> preferencesManager.dismissTutorialNewCard(intent.versionCode)
+                MainListIntent.RelockCategories -> lockSession.relock()
             }
         }
     }

@@ -87,6 +87,7 @@ import com.jinscompany.saveurl.ui.main.MainListIntent.ShowLinkInfoDialog
 import com.jinscompany.saveurl.ui.main.components.ActiveFilterRow
 import com.jinscompany.saveurl.ui.main.components.CategoryChipRow
 import com.jinscompany.saveurl.ui.main.components.DateHeader
+import com.jinscompany.saveurl.ui.main.components.LockedViewingBanner
 import com.jinscompany.saveurl.ui.main.components.LinkListItem
 import com.jinscompany.saveurl.ui.main.components.MainEmptyState
 import com.jinscompany.saveurl.ui.main.components.MainEmptyType
@@ -102,6 +103,7 @@ import com.jinscompany.saveurl.ui.navigation.navigateToEditCategory
 import com.jinscompany.saveurl.ui.navigation.navigateToSaveLink
 import com.jinscompany.saveurl.ui.navigation.navigateToSearch
 import com.jinscompany.saveurl.ui.navigation.navigateToTutorial
+import com.jinscompany.saveurl.ui.lock.rememberOpenLockedCategories
 import com.jinscompany.saveurl.ui.tutorial.TutorialCardMode
 import com.jinscompany.saveurl.ui.tutorial.TutorialEntryCard
 import com.jinscompany.saveurl.ui.tutorial.TutorialNews
@@ -151,6 +153,9 @@ fun MainListScreen(
     val filterSelectedItems by viewModel.filterSelectedItems.collectAsState()
     val selectedTab by viewModel.selectedTab.collectAsState()
     val categoryNames by viewModel.categoryNames.collectAsState()
+    val lockedCategoryNames by viewModel.lockedCategoryNames.collectAsState()
+    val isLockedUnlocked by viewModel.isUnlocked.collectAsState()
+    val openLockedCategories = rememberOpenLockedCategories()
     val viewMode by sharedViewModel.listViewMode.collectAsState()
     val tutorialCardVisible by viewModel.tutorialCardVisible.collectAsState()
     val tutorialBadgePrefs by viewModel.tutorialBadgePrefs.collectAsState()
@@ -368,6 +373,10 @@ fun MainListScreen(
             onTabSelect = { viewModel.onIntent(MainListIntent.SelectTab(it)) },
             filterParams = filterSelectedItems,
             categoryNames = categoryNames,
+            lockedCategoryNames = lockedCategoryNames,
+            isLockedUnlocked = isLockedUnlocked,
+            onLockedEntryClick = { openLockedCategories(R.string.prompt_open_locked) {} },
+            onRelockClick = { viewModel.onIntent(MainListIntent.RelockCategories) },
             onSearchClick = { viewModel.onIntent(GoToSearchScreen) },
             onAppSettingClick = { viewModel.onIntent(GoToAppSetting) },
             onLinkItemClick = { url -> viewModel.onIntent(GoToOutLinkWebSite(url)) },
@@ -417,6 +426,11 @@ fun MainListScreen(
         categories = listOf(FilterDefaults.CATEGORY_ALL), sort = FilterDefaults.SORT_LATEST, siteList = listOf(), tagList = listOf()
     ),
     categoryNames: List<String> = emptyList(),
+    /** 잠금 카테고리 이름과 세션 상태 (37번 기획서 5.1) */
+    lockedCategoryNames: List<String> = emptyList(),
+    isLockedUnlocked: Boolean = false,
+    onLockedEntryClick: () -> Unit = {},
+    onRelockClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onAppSettingClick: () -> Unit = {},
     onLinkItemClick: (String?) -> Unit = {},
@@ -440,7 +454,7 @@ fun MainListScreen(
     // "전체" + 사용자 카테고리. 필터 시트에서 고른 값 중 목록에 없는 항목(예: 북마크)은 앞쪽에 함께 보여준다
     val chips = buildList {
         add(FilterDefaults.CATEGORY_ALL)
-        selectedCategories.filter { it != FilterDefaults.CATEGORY_ALL && it !in categoryNames }.forEach { add(it) }
+        selectedCategories.filter { it != FilterDefaults.CATEGORY_ALL && it !in categoryNames && it !in lockedCategoryNames }.forEach { add(it) }
         addAll(categoryNames)
     }.distinct()
     val detailFilters = filterParams.siteList + filterParams.tagList
@@ -490,13 +504,22 @@ fun MainListScreen(
             onSettingClick = onAppSettingClick,
         )
         MainTabRow(selectedTab = selectedTab, onTabSelect = onTabSelect)
+        val hasLocked = lockedCategoryNames.isNotEmpty()
         CategoryChipRow(
             chips = chips,
             selected = selectedCategories,
             hasDetailFilter = detailFilters.isNotEmpty(),
             onCategoryClick = onCategoryClick,
             onFilterClick = onFilterOpen,
+            lockedChips = if (isLockedUnlocked) lockedCategoryNames else emptyList(),
+            showLockedEntry = hasLocked && !isLockedUnlocked,
+            showRelock = hasLocked && isLockedUnlocked,
+            onLockedEntryClick = onLockedEntryClick,
+            onRelockClick = onRelockClick,
         )
+        if (isLockedUnlocked && selectedCategories.any { it in lockedCategoryNames }) {
+            LockedViewingBanner()
+        }
         ActiveFilterRow(filters = detailFilters)
         if (!isEmpty) {
             SortRow(countLabel = countLabel, sort = filterParams.sort, onSortChange = onSortChange)

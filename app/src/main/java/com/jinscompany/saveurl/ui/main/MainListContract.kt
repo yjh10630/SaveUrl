@@ -38,6 +38,8 @@ sealed class MainListIntent {
     data object DismissTutorialCard: MainListIntent()
     /** 새 기능 안내 카드 ✕ ([versionCode] 까지의 NEW 주제로는 다시 보이지 않음) */
     data class DismissTutorialNewCard(val versionCode: Int): MainListIntent()
+    /** [다시 잠그기] 칩 */
+    data object RelockCategories: MainListIntent()
 }
 
 /** 메인 리스트 상단 탭: 리스트 전체를 전환한다 */
