@@ -104,6 +104,7 @@ object TutorialTopics {
     const val AUTOFILL = "autofill"
     const val CLEAN = "clean_duplicate"
     const val CATEGORY = "category"
+    const val CATEGORY_LOCK = "category_lock"
     const val TAG = "tag"
     const val FAVORITE = "favorite"
     const val VIEW_MODE = "view_mode"
@@ -148,6 +149,14 @@ object TutorialTopics {
             stepRes = listOf(R.string.tut_category_step1, R.string.tut_category_step2, R.string.tut_category_step3),
             tipRes = R.string.tut_category_tip,
             imageRows = listOf(listOf(TutorialImage(R.drawable.tut_category_light, R.drawable.tut_category_dark, R.string.tut_category_image_cd))),
+        ),
+        // 2.1 (versionCode 40): 잠금 카테고리. 스크린샷은 실제 화면 캡처 후 추가 (37번 기획서 10장)
+        TutorialTopic(
+            id = CATEGORY_LOCK, group = TutorialGroup.ORGANIZE,
+            titleRes = R.string.tut_category_lock_title, subtitleRes = R.string.tut_category_lock_subtitle, bodyRes = R.string.tut_category_lock_body,
+            stepRes = listOf(R.string.tut_category_lock_step1, R.string.tut_category_lock_step2, R.string.tut_category_lock_step3),
+            tipRes = R.string.tut_category_lock_tip,
+            addedInVersionCode = 40,
         ),
         TutorialTopic(
             id = TAG, group = TutorialGroup.ORGANIZE,
