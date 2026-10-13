@@ -44,7 +44,7 @@ class MigrationTest {
             close()
         }
 
-        val db = helper.runMigrationsAndValidate(testDb, 4, true)
+        val db = helper.runMigrationsAndValidate(testDb, 5, true)
         db.query("SELECT title, tagList, isBookMark, isRead, normalizedUrl FROM BaseSaveUrl").use { c ->
             assertTrue(c.moveToFirst())
             assertEquals("Test Title", c.getString(0))
@@ -53,9 +53,28 @@ class MigrationTest {
             assertEquals(0, c.getInt(3))
             assertEquals("", c.getString(4))
         }
-        db.query("SELECT name FROM Category").use { c ->
+        db.query("SELECT name, isLocked FROM Category").use { c ->
             assertTrue(c.moveToFirst())
             assertEquals("업무", c.getString(0))
+            assertEquals(0, c.getInt(1))
+        }
+        db.close()
+    }
+
+    /** 2.0.x(v4) → 잠금 카테고리(v5): 기존 카테고리는 모두 잠기지 않은 상태 */
+    @Test
+    @Throws(IOException::class)
+    fun migrate4To5() {
+        helper.createDatabase(testDb, 4).apply {
+            execSQL("INSERT INTO Category (name, contentCnt, addDate, `order`, isEditable) VALUES ('쇼핑', 0, 0, 1, 1)")
+            execSQL("INSERT INTO Category (name, contentCnt, addDate, `order`, isEditable) VALUES ('미분류', 0, 0, 2, 0)")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(testDb, 5, true)
+        db.query("SELECT COUNT(*) FROM Category WHERE isLocked = 0").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals(2, c.getInt(0))
         }
         db.close()
     }

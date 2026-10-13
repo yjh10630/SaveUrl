@@ -63,9 +63,9 @@ class LinkStatsQueryTest {
             val result = source.load(PagingSource.LoadParams.Refresh(key = null, loadSize = 10, placeholdersEnabled = false))
             return (result as PagingSource.LoadResult.Page).data.map { it.id }
         }
-        assertEquals(listOf(2, 3, 1), ids(dao.searchAllSorted("kotlin", oldest = false)))
-        assertEquals(listOf(1, 3, 2), ids(dao.searchAllSorted("kotlin", oldest = true)))
-        assertEquals(listOf(2, 1), ids(dao.searchByTitleSorted("kotlin", oldest = false)))
-        assertEquals(listOf(3), ids(dao.searchByDescriptionSorted("kotlin", oldest = true)))
+        assertEquals(listOf(2, 3, 1), ids(dao.searchAllSorted("kotlin", oldest = false, includeLocked = false)))
+        assertEquals(listOf(1, 3, 2), ids(dao.searchAllSorted("kotlin", oldest = true, includeLocked = false)))
+        assertEquals(listOf(2, 1), ids(dao.searchByTitleSorted("kotlin", oldest = false, includeLocked = false)))
+        assertEquals(listOf(3), ids(dao.searchByDescriptionSorted("kotlin", oldest = true, includeLocked = false)))
     }
 }
