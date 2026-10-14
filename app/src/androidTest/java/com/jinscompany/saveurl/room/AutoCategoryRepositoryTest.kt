@@ -203,4 +203,35 @@ class AutoCategoryRepositoryTest {
         assertEquals(listOf("https://www.google.com/maps/1"), repo.linksForKey(RuleKey(RuleMatchType.HOST, "google.com")).map { it.url })
     }
 
+    @Test
+    fun acceptingStaleSuggestionDoesNotOverwriteUserRuleAndUndoRestoresDismissal() = runBlocking {
+        // 40번 독립 리뷰 R8
+        val userRule = repo.createOrActivate(recipeKey, id("여행"), AutoRuleSource.SAVE_SCREEN)
+        assertNull(repo.acceptSuggestion(recipeKey, id("레시피")))
+        assertEquals("여행", repo.getRule(userRule)!!.categoryName)
+        repo.setState(userRule, AutoRuleState.OFF)
+        assertNull(repo.acceptSuggestion(recipeKey, id("레시피")))
+        assertEquals(AutoRuleState.OFF, repo.getRule(userRule)!!.rule.ruleState)
+
+        // 거절 기록 위에 수락 → 되돌리면 거절 기록으로 돌아간다
+        val key = RuleKey(RuleMatchType.HOST, "musinsa.com")
+        repo.dismissSuggestion(key, id("여행"))
+        val accepted = repo.acceptSuggestion(key, id("레시피"))!!
+        assertEquals(AutoRuleState.ACTIVE, repo.findByKey(key)!!.ruleState)
+        repo.undoAcceptSuggestion(accepted)
+        val restored = repo.findByKey(key)!!
+        assertEquals(AutoRuleState.DISMISSED, restored.ruleState)
+        assertEquals(id("여행"), restored.categoryId)
+
+        // 행이 없던 키는 되돌리면 지운다. 그사이 사용자가 바꿨으면 건드리지 않는다
+        val fresh = RuleKey(RuleMatchType.HOST, "29cm.co.kr")
+        val a = repo.acceptSuggestion(fresh, id("레시피"))!!
+        repo.undoAcceptSuggestion(a)
+        assertNull(repo.findByKey(fresh))
+        val b = repo.acceptSuggestion(fresh, id("레시피"))!!
+        repo.setCategory(b.ruleId, id("여행"))
+        repo.undoAcceptSuggestion(b)
+        assertNotNull(repo.findByKey(fresh))
+    }
+
 }

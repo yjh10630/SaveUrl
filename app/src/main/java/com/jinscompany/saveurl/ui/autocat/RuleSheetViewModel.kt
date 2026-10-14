@@ -19,10 +19,10 @@ import com.jinscompany.saveurl.domain.lock.CategoryLockSession
 import kotlinx.coroutines.flow.drop
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -136,8 +136,12 @@ class RuleSheetViewModel @Inject constructor(
     private val _sheet = MutableStateFlow<RuleSheet?>(null)
     val sheet: StateFlow<RuleSheet?> = _sheet.asStateFlow()
 
-    private val _events = MutableSharedFlow<RuleSheetEvent>()
-    val events = _events.asSharedFlow()
+    /**
+     * 끝난 시트의 결과. 회전·폴드로 시트 호스트가 다시 붙는 사이에 와도 버려지지 않게 버퍼에 쌓는다
+     * (옮기기 되돌리기를 잃지 않게, 40번 독립 리뷰 R13). 받는 쪽은 화면마다 하나 (RuleSheetHost)
+     */
+    private val _events = Channel<RuleSheetEvent>(Channel.BUFFERED)
+    val events = _events.receiveAsFlow()
 
     private var distributionJob: Job? = null
 
@@ -257,7 +261,7 @@ class RuleSheetViewModel @Inject constructor(
                 if (ids.isEmpty()) null else repository.moveUnfiled(ids, editor.category.name)
             } else null
             _sheet.value = null
-            _events.emit(RuleSheetEvent.Created(ruleId, editor.siteName, editor.category.name, move))
+            _events.send(RuleSheetEvent.Created(ruleId, editor.siteName, editor.category.name, move))
         }
     }
 
@@ -266,15 +270,12 @@ class RuleSheetViewModel @Inject constructor(
         val editor = _sheet.value as? RuleSheet.Editor ?: return
         val ruleId = editor.ruleId ?: return
         viewModelScope.launch {
-            val current = repository.getRule(ruleId)?.rule ?: return@launch
-            if (current.categoryId != editor.category.id) repository.setCategory(ruleId, editor.category.id)
-            val state = if (editor.enabled) AutoRuleState.ACTIVE else AutoRuleState.OFF
-            if (current.ruleState != state) repository.setState(ruleId, state)
+            persistEditor(editor, ruleId) ?: return@launch
             _sheet.value = null
             if (editor.activateOnSave) {
-                _events.emit(RuleSheetEvent.Created(ruleId, editor.siteName, editor.category.name, null))
+                _events.send(RuleSheetEvent.Created(ruleId, editor.siteName, editor.category.name, null))
             } else {
-                _events.emit(RuleSheetEvent.Saved(ruleId, editor.siteName, editor.category.name))
+                _events.send(RuleSheetEvent.Saved(ruleId, editor.siteName, editor.category.name))
             }
         }
     }
@@ -285,18 +286,31 @@ class RuleSheetViewModel @Inject constructor(
         viewModelScope.launch {
             repository.delete(ruleId)
             _sheet.value = null
-            _events.emit(RuleSheetEvent.Deleted(editor.siteName))
+            _events.send(RuleSheetEvent.Deleted(editor.siteName))
         }
     }
 
-    /** 수정 시트 "기존 링크에 적용" → 미리 보기 */
+    /**
+     * 수정 시트 "기존 링크에 적용" → 미리 보기.
+     * 시트에서 바꾼 카테고리·켜짐을 먼저 저장한다: 규칙과 다른 카테고리로 옮기거나, 적용 뒤 수정 내용이 버려지지 않게 (40번 독립 리뷰 R4)
+     */
     fun openApply() {
         val editor = _sheet.value as? RuleSheet.Editor ?: return
         val ruleId = editor.ruleId ?: return
         viewModelScope.launch {
+            val saved = persistEditor(editor, ruleId) ?: return@launch
             val distribution = editor.distribution ?: RuleDistribution.of(repository.linksForKey(editor.selectedKey))
-            _sheet.value = RuleSheet.Apply(ruleId, editor.selectedKey, editor.category.name, distribution.unfiled, editor)
+            _sheet.value = RuleSheet.Apply(ruleId, editor.selectedKey, saved.category.name, distribution.unfiled, saved)
         }
+    }
+
+    /** 시트 값을 규칙에 저장한다. @return 저장된 값의 시트 (규칙이 사라졌으면 null) */
+    private suspend fun persistEditor(editor: RuleSheet.Editor, ruleId: Long): RuleSheet.Editor? {
+        val current = repository.getRule(ruleId)?.rule ?: return null
+        if (current.categoryId != editor.category.id) repository.setCategory(ruleId, editor.category.id)
+        val state = if (editor.enabled) AutoRuleState.ACTIVE else AutoRuleState.OFF
+        if (current.ruleState != state) repository.setState(ruleId, state)
+        return editor.copy(activateOnSave = false, appliedCount = current.appliedCount, overriddenCount = current.overriddenCount)
     }
 
     fun cancelApply() {
@@ -308,8 +322,11 @@ class RuleSheetViewModel @Inject constructor(
         val apply = _sheet.value as? RuleSheet.Apply ?: return
         viewModelScope.launch {
             val result = repository.moveUnfiled(apply.rows.map { it.id }, apply.categoryName)
-            _sheet.value = null
-            _events.emit(if (result.count == 0) RuleSheetEvent.NothingToMove else RuleSheetEvent.Moved(result))
+            // 수정 시트로 돌아간다 (옮긴 뒤 분포를 다시 계산)
+            val back = apply.returnTo
+            _sheet.value = back?.copy(distribution = null)
+            back?.let { loadDistribution(it.selectedKey) }
+            _events.send(if (result.count == 0) RuleSheetEvent.NothingToMove else RuleSheetEvent.Moved(result))
         }
     }
 
@@ -321,7 +338,7 @@ class RuleSheetViewModel @Inject constructor(
         viewModelScope.launch {
             repository.setCategory(fix.rule.rule.id, target.id)
             _sheet.value = null
-            _events.emit(RuleSheetEvent.FixChanged(fix.rule.rule.id, fix.rule.rule.categoryId, target.name))
+            _events.send(RuleSheetEvent.FixChanged(fix.rule.rule.id, fix.rule.rule.categoryId, target.name))
         }
     }
 
@@ -339,7 +356,7 @@ class RuleSheetViewModel @Inject constructor(
         viewModelScope.launch {
             repository.setState(fix.rule.rule.id, AutoRuleState.OFF)
             _sheet.value = null
-            _events.emit(RuleSheetEvent.FixDisabled)
+            _events.send(RuleSheetEvent.FixDisabled)
         }
     }
 
@@ -348,14 +365,14 @@ class RuleSheetViewModel @Inject constructor(
         viewModelScope.launch {
             repository.resetRecent(fix.rule.rule.id)
             _sheet.value = null
-            _events.emit(RuleSheetEvent.FixKept)
+            _events.send(RuleSheetEvent.FixKept)
         }
     }
 
     fun fixOpenSettings() {
         viewModelScope.launch {
             _sheet.value = null
-            _events.emit(RuleSheetEvent.OpenSettings)
+            _events.send(RuleSheetEvent.OpenSettings)
         }
     }
 

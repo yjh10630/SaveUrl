@@ -19,6 +19,12 @@ data class BulkMoveResult(
     val count: Int get() = previous.size
 }
 
+/**
+ * 제안을 수락한 결과. [previous] = 수락 전 같은 키의 행(거절 기록) 또는 null(행 없음).
+ * 되돌리기는 이 상태로 복원한다 (행을 무조건 지우지 않는다, 40번 독립 리뷰 R8)
+ */
+data class SuggestionAcceptance(val ruleId: Long, val categoryId: Int, val previous: AutoCategoryRule?)
+
 /** 자동 분류 규칙 (36번 기획서) */
 interface AutoCategoryRepository {
 
@@ -39,6 +45,14 @@ interface AutoCategoryRepository {
      * @return 규칙 id
      */
     suspend fun createOrActivate(key: RuleKey, categoryId: Int, source: AutoRuleSource): Long
+
+    /**
+     * 제안 수락. 같은 키에 행이 없거나 거절 기록일 때만 규칙을 만든다. 켜짐·꺼짐 규칙이 이미 있으면(오래된 제안) 아무것도 바꾸지 않고 null.
+     */
+    suspend fun acceptSuggestion(key: RuleKey, categoryId: Int): SuggestionAcceptance?
+
+    /** 수락 되돌리기: 그사이 사용자가 바꾸지 않았으면 수락 전 상태(행 없음 또는 거절 기록)로 */
+    suspend fun undoAcceptSuggestion(acceptance: SuggestionAcceptance)
 
     /** 카테고리 바꾸기 (기록 초기화) */
     suspend fun setCategory(ruleId: Long, categoryId: Int)

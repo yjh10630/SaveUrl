@@ -238,13 +238,17 @@ fun MainListScreen(
                         duration = SnackbarDuration.Long,
                     )
                     if (result == SnackbarResult.ActionPerformed) {
-                        val ruleId = viewModel.acceptSuggestion(s)
+                        val accepted = viewModel.acceptSuggestion(s)
+                        if (accepted == null) {
+                            snackBarHostState.showSnackbar(resources.getString(R.string.autocat_suggest_rule_exists, notice.siteName))
+                            return@launch
+                        }
                         val undo = snackBarHostState.showSnackbar(
                             message = resources.getString(R.string.autocat_suggest_accepted, notice.siteName, s.categoryName),
                             actionLabel = resources.getString(R.string.autocat_undo),
                             duration = SnackbarDuration.Long,
                         )
-                        if (undo == SnackbarResult.ActionPerformed) viewModel.undoAcceptedSuggestion(ruleId)
+                        if (undo == SnackbarResult.ActionPerformed) viewModel.undoAcceptedSuggestion(accepted)
                     }
                 }
                 is AutoCategoryNotice.Fix -> {

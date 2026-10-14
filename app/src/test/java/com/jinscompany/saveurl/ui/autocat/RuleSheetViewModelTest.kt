@@ -15,6 +15,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -93,5 +94,50 @@ class RuleSheetViewModelTest {
         session.relock()
         advanceUntilIdle()
         assertNull(vm.sheet.value)
+    }
+
+    @Test
+    fun `수정 시트에서 바꾼 카테고리는 기존 링크 적용 전에 저장하고, 적용 뒤 수정 시트로 돌아간다 (R4)`() = runTest {
+        val rule = AutoRuleWithCategory(AutoCategoryRule(id = 8, matchType = "HOST", pattern = "coupang.com", categoryId = 1), "맛집", false, 1)
+        val categories2 = categories + CategoryModel(id = 4, name = "생활")
+        val vm = RuleSheetViewModel(
+            repository,
+            GetCategoriesUseCase(mockk<CategoryRepository> { coEvery { get() } returns categories2 }, session),
+            session,
+        )
+        coEvery { repository.getRule(8) } returns rule
+        coEvery { repository.linksForKey(any()) } returns listOf(AutoCatLinkRow(1, "u1", null, null, "전체"))
+        coEvery { repository.moveUnfiled(any(), any()) } answers { BulkMoveResult(secondArg(), firstArg<List<Int>>().associateWith { null }) }
+        vm.open(RuleSheetRequest.Edit(8))
+        advanceUntilIdle()
+        vm.selectCategory(CategoryOption(4, "생활"))
+        vm.openApply()
+        advanceUntilIdle()
+        coVerify { repository.setCategory(8, 4) }
+        val apply = vm.sheet.value as RuleSheet.Apply
+        assertEquals("생활", apply.categoryName)
+        vm.confirmApply()
+        advanceUntilIdle()
+        coVerify { repository.moveUnfiled(listOf(1), "생활") }
+        val back = vm.sheet.value as RuleSheet.Editor
+        assertEquals("생활", back.category.name)
+    }
+
+    @Test
+    fun `받는 쪽이 잠시 없어도 시트 결과는 버려지지 않는다 (R13)`() = runTest {
+        val rule = AutoRuleWithCategory(AutoCategoryRule(id = 8, matchType = "HOST", pattern = "coupang.com", categoryId = 1), "맛집", false, 1)
+        coEvery { repository.getRule(8) } returns rule
+        coEvery { repository.linksForKey(any()) } returns listOf(AutoCatLinkRow(1, "u1", null, null, "전체"))
+        coEvery { repository.moveUnfiled(any(), any()) } answers { BulkMoveResult(secondArg(), firstArg<List<Int>>().associateWith { null }) }
+        val vm = viewModel()
+        vm.open(RuleSheetRequest.Edit(8))
+        advanceUntilIdle()
+        vm.openApply()
+        advanceUntilIdle()
+        // 회전 중: 구독자 없음
+        vm.confirmApply()
+        advanceUntilIdle()
+        val event = vm.events.first()
+        assertTrue(event is RuleSheetEvent.Moved)
     }
 }

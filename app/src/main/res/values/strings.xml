@@ -608,6 +608,7 @@
     <string name="autocat_suggest_row_sub">%1$d개 모두 \'%2$s\'에 있어요</string>
     <string name="autocat_suggest_row_sub_most">%1$d개 중 %2$d개가 \'%3$s\'에 있어요</string>
     <string name="autocat_suggest_dismissed">다시 제안하지 않을게요</string>
+    <string name="autocat_suggest_rule_exists">%1$s 규칙이 이미 있어서 그대로 뒀어요</string>
     <string name="autocat_suggest_show_all">제안 %1$d개 모두 보기</string>
     <string name="autocat_launch_card_title">자동 분류 규칙 %1$d개를 바로 만들 수 있어요</string>
     <string name="autocat_launch_card_body">지금까지 고른 카테고리를 보고 찾았어요. 누르기 전에는 아무것도 바뀌지 않아요.</string>

@@ -45,7 +45,7 @@ import com.jinscompany.saveurl.utils.RemoteFlags
 import com.jinscompany.saveurl.domain.autocat.AutoCategoryNotice
 import com.jinscompany.saveurl.domain.autocat.AutoCategoryNotices
 import com.jinscompany.saveurl.domain.autocat.RuleSuggestion
-import com.jinscompany.saveurl.domain.model.AutoRuleSource
+import com.jinscompany.saveurl.domain.repository.SuggestionAcceptance
 import com.jinscompany.saveurl.domain.repository.AutoCategoryRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -187,16 +187,16 @@ class MainListViewModel @Inject constructor(
     }
 
     /**
-     * 제안 스낵바 "규칙 만들기" (1탭 수락). @return 규칙 id
+     * 제안 스낵바 "규칙 만들기" (1탭 수락). @return null = 그사이 같은 사이트 규칙이 생겨 아무것도 바꾸지 않음
      * ViewModel 범위에서 저장한다: 누른 직후 화면을 떠나 스낵바 코루틴이 취소돼도 규칙은 만들어진다.
      */
-    suspend fun acceptSuggestion(suggestion: RuleSuggestion): Long = viewModelScope.async {
-        autoCategoryRepository.createOrActivate(suggestion.key, suggestion.categoryId, AutoRuleSource.SUGGESTION)
+    suspend fun acceptSuggestion(suggestion: RuleSuggestion): SuggestionAcceptance? = viewModelScope.async {
+        autoCategoryRepository.acceptSuggestion(suggestion.key, suggestion.categoryId)
     }.await()
 
-    /** 수락 확인 스낵바 "되돌리기": 규칙 삭제 (거절로 남기지 않음) */
-    fun undoAcceptedSuggestion(ruleId: Long) {
-        viewModelScope.launch { autoCategoryRepository.delete(ruleId) }
+    /** 수락 확인 스낵바 "되돌리기": 수락 전 상태로 (행 없음 또는 거절 기록) */
+    fun undoAcceptedSuggestion(acceptance: SuggestionAcceptance) {
+        viewModelScope.launch { autoCategoryRepository.undoAcceptSuggestion(acceptance) }
     }
 
     private fun observeLockState() {

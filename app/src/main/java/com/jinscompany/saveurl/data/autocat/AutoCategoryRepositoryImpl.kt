@@ -17,6 +17,7 @@ import com.jinscompany.saveurl.domain.model.AutoRuleState
 import com.jinscompany.saveurl.domain.model.AutoRuleWithCategory
 import com.jinscompany.saveurl.domain.repository.AutoCategoryRepository
 import com.jinscompany.saveurl.domain.repository.BulkMoveResult
+import com.jinscompany.saveurl.domain.repository.SuggestionAcceptance
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -63,6 +64,45 @@ class AutoCategoryRepositoryImpl @Inject constructor(
                         createdAt = clock(),
                     )
                 )
+            }
+        }
+    }
+
+    override suspend fun acceptSuggestion(key: RuleKey, categoryId: Int): SuggestionAcceptance? = withContext(Dispatchers.IO) {
+        db.withTransaction {
+            val existing = dao.getByKey(key.type.name, key.pattern)
+            when {
+                existing == null -> {
+                    val id = dao.insert(
+                        AutoCategoryRule(
+                            matchType = key.type.name, pattern = key.pattern, categoryId = categoryId,
+                            source = AutoRuleSource.SUGGESTION.name, createdAt = clock(),
+                        )
+                    )
+                    SuggestionAcceptance(id, categoryId, previous = null)
+                }
+                existing.ruleState == AutoRuleState.DISMISSED -> {
+                    dao.update(
+                        AutoRuleStats.resetRecent(existing).copy(
+                            categoryId = categoryId, state = AutoRuleState.ACTIVE.name, source = AutoRuleSource.SUGGESTION.name,
+                        )
+                    )
+                    SuggestionAcceptance(existing.id, categoryId, previous = existing)
+                }
+                // 제안을 띄운 뒤 사용자가 같은 키로 규칙을 만들었거나 껐다: 덮지 않는다
+                else -> null
+            }
+        }
+    }
+
+    override suspend fun undoAcceptSuggestion(acceptance: SuggestionAcceptance) {
+        withContext(Dispatchers.IO) {
+            db.withTransaction {
+                val current = dao.get(acceptance.ruleId) ?: return@withTransaction
+                // 그사이 카테고리를 바꾸거나 끈 규칙은 사용자 것이므로 건드리지 않는다
+                if (current.ruleState != AutoRuleState.ACTIVE || current.categoryId != acceptance.categoryId) return@withTransaction
+                val previous = acceptance.previous
+                if (previous == null) dao.delete(acceptance.ruleId) else dao.update(previous)
             }
         }
     }

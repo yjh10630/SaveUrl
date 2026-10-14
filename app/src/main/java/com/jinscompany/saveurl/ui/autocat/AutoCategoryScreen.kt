@@ -95,6 +95,7 @@ fun AutoCategoryScreen(
                 AutoCategoryMessage.RuleDeleted -> resources.getString(R.string.autocat_rule_deleted)
                 AutoCategoryMessage.RuleDisabled -> resources.getString(R.string.autocat_rule_disabled_snackbar)
                 AutoCategoryMessage.NothingToMove -> resources.getString(R.string.autocat_apply_nothing)
+                is AutoCategoryMessage.RuleExists -> resources.getString(R.string.autocat_suggest_rule_exists, m.siteName)
             }
             scope.launch {
                 snackbarHostState.currentSnackbarData?.dismiss()

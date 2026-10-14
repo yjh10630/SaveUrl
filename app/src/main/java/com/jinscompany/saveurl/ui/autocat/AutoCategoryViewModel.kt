@@ -8,7 +8,6 @@ import com.jinscompany.saveurl.domain.autocat.AutoCategoryKeys
 import com.jinscompany.saveurl.domain.autocat.AutoRuleStats
 import com.jinscompany.saveurl.domain.autocat.RuleSuggestion
 import com.jinscompany.saveurl.domain.lock.CategoryLockSession
-import com.jinscompany.saveurl.domain.model.AutoRuleSource
 import com.jinscompany.saveurl.domain.model.AutoRuleState
 import com.jinscompany.saveurl.domain.model.AutoRuleWithCategory
 import com.jinscompany.saveurl.domain.repository.AutoCategoryRepository
@@ -48,6 +47,8 @@ sealed interface AutoCategoryMessage {
     data object RuleDeleted : AutoCategoryMessage
     data object RuleDisabled : AutoCategoryMessage
     data object NothingToMove : AutoCategoryMessage
+    /** 제안을 수락하려는데 같은 사이트 규칙이 이미 있음 (오래된 제안) */
+    data class RuleExists(val siteName: String) : AutoCategoryMessage
 }
 
 /** 설정 → 자동 분류 (36번 §5) */
@@ -105,11 +106,17 @@ class AutoCategoryViewModel @Inject constructor(
         viewModelScope.launch { repository.setState(rule.rule.id, if (enabled) AutoRuleState.ACTIVE else AutoRuleState.OFF) }
     }
 
-    /** 제안 1탭 수락 (되돌리기 = 규칙 삭제, 거절로 남기지 않음) */
+    /** 제안 1탭 수락 (되돌리기 = 수락 전 상태로: 행 없음 또는 거절 기록) */
     fun accept(suggestion: RuleSuggestion) {
         viewModelScope.launch {
-            val id = repository.createOrActivate(suggestion.key, suggestion.categoryId, AutoRuleSource.SUGGESTION)
-            _snacks.emit(AutoCategorySnack(AutoCategoryMessage.RuleCreated) { viewModelScope.launch { repository.delete(id) } })
+            val accepted = repository.acceptSuggestion(suggestion.key, suggestion.categoryId)
+            if (accepted == null) {
+                // 목록을 계산한 뒤 같은 사이트 규칙이 생겼다: 덮지 않고 목록만 다시 계산
+                _snacks.emit(AutoCategorySnack(AutoCategoryMessage.RuleExists(AutoCategoryKeys.displayName(suggestion.key))))
+                refreshSuggestions()
+                return@launch
+            }
+            _snacks.emit(AutoCategorySnack(AutoCategoryMessage.RuleCreated) { viewModelScope.launch { repository.undoAcceptSuggestion(accepted) } })
         }
     }
 
