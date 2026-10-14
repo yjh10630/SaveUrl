@@ -1,6 +1,7 @@
 package com.jinscompany.saveurl.ui.setting
 
 import android.content.Intent
+import com.jinscompany.saveurl.ui.share.excludeOwnShareTarget
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
@@ -285,7 +286,7 @@ fun AppSettingScreen(
                     putExtra(Intent.EXTRA_TEXT, "https://play.google.com/store/apps/details?id=${context.packageName}")
                     type = "text/plain"
                 }
-                context.startActivity(Intent.createChooser(sendIntent, ""))
+                context.startActivity(Intent.createChooser(sendIntent, "").excludeOwnShareTarget(context))
             },
             updateClick = { context.openPlayStorePage() },
             emailClick = {

@@ -55,7 +55,6 @@ import com.jinscompany.saveurl.utils.InAppUpdateCheck
 import com.jinscompany.saveurl.utils.RemoteFlags
 import com.jinscompany.saveurl.ui.importer.ImportEntry
 import com.jinscompany.saveurl.ui.importer.ImportShare
-import com.jinscompany.saveurl.ui.importer.ImportShareInbox
 import com.jinscompany.saveurl.ui.navigation.navigateToImport
 import com.jinscompany.saveurl.ui.navigation.Navigation
 import com.jinscompany.saveurl.ui.importer.MainListRequests
@@ -87,9 +86,6 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var remoteFlags: RemoteFlags
-
-    @Inject
-    lateinit var importShareInbox: ImportShareInbox
 
     @Inject
     lateinit var revisitRepository: RevisitRepository
@@ -153,6 +149,13 @@ class MainActivity : FragmentActivity() {
             statusBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
         )
+        // 공유 시트가 넘긴 뒤 프로세스가 죽어 전달함이 비었으면 앱만 열리므로, 다시 보내 달라고 알린다 (44번 §7, 45번 독립 리뷰 R7).
+        // 최근 앱에서 다시 연 경우(예전 Intent 재전달)는 제외
+        if (savedInstanceState == null && intent?.action == AppHandoffInbox.ACTION_HANDOFF &&
+            (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0 && appHandoffInbox.pending.value == null
+        ) {
+            Toast.makeText(this, R.string.share_import_resend, Toast.LENGTH_SHORT).show()
+        }
         // 알림에서 연 요청은 RevisitOpenActivity 가, 공유 시트에서 넘긴 요청은 ShareActivity 가 전달함에 넣고 온다
         // (이 Activity 는 내보내져 있어 Intent 내용으로 요청을 받지 않는다. 공유 intent-filter 도 ShareActivity 로 옮김, 44번 §6)
         setContent {
@@ -263,11 +266,8 @@ class MainActivity : FragmentActivity() {
                 mainListRequests.showCategory(handoff.category)
                 runCatching { navController.popBackStack(Navigation.MAIN_ROUTE_PATTERN, inclusive = false) }
             }
-            AppHandoff.Import -> {
-                // 그 사이 프로세스가 죽었으면 받은 내용이 없다: 가져오기 홈 + 다시 보내 달라고 알림 (§7)
-                if (!importShareInbox.hasPending()) Toast.makeText(this, R.string.share_import_resend, Toast.LENGTH_SHORT).show()
-                navController.navigateToImport(ImportEntry.SHARE, replaceRightPane = true)
-            }
+            // 두 전달함은 같은 프로세스에서 같이 살고 죽으므로 여기서 재료가 비는 경우는 없다 (빈 경우는 onCreate 에서 알린다)
+            AppHandoff.Import -> navController.navigateToImport(ImportEntry.SHARE, replaceRightPane = true)
         }
     }
 

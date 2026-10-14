@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
  * 잠금 카테고리 인증 프롬프트를 Activity 에 연결한다 (MainActivity, ShareActivity 가 같이 쓴다, 44번 §1.5).
  *
  * - [BiometricPrompt] 는 onCreate 에서 만든다: 회전·폴드 뒤 새 Activity 가 진행 중인 프롬프트의 결과를 받는다.
- * - broker 의 presenter 는 화면에 보이는 Activity 하나다: onStart 에 등록, onStop 에 해제.
+ * - broker 의 presenter 는 보이는 Activity 들의 스택이다: onStart 에 맨 위로 등록, onStop 에 해제 (맨 위가 프롬프트를 띄움).
  *   (예전처럼 onCreate/onDestroy 에 두면, 뒤에 MainActivity 가 살아 있는 채 공유 시트가 닫히며 해제할 때 presenter 가 비어
  *   MainActivity 로 돌아가도 인증이 뜨지 않는다)
  * - 프롬프트가 떠 있는 동안 onStop 이 와도(API 29 이하 기기 PIN 화면) 결과는 프롬프트 콜백 → broker 로 오므로 괜찮다.

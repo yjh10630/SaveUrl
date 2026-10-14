@@ -1,5 +1,7 @@
 package com.jinscompany.saveurl.ui.share
 
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -13,6 +15,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -55,8 +58,11 @@ class ShareActivity : FragmentActivity() {
 
     private val sharedViewModel by viewModels<SharedViewModel>()
 
-    /** 시트로 저장할 링크 (회전·프로세스 재시작 뒤 같은 시트를 다시 그린다) */
-    private var quickUrl: String? = null
+    /**
+     * 시트로 저장할 링크 (회전·프로세스 재시작 뒤 같은 시트를 다시 그린다).
+     * singleTop 이라 떠 있는 동안 새로 공유하면 [onNewIntent] 로 바뀐다 (45번 독립 리뷰 R4)
+     */
+    private var quickUrl by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,7 +76,7 @@ class ShareActivity : FragmentActivity() {
 
         // 회전·프로세스 재시작이면 나누기를 다시 하지 않는다 (§2)
         quickUrl = if (savedInstanceState != null) savedInstanceState.getString(KEY_URL) else routeShare(intent)
-        val url = quickUrl ?: return
+        if (quickUrl == null) return
 
         val startedAt = SystemClock.uptimeMillis()
         setContent {
@@ -88,10 +94,23 @@ class ShareActivity : FragmentActivity() {
                     LocalCategoryLockSession provides categoryLockSession,
                     LocalLockPromptBroker provides lockPromptBroker,
                 ) {
-                    QuickSaveSheet(url = url, onClose = ::closeShare, onHandoff = ::handoff)
+                    // 링크마다 새 시트(새 ViewModel): 새로 공유한 링크가 예전 시트 상태에 묻히지 않게
+                    quickUrl?.let { url ->
+                        key(url) { QuickSaveSheet(url = url, onClose = ::closeShare, onHandoff = ::handoff) }
+                    }
                 }
             }
         }
+    }
+
+    /**
+     * 보내는 앱이 NEW_TASK 로 공유하면, 닫지 않고 남겨 둔 예전 시트 작업이 앞으로 나오며 여기로 새 공유가 온다.
+     * 새 내용으로 다시 나눈다: 링크 1개면 새 시트로 바꾸고, 그 밖이면 넘기거나 알린 뒤 닫는다.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        routeShare(intent)?.let { quickUrl = it }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -158,4 +177,12 @@ class ShareActivity : FragmentActivity() {
         const val KEY_URL = "quick_save_url"
         const val THEME_WAIT_MS = 300L
     }
+}
+
+/**
+ * 앱 안에서 띄우는 공유 선택기에서 SaveLink 자기 공유 시트를 뺀다 (API 24+ EXTRA_EXCLUDE_COMPONENTS).
+ * 자기 링크를 다시 저장하는 길이 없어지고, 시트가 MainActivity 위에 겹치는 경우도 줄인다 (45번 독립 리뷰 R2).
+ */
+fun Intent.excludeOwnShareTarget(context: Context): Intent = apply {
+    putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, arrayOf(ComponentName(context, ShareActivity::class.java)))
 }

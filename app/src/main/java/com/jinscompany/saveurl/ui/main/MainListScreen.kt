@@ -3,6 +3,7 @@ package com.jinscompany.saveurl.ui.main
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
 import android.content.Intent
+import com.jinscompany.saveurl.ui.share.excludeOwnShareTarget
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
@@ -408,6 +409,8 @@ fun MainListScreen(
                         type = "text/plain"
                     }
                     val shareIntent = Intent.createChooser(sendIntent, context.getString(R.string.share_app_chooser_title))
+                        // 자기 공유 시트는 빼다: 자기 링크가 "이미 저장한 링크" 로 돌고, 시트가 메인 위에 겹친다 (45번 독립 리뷰 R2)
+                        .excludeOwnShareTarget(context)
                     context.startActivity(shareIntent)
                 }
                 MainListUiEffect.ListRefresh -> mainListPagingData?.refresh()

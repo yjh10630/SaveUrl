@@ -43,8 +43,12 @@ class LockPromptBroker(private val elapsedRealtime: () -> Long) {
         val postedAt: Long,
     )
 
-    /** 지금 프롬프트를 띄울 수 있는 Activity (MainActivity 가 onCreate 에서 등록, onDestroy 에서 해제) */
-    private var presenter: ((Request) -> Unit)? = null
+    /**
+     * 프롬프트를 띄울 수 있는 Activity 들 (보이는 순서, 마지막이 맨 위). LockPromptHost 가 onStart 에 넣고 onStop 에 뺀다.
+     * 하나만 두면, MainActivity 위에 반투명 공유 시트가 떴다 닫힐 때(아래 MainActivity 는 stop 되지 않아 다시 start 도 없음)
+     * 비어 버려 MainActivity 의 인증이 모두 실패한다. 스택이면 시트가 빠질 때 아래 Activity 로 돌아간다 (45번 독립 리뷰 R2).
+     */
+    private val presenters = ArrayDeque<(Request) -> Unit>()
 
     /** 프롬프트가 떠 있는 요청. 결과가 오면 이 요청의 키로 [deliveries] 에 넣는다 */
     private var inFlight: Request? = null
@@ -53,17 +57,18 @@ class LockPromptBroker(private val elapsedRealtime: () -> Long) {
     val deliveries: StateFlow<List<Delivery>> = _deliveries.asStateFlow()
 
     fun attach(presenter: (Request) -> Unit) {
-        this.presenter = presenter
+        presenters.removeAll { it === presenter }
+        presenters.addLast(presenter)
     }
 
     fun detach(presenter: (Request) -> Unit) {
-        if (this.presenter === presenter) this.presenter = null
+        presenters.removeAll { it === presenter }
     }
 
     fun request(request: Request) {
         // 같은 키에 남아 있던 예전 결과는 버린다
         _deliveries.update { list -> list.filterNot { it.key == request.key } }
-        val show = presenter
+        val show = presenters.lastOrNull()
         if (show == null) {
             post(request, LockAuthResult.Error)
             return

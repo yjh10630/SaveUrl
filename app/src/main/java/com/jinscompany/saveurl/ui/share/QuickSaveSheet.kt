@@ -100,7 +100,8 @@ private const val SAVED_BAR_MS = 1_500L
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuickSaveSheet(url: String, onClose: () -> Unit, onHandoff: (AppHandoff) -> Unit) {
-    val viewModel = hiltViewModel<LinkSaveViewModel>()
+    // 링크마다 다른 ViewModel (singleTop 시트에 새 링크가 오면 새로 시작, 45번 독립 리뷰 R4)
+    val viewModel = hiltViewModel<LinkSaveViewModel>(key = "quick:$url")
     val ruleSheetViewModel = hiltViewModel<RuleSheetViewModel>()
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
