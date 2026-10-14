@@ -4,11 +4,17 @@ import com.jinscompany.saveurl.domain.model.AutoRuleWithCategory
 import com.jinscompany.saveurl.domain.repository.AutoCategoryRepository
 import com.jinscompany.saveurl.utils.PreferencesManager
 import com.jinscompany.saveurl.utils.RemoteFlags
+import com.google.firebase.crashlytics.ktx.crashlytics
+import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.util.Calendar
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,6 +33,16 @@ class AutoCategoryNotices @Inject constructor() {
     private val _pending = MutableStateFlow<AutoCategoryNotice?>(null)
     val pending: StateFlow<AutoCategoryNotice?> = _pending.asStateFlow()
     @Volatile private var lastTakenAt = 0L
+    /** 저장 뒤 처리가 아직 도는 중 (스낵바가 곧 올 수 있음) */
+    private val working = AtomicInteger(0)
+
+    fun beginWork() {
+        working.incrementAndGet()
+    }
+
+    fun endWork() {
+        working.decrementAndGet()
+    }
 
     fun post(notice: AutoCategoryNotice) {
         _pending.value = notice
@@ -45,7 +61,7 @@ class AutoCategoryNotices @Inject constructor() {
      * 메인 화면의 ON_RESUME 이 스낵바보다 먼저 올 수도, 나중에 올 수도 있어 몇 초 여유를 둔다.
      */
     fun isRecentlyActive(now: Long = System.currentTimeMillis()): Boolean =
-        _pending.value != null || now - lastTakenAt < CLIPBOARD_QUIET_MS
+        _pending.value != null || working.get() > 0 || now - lastTakenAt < CLIPBOARD_QUIET_MS
 
     private companion object {
         const val CLIPBOARD_QUIET_MS = 5_000L
@@ -61,6 +77,7 @@ class AutoCategorySaveFlow @Inject constructor(
     private val preferencesManager: PreferencesManager,
     private val remoteFlags: RemoteFlags,
     private val notices: AutoCategoryNotices,
+    private val appScope: CoroutineScope,
 ) {
     internal var today: () -> Int = { dayOf(Calendar.getInstance()) }
 
@@ -70,6 +87,25 @@ class AutoCategorySaveFlow @Inject constructor(
     suspend fun match(url: String?): AutoRuleWithCategory? {
         if (!isEnabled()) return null
         return repository.matchFor(url)
+    }
+
+    /**
+     * [afterSave] 를 앱 범위에서 돌린다: 저장 화면은 기다리지 않고 바로 닫힌다 (제안 계산은 링크 전체를 읽음, 40번 독립 리뷰 R6).
+     * 스낵바는 메인 목록이 [AutoCategoryNotices.pending] 을 구독하므로 늦게 와도 뜬다.
+     */
+    fun afterSaveInBackground(savedUrl: String?, savedCategoryName: String?, savedCategoryId: Int, appliedRuleId: Long?) {
+        notices.beginWork()
+        appScope.launch {
+            try {
+                afterSave(savedUrl, savedCategoryName, savedCategoryId, appliedRuleId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                runCatching { Firebase.crashlytics.recordException(e) }
+            } finally {
+                notices.endWork()
+            }
+        }
     }
 
     /**

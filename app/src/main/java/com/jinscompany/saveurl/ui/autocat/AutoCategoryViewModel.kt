@@ -16,6 +16,7 @@ import com.jinscompany.saveurl.utils.PreferencesManager
 import com.jinscompany.saveurl.utils.RemoteFlags
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -78,8 +79,12 @@ class AutoCategoryViewModel @Inject constructor(
         viewModelScope.launch { repository.observeRules().drop(1).collect { refreshSuggestions() } }
     }
 
+    private var suggestionsJob: Job? = null
+
+    /** 다시 계산 (이전 계산은 취소: 규칙이 연달아 바뀌어도 계산이 겹쳐 쌓이지 않게, 40번 독립 리뷰 R6) */
     fun refreshSuggestions() {
-        viewModelScope.launch {
+        suggestionsJob?.cancel()
+        suggestionsJob = viewModelScope.launch {
             try {
                 _suggestions.value = repository.suggestions(remoteFlags.autoCategoryThresholds)
             } catch (e: CancellationException) {

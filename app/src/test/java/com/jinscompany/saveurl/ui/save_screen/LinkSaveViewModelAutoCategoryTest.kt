@@ -26,6 +26,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -168,7 +169,7 @@ class LinkSaveViewModelAutoCategoryTest {
         vm.onIntent(LinkSaveIntent.CategorySelectedItem("여행"))
         vm.onIntent(LinkSaveIntent.SaveLink)
         advanceUntilIdle()
-        coVerify { saveFlow.afterSave(any(), "여행", 2, 11) }
+        verify { saveFlow.afterSaveInBackground(any(), "여행", 2, 11) }
     }
 
     @Test
@@ -188,7 +189,7 @@ class LinkSaveViewModelAutoCategoryTest {
         coVerify { repository.setCategory(11, 1) }
         vm.onIntent(LinkSaveIntent.SaveLink)
         advanceUntilIdle()
-        coVerify { saveFlow.afterSave(any(), "여행", 2, null) }
+        verify { saveFlow.afterSaveInBackground(any(), "여행", 2, null) }
     }
 
     @Test
@@ -285,7 +286,7 @@ class LinkSaveViewModelAutoCategoryTest {
         }
         advanceUntilIdle()
         coVerify { saveUrlUseCase(match { it.category == FilterDefaults.CATEGORY_ALL }, any()) }
-        coVerify { saveFlow.afterSave(any(), FilterDefaults.CATEGORY_ALL, 0, null) }
+        verify { saveFlow.afterSaveInBackground(any(), FilterDefaults.CATEGORY_ALL, 0, null) }
     }
 
     @Test

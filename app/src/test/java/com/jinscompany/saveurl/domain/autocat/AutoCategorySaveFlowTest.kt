@@ -8,6 +8,9 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -25,7 +28,7 @@ class AutoCategorySaveFlowTest {
         every { autoCategoryEnabled } returns flowOf(true)
         coEvery { claimAutoCategorySuggestDay(any()) } answers { claimed }
     }
-    private val flow = AutoCategorySaveFlow(repository, prefs, RemoteFlags(), notices)
+    private val flow = AutoCategorySaveFlow(repository, prefs, RemoteFlags(), notices, CoroutineScope(Dispatchers.Unconfined))
 
     private val recipe = RuleKey(RuleMatchType.HOST, "10000recipe.com")
 
@@ -108,4 +111,20 @@ class AutoCategorySaveFlowTest {
         val c = java.util.Calendar.getInstance().apply { set(2026, java.util.Calendar.OCTOBER, 14) }
         assertEquals(20261014, AutoCategorySaveFlow.dayOf(c))
     }
+
+    @Test
+    fun `저장 뒤 처리는 기다리지 않고 앱 범위에서 돌고, 도는 동안 클립보드 스낵바를 막는다 (R6)`() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        coEvery { repository.suggestions(any()) } coAnswers {
+            gate.await()
+            listOf(RuleSuggestion(recipe, 1, "레시피", 5))
+        }
+        flow.afterSaveInBackground("https://www.10000recipe.com/recipe/5", "레시피", 1, appliedRuleId = null)
+        // 아직 계산 중: 화면은 이미 닫혔고, 스낵바는 아직 없다
+        assertNull(notices.pending.value)
+        assertTrue(notices.isRecentlyActive(now = Long.MAX_VALUE))
+        gate.complete(Unit)
+        assertTrue(notices.take() is AutoCategoryNotice.Suggest)
+    }
+
 }

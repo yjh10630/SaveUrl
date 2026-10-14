@@ -362,7 +362,8 @@ class LinkSaveViewModel @Inject constructor(
                 val savedId = if (LinkSaveUiState.isRealCategory(urlData.category)) {
                     getCategoriesUseCase(includeLocked = true).firstOrNull { it.name == urlData.category }?.id ?: AutoRuleStats.NONE_CATEGORY_ID
                 } else AutoRuleStats.NONE_CATEGORY_ID
-                autoCategorySaveFlow.afterSave(
+                // 기록·제안 계산은 기다리지 않는다: 화면은 바로 닫힌다 (40번 독립 리뷰 R6)
+                autoCategorySaveFlow.afterSaveInBackground(
                     savedUrl = urlData.url ?: state.userInputUrl,
                     savedCategoryName = urlData.category,
                     savedCategoryId = savedId,

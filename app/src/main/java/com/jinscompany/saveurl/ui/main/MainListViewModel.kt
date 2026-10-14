@@ -171,6 +171,10 @@ class MainListViewModel @Inject constructor(
                 if (count > 0) {
                     _autoCategoryLaunchCard.value = count
                     _autoCategoryCardShownThisRun.value = true
+                } else {
+                    // 업데이트 후 첫 실행에만 판단한다: 제안이 없으면 끝난 것으로 기록해 실행할 때마다 다시 계산하지 않고,
+                    // 몇 주 뒤 제안이 생겨도 "업데이트 후" 카드가 뜨지 않게 (40번 독립 리뷰 R6)
+                    preferencesManager.setAutoCategoryLaunchCardDone()
                 }
             }
         }
