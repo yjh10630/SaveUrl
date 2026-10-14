@@ -49,6 +49,8 @@ class InAppUpdateCheck(
     private val flexibleLauncher: ActivityResultLauncher<IntentSenderRequest>,
     private val sharedViewModel: SharedViewModel,
     isRecreated: Boolean,
+    /** Remote Config 를 활성화한 뒤 (기능 스위치 다시 읽기: RemoteFlags.refresh) */
+    private val onRemoteConfigActivated: () -> Unit = {},
 ) {
     private val remoteConfig = Firebase.remoteConfig
     private val appUpdateManager = AppUpdateManagerFactory.create(activity)
@@ -143,7 +145,7 @@ class InAppUpdateCheck(
         remoteConfig.setConfigSettingsAsync(
             remoteConfigSettings { minimumFetchIntervalInSeconds = RC_FETCH_INTERVAL_SECONDS }
         ),
-        remoteConfig.setDefaultsAsync(mapOf(AppInfoParser.KEY_REMOTE_CONFIG to AppInfoParser.DEFAULT_JSON)),
+        remoteConfig.setDefaultsAsync(mapOf(AppInfoParser.KEY_REMOTE_CONFIG to AppInfoParser.DEFAULT_JSON) + RemoteFlags.DEFAULTS),
     ).also { remoteConfigReady = it }
 
     private fun fetchAndCheck(fetchIntervalSeconds: Long) {
@@ -154,10 +156,11 @@ class InAppUpdateCheck(
             .continueWithTask { remoteConfig.fetch(fetchIntervalSeconds) }
             .continueWithTask { fetch ->
                 // fetch 실패(오프라인, 서버 제한)여도 이전에 받은 값을 쓰도록 activate 는 항상 시도
-                if (!fetch.isSuccessful) log("remote config fetch failed: ${fetch.exception?.message}")
+                if (!fetch.isSuccessful) log("remote config fetch failed: ${fetch.exception?.javaClass?.simpleName}")
                 remoteConfig.activate()
             }
             .addOnCompleteListener(activity) {
+                onRemoteConfigActivated()
                 val appInfo = readAppInfo()
                 val requiredType = appInfo?.let {
                     InAppUpdatePolicy.requiredUpdateType(BuildConfig.VERSION_CODE, it.minVersion, it.latestVersion)
@@ -329,7 +332,7 @@ class InAppUpdateCheck(
         val fullMessage = if (errorCode != null) "$message (errorCode=$errorCode)" else message
         CmLog.e("$fullMessage ${e?.message ?: ""}")
         Firebase.crashlytics.log("InAppUpdate: $fullMessage")
-        Firebase.crashlytics.recordException(InAppUpdateException(fullMessage, e))
+        CrashReporter.record(InAppUpdateException(fullMessage, e), safeDetail = fullMessage)
     }
 
     private class InAppUpdateException(message: String, cause: Throwable?) : Exception(message, cause)

@@ -9,12 +9,13 @@ import com.jinscompany.saveurl.domain.model.UrlData
 import kotlinx.coroutines.flow.Flow
 
 interface UrlRepository {
-    fun getUrlList(categoryName: FilterParams? = null): PagingSource<Int, UrlData>
-    fun searchAll(keyword: String): PagingSource<Int, UrlData>
-    fun searchByTitle(keyword: String): PagingSource<Int, UrlData>
-    fun searchByDescription(keyword: String): PagingSource<Int, UrlData>
-    fun searchByTag(keyword: String): PagingSource<Int, UrlData>
-    fun searchSorted(keyword: String, scope: SearchScope, oldest: Boolean): PagingSource<Int, UrlData>
+    // includeLocked: 잠금 카테고리 링크도 포함할지 (유스케이스가 CategoryLockSession 으로 정한다)
+    fun getUrlList(params: FilterParams?, includeLocked: Boolean): PagingSource<Int, UrlData>
+    fun searchAll(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData>
+    fun searchByTitle(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData>
+    fun searchByDescription(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData>
+    fun searchByTag(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData>
+    fun searchSorted(keyword: String, scope: SearchScope, oldest: Boolean, includeLocked: Boolean): PagingSource<Int, UrlData>
     fun observeLinkCounts(since: Long): Flow<LinkCounts>
     fun observeTopCategoryCounts(limit: Int): Flow<List<CategoryCount>>
     suspend fun saveUrlDataList(list: List<UrlData>)
@@ -25,8 +26,8 @@ interface UrlRepository {
     suspend fun findUrlData(url: String): UrlData?
     suspend fun findByNormalizedUrl(normalizedUrl: String): UrlData?
     suspend fun updateUrl(data: UrlData): Boolean
-    suspend fun getSiteNameList(): List<String>
-    suspend fun getTagList(): List<String>
+    suspend fun getSiteNameList(includeLocked: Boolean): List<String>
+    suspend fun getTagList(includeLocked: Boolean): List<String>
     suspend fun markAsRead(url: String)
-    suspend fun getAllUrlData(): List<UrlData>
+    suspend fun getAllUrlData(includeLocked: Boolean): List<UrlData>
 }

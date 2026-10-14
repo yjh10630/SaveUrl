@@ -20,7 +20,8 @@ class UrlRepositoryImpl @Inject constructor(
     private val urlParser: UrlParserSource,
     private val db: AppDatabase,
 ): UrlRepository {
-    override fun getUrlList(params: FilterParams?): PagingSource<Int, UrlData> = localUrlDBSource.getLocalSaveDBUrlList(params)
+    override fun getUrlList(params: FilterParams?, includeLocked: Boolean): PagingSource<Int, UrlData> =
+        localUrlDBSource.getLocalSaveDBUrlList(params, includeLocked)
     override suspend fun saveUrl(data: UrlData): Boolean = localUrlDBSource.saveLocalDBUrl(data)
     override suspend fun removeUrl(data: UrlData): Boolean = withContext(Dispatchers.IO) {
         return@withContext localUrlDBSource.deleteLocalDBUrl(data)
@@ -34,17 +35,21 @@ class UrlRepositoryImpl @Inject constructor(
     override suspend fun findUrlData(url: String): UrlData? = localUrlDBSource.findLocalDBUrlData(url)
     override suspend fun findByNormalizedUrl(normalizedUrl: String): UrlData? = localUrlDBSource.findByNormalizedUrl(normalizedUrl)
     override suspend fun updateUrl(data: UrlData): Boolean = localUrlDBSource.updateLocalDBUrlData(data)
-    override suspend fun getSiteNameList(): List<String> = localUrlDBSource.getSiteNameList()
-    override suspend fun getTagList(): List<String> = localUrlDBSource.getTagList()
-    override fun searchAll(keyword: String): PagingSource<Int, UrlData> = localUrlDBSource.searchAll(keyword)
-    override fun searchByTitle(keyword: String): PagingSource<Int, UrlData> = localUrlDBSource.searchByTitle(keyword)
-    override fun searchByDescription(keyword: String): PagingSource<Int, UrlData> = localUrlDBSource.searchByDescription(keyword)
-    override fun searchByTag(keyword: String): PagingSource<Int, UrlData> = localUrlDBSource.searchByTag(keyword)
-    override fun searchSorted(keyword: String, scope: SearchScope, oldest: Boolean): PagingSource<Int, UrlData> =
-        localUrlDBSource.searchSorted(keyword, scope, oldest)
+    override suspend fun getSiteNameList(includeLocked: Boolean): List<String> = localUrlDBSource.getSiteNameList(includeLocked)
+    override suspend fun getTagList(includeLocked: Boolean): List<String> = localUrlDBSource.getTagList(includeLocked)
+    override fun searchAll(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData> =
+        localUrlDBSource.searchAll(keyword, includeLocked)
+    override fun searchByTitle(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData> =
+        localUrlDBSource.searchByTitle(keyword, includeLocked)
+    override fun searchByDescription(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData> =
+        localUrlDBSource.searchByDescription(keyword, includeLocked)
+    override fun searchByTag(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData> =
+        localUrlDBSource.searchByTag(keyword, includeLocked)
+    override fun searchSorted(keyword: String, scope: SearchScope, oldest: Boolean, includeLocked: Boolean): PagingSource<Int, UrlData> =
+        localUrlDBSource.searchSorted(keyword, scope, oldest, includeLocked)
     override fun observeLinkCounts(since: Long): Flow<LinkCounts> = localUrlDBSource.observeLinkCounts(since)
     override fun observeTopCategoryCounts(limit: Int): Flow<List<CategoryCount>> = localUrlDBSource.observeTopCategoryCounts(limit)
     override suspend fun saveUrlDataList(list: List<UrlData>) = localUrlDBSource.saveUrlDataList(list)
     override suspend fun markAsRead(url: String) = localUrlDBSource.markAsRead(url)
-    override suspend fun getAllUrlData(): List<UrlData> = localUrlDBSource.getAllUrlData()
+    override suspend fun getAllUrlData(includeLocked: Boolean): List<UrlData> = localUrlDBSource.getAllUrlData(includeLocked)
 }

@@ -4,6 +4,8 @@
     <!-- 첫 프레임(Compose 렌더 전) 배경을 디자인 팔레트와 맞춘다. 다크는 values-night 참고 -->
     <style name="Theme.SaveUrl" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/app_window_background</item>
+        <!-- 잠금 카테고리 인증: API 27 이하에서 biometric 라이브러리가 그리는 지문 대화상자(AppCompat AlertDialog)용 -->
+        <item name="alertDialogTheme">@style/Theme.AppCompat.Light.Dialog.Alert</item>
     </style>
 
     <!--

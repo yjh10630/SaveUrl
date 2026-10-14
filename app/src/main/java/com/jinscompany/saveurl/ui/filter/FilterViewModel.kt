@@ -113,10 +113,13 @@ class FilterViewModel @Inject constructor(
             val categories = listOf(FilterDefaults.CATEGORY_BOOKMARK, FilterDefaults.CATEGORY_ALL) + getCategoriesUseCase().map { it.name }
             val siteList = getSiteNameListUseCase()
             val tagList = getTagListUseCase()
+            // 선택지에 없는 값(다시 잠겨 숨겨진 잠금 카테고리, 잠금 링크에만 있던 사이트·태그 등)은 선택에서도 뺀다
+            val selectedCategories = params.categories.filter { it in categories }
+                .ifEmpty { listOf(FilterDefaults.CATEGORY_ALL) }
             uiState = uiState.copy(
                 categoryState = FilterState.MultiSelect(
                     options = categories,
-                    selected = mutableStateListOf<String>().apply { addAll(params.categories) }
+                    selected = mutableStateListOf<String>().apply { addAll(selectedCategories) }
                 ),
                 sortState = FilterState.SingleSelect(
                     options = listOf(FilterDefaults.SORT_LATEST, FilterDefaults.SORT_OLDEST),
@@ -124,11 +127,11 @@ class FilterViewModel @Inject constructor(
                 ),
                 siteState = FilterState.MultiSelect(
                     options = siteList,
-                    selected = mutableStateListOf<String>().apply { addAll(params.siteList) }
+                    selected = mutableStateListOf<String>().apply { addAll(params.siteList.filter { it in siteList }) }
                 ),
                 tagState = FilterState.MultiSelect(
                     options = tagList,
-                    selected = mutableStateListOf<String>().apply { addAll(params.tagList) }
+                    selected = mutableStateListOf<String>().apply { addAll(params.tagList.filter { it in tagList }) }
                 ),
             )
         }

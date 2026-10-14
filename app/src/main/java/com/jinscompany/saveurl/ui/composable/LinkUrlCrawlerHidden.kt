@@ -12,13 +12,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
-import com.google.firebase.crashlytics.ktx.crashlytics
-import com.google.firebase.ktx.Firebase
 import com.jinscompany.saveurl.data.source.linkpreview.HtmlMetaExtractor
 import com.jinscompany.saveurl.data.source.linkpreview.WebViewHtml
 import com.jinscompany.saveurl.domain.model.UrlData
 import kotlinx.coroutines.delay
 import org.jsoup.Jsoup
+import com.jinscompany.saveurl.utils.CrashReporter
 
 /**
  * 링크 크롤링을 위한 히든 웹뷰
@@ -78,7 +77,7 @@ fun LinkUrlCrawlerHidden(
                                 titleOnlyFallback.value = meta.toUrlData()
                             }
                         } catch (e: Exception) {
-                            Firebase.crashlytics.recordException(e)
+                            CrashReporter.record(e)
                             if (!hasFinished.value) {
                                 hasFinished.value = true
                                 onError()

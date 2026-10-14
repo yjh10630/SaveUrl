@@ -33,9 +33,12 @@ class LinkPreviewFetcher(
     }
 
     private var deadline = 0L
+    /** 응답(상태 코드 무관)을 하나라도 받았는지. 못 받았으면 [METHOD_UNREACHABLE] */
+    private var reachedServer = false
 
     fun fetch(input: String): LinkMeta {
         deadline = System.currentTimeMillis() + totalBudgetMs
+        reachedServer = false
         var target = LinkFetchRules.rewrite(LinkFetchRules.normalizeInput(input))
 
         tryOEmbed(target)?.let { return it }
@@ -91,13 +94,17 @@ class LinkPreviewFetcher(
             if (!blocked && meta.isGood) return meta
             if (!blocked && meta.hasTitle && (best == null || meta.score > best.score)) best = meta
         }
-        return best ?: LinkMeta(url = target, siteName = KnownSites.nameOf(target), method = "failed")
+        return best ?: LinkMeta(
+            url = target, siteName = KnownSites.nameOf(target),
+            method = if (reachedServer) "failed" else METHOD_UNREACHABLE,
+        )
     }
 
     private fun tryOEmbed(url: String): LinkMeta? {
         val endpoint = OEmbed.endpointFor(url) ?: return null
         return try {
             val res = http.get(endpoint, OEmbed.USER_AGENT, emptyMap())
+            reachedServer = true
             if (res.status != 200) return null
             OEmbed.parse(String(res.body, Charsets.UTF_8), url)?.takeIf { it.isGood }
         } catch (e: Exception) {
@@ -125,6 +132,7 @@ class LinkPreviewFetcher(
                 log("request failed $url: ${e.javaClass.simpleName} ${e.message}")
                 return null
             }
+            reachedServer = true
             cookies.putAll(res.cookies)
 
             if (res.status in 300..399 && !res.location.isNullOrBlank()) {

@@ -31,7 +31,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -51,16 +53,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.google.firebase.crashlytics.ktx.crashlytics
-import com.google.firebase.ktx.Firebase
-import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.ui.FilterDefaults
 import com.jinscompany.saveurl.ui.composable.LinkUrlCrawlerHidden
 import com.jinscompany.saveurl.ui.composable.PreviewContentEditBottomSheet
 import com.jinscompany.saveurl.ui.composable.category.CategorySelectorDialog
 import com.jinscompany.saveurl.ui.composable.filterNotIsInstance
+import com.jinscompany.saveurl.ui.save_screen.components.AutoCategoryAssist
 import com.jinscompany.saveurl.ui.save_screen.components.HeaderUserInputSection
+import com.jinscompany.saveurl.ui.autocat.RuleSheetRequest
+import com.jinscompany.saveurl.R
+import android.widget.Toast
+import androidx.compose.ui.res.stringResource
 import com.jinscompany.saveurl.ui.save_screen.components.PreviewSection
 import com.jinscompany.saveurl.ui.save_screen.components.UserInputTagSection
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -74,7 +78,10 @@ import androidx.compose.ui.platform.LocalContext
 fun InsertLinkScreen(
     state: StateFlow<LinkSaveUiState>,
     uiEffect: SharedFlow<LinkSaveUiEffect>,
-    event: (LinkSaveIntent) -> Unit
+    event: (LinkSaveIntent) -> Unit,
+    /** 규칙 만들기 시트 열기 (시트는 [ruleSheetHost] 가 그린다) */
+    openRuleSheet: (RuleSheetRequest) -> Unit = {},
+    ruleSheetHost: @Composable () -> Unit = {},
 ) {
     val context = LocalContext.current
     val uiState by state.collectAsState()
@@ -83,34 +90,38 @@ fun InsertLinkScreen(
     val focusManager = LocalFocusManager.current
     val scrollState = rememberScrollState()
 
-    var openCategorySelector by remember { mutableStateOf<List<CategoryModel>?>(null) }
+    var openCategorySelector by remember { mutableStateOf<LinkSaveUiEffect.OpenCategorySelector?>(null) }
     var openPreviewContentEditor by remember { mutableStateOf<UrlData?>(null) }
     var showCrawlFailedDialog by remember { mutableStateOf<UrlData?>(null) }
-    var showDuplicateDialog by remember { mutableStateOf<UrlData?>(null) }
+    var showDuplicateDialog by remember { mutableStateOf<LinkSaveUiEffect.ShowDuplicateDialog?>(null) }
 
     LaunchedEffect(Unit) {
         uiEffect.filterNotIsInstance<LinkSaveUiEffect.GotoNextScreen>()
             .collectLatest {
                 when (it) {
                     is LinkSaveUiEffect.StartCrawling -> startCrawlerUrl = it.url
-                    is LinkSaveUiEffect.OpenCategorySelector -> openCategorySelector = it.categories
+                    is LinkSaveUiEffect.OpenCategorySelector -> openCategorySelector = it
+                    is LinkSaveUiEffect.OpenRuleSheet -> openRuleSheet(it.request)
+                    is LinkSaveUiEffect.ShowToast -> Toast.makeText(context, it.messageRes, Toast.LENGTH_SHORT).show()
                     is LinkSaveUiEffect.OpenPreviewContentEdit -> openPreviewContentEditor = it.urlData
                     is LinkSaveUiEffect.ShowCrawlFailedDialog -> {
                         showCrawlFailedDialog = UrlData(url = it.url, description = it.url)
                     }
-                    is LinkSaveUiEffect.ShowDuplicateDialog -> showDuplicateDialog = it.existing
+                    is LinkSaveUiEffect.ShowDuplicateDialog -> showDuplicateDialog = it
                 }
             }
     }
 
     if (showDuplicateDialog != null) {
-        val existing = showDuplicateDialog!!
+        val duplicate = showDuplicateDialog!!
+        val existing = duplicate.existing
         AlertDialog(
             onDismissRequest = { showDuplicateDialog = null },
             title = { Text("이미 저장된 URL") },
             text = {
                 Text(
-                    text = if (!existing.title.isNullOrEmpty()) {
+                    // 닫힌 잠금 카테고리의 링크면 제목을 보여 주지 않는다
+                    text = if (!existing.title.isNullOrEmpty() && !duplicate.hideTitle) {
                         "\"${existing.title}\"\n\n이미 저장된 링크예요. 그래도 저장할까요?"
                     } else {
                         "이미 저장된 링크예요. 그래도 저장할까요?"
@@ -176,9 +187,13 @@ fun InsertLinkScreen(
                 }
             )
         }
-        if (openCategorySelector != null) {
+        ruleSheetHost()
+        openCategorySelector?.let { selector ->
+            val categories = selector.categories
             CategorySelectorDialog(
-                categoryList = openCategorySelector?.map { it.name } ?: listOf(),
+                categoryList = categories.filterNot { it.isLocked }.map { it.name },
+                lockedCategoryList = categories.filter { it.isLocked }.map { it.name },
+                description = selector.ruleDescription?.let { (site, category) -> stringResource(R.string.autocat_picker_desc_rule, site, category) },
                 dismiss = {
                     event.invoke(LinkSaveIntent.CategorySelectedItem(it))
                     openCategorySelector = null
@@ -187,7 +202,7 @@ fun InsertLinkScreen(
                     event.invoke(LinkSaveIntent.CategoryEdit)
                     openPreviewContentEditor = null
                 },
-                selectedItem = openCategorySelector?.firstOrNull { it.isSelected }?.name ?: FilterDefaults.CATEGORY_ALL
+                selectedItem = categories.firstOrNull { it.isSelected }?.name ?: FilterDefaults.CATEGORY_ALL
             )
         }
 
@@ -201,7 +216,6 @@ fun InsertLinkScreen(
                 onError = {
                     event.invoke(LinkSaveIntent.WebViewCrawlerDataResult())
                     startCrawlerUrl = ""
-                    Firebase.crashlytics.log("Crawling Error Url > $startCrawlerUrl")
                 }
             )
         }
@@ -239,7 +253,17 @@ fun InsertLinkScreen(
                 HorizontalDivider(color = colors.outline, thickness = 1.dp, modifier = Modifier.padding(horizontal = AppDimens.Gutter))
                 CategoryRow(
                     categoryName = uiState.categoryName,
+                    isLocked = uiState.categoryName in uiState.lockedCategoryNames,
                     onClick = singleClick { event.invoke(LinkSaveIntent.OpenCategorySelector(uiState.categoryName)) }
+                )
+                AutoCategoryAssist(
+                    row = uiState.autoCatRow,
+                    onOpenCategory = singleClick { event.invoke(LinkSaveIntent.OpenCategorySelector(uiState.categoryName)) },
+                    onMakeRule = singleClick { event.invoke(LinkSaveIntent.MakeRuleClick) },
+                    onUpdateRule = singleClick { event.invoke(LinkSaveIntent.UpdateRuleChip) },
+                    onDisableRule = singleClick { event.invoke(LinkSaveIntent.DisableRuleChip) },
+                    onOnce = { event.invoke(LinkSaveIntent.OnceChip) },
+                    onUndo = singleClick { event.invoke(LinkSaveIntent.UndoAutoCat) },
                 )
                 HorizontalDivider(color = colors.outline, thickness = 1.dp, modifier = Modifier.padding(horizontal = AppDimens.Gutter))
                 Spacer(modifier = Modifier.height(20.dp))
@@ -261,7 +285,7 @@ fun InsertLinkScreen(
 
 /** "카테고리 ........ 레시피 ›" (선택 안 함 = 전체) */
 @Composable
-private fun CategoryRow(categoryName: String, onClick: () -> Unit) {
+private fun CategoryRow(categoryName: String, isLocked: Boolean, onClick: () -> Unit) {
     val colors = AppTheme.colors
     val isNone = categoryName.isEmpty() || categoryName == FilterDefaults.CATEGORY_ALL
     Row(
@@ -272,15 +296,24 @@ private fun CategoryRow(categoryName: String, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text("카테고리", style = MaterialTheme.typography.bodyLarge, color = colors.textPrimary)
-        Text(
-            text = if (isNone) "선택 안 함" else categoryName,
-            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = if (isNone) FontWeight.Normal else FontWeight.SemiBold),
-            color = if (isNone) colors.textSecondary else colors.accent,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.End,
-            modifier = Modifier.weight(1f).padding(start = 16.dp)
-        )
+        Row(
+            modifier = Modifier.weight(1f).padding(start = 16.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isLocked && !isNone) {
+                Icon(Icons.Outlined.Lock, contentDescription = null, tint = colors.accent, modifier = Modifier.padding(end = 4.dp).size(14.dp))
+            }
+            Text(
+                text = if (isNone) "선택 안 함" else categoryName,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = if (isNone) FontWeight.Normal else FontWeight.SemiBold),
+                color = if (isNone) colors.textSecondary else colors.accent,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.End,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+        }
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.textSecondary)
     }
 }

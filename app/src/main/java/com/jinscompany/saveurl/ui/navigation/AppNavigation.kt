@@ -26,10 +26,19 @@ import androidx.navigation.navArgument
 import com.jinscompany.saveurl.ui.adaptive.LocalWindowLayout
 import com.jinscompany.saveurl.ui.adaptive.TwoPaneLayout
 import com.jinscompany.saveurl.ui.add_category.EditCategoryScreen
+import com.jinscompany.saveurl.ui.importer.ImportEntry
+import com.jinscompany.saveurl.ui.importer.ImportHistoryScreen
+import com.jinscompany.saveurl.ui.importer.ImportScreen
+import com.jinscompany.saveurl.ui.importer.ImportViewModel
 import com.jinscompany.saveurl.ui.main.MainListScreen
 import com.jinscompany.saveurl.ui.main.home.HomePanel
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SAVE_LINK
+import com.jinscompany.saveurl.ui.autocat.AutoCategoryScreen
+import com.jinscompany.saveurl.ui.autocat.RuleSheetEvent
+import com.jinscompany.saveurl.ui.autocat.RuleSheetHost
+import com.jinscompany.saveurl.ui.autocat.RuleSheetViewModel
 import com.jinscompany.saveurl.ui.save_screen.InsertLinkScreen
+import com.jinscompany.saveurl.ui.save_screen.LinkSaveIntent
 import com.jinscompany.saveurl.ui.save_screen.LinkSaveUiEffect
 import com.jinscompany.saveurl.ui.save_screen.LinkSaveViewModel
 import com.jinscompany.saveurl.ui.search.SearchFilterPanel
@@ -41,9 +50,11 @@ import com.jinscompany.saveurl.ui.trash.TrashUiEffect
 import com.jinscompany.saveurl.ui.trash.TrashViewModel
 import com.jinscompany.saveurl.ui.tutorial.TutorialHomeScreen
 import com.jinscompany.saveurl.ui.tutorial.TutorialTopicScreen
+import com.jinscompany.saveurl.ui.tutorial.TutorialTopics
 import com.jinscompany.saveurl.ui.webview.StaticWebScreen
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
 import java.net.URLDecoder
 
 /**
@@ -148,16 +159,31 @@ private fun AppNavHost(
                         )
                     }}
             }
+            // 잠금 링크를 수정하던 중 다시 잠기면 닫는다 (이 화면이 보이는 동안만 확인하므로 맨 위 항목을 닫는다)
+            LaunchedEffect(Unit) {
+                viewModel.uiState.first { it.isClosedByRelock }
+                navController.popBackStack()
+            }
             // 전달받은 URL(공유하기/클립보드/수정)은 ViewModel 당 최초 1회만 크롤링
             // (카테고리 편집 화면에서 돌아오거나 화면 회전 시 다시 크롤링되어 입력값이 초기화되는 문제 방지)
             LaunchedEffect(Unit) {
                 viewModel.startInitialCrawling(url)
             }
+            // 규칙 만들기 시트 (저장 화면 "앞으로 항상", 36번 §2.3)
+            val ruleSheetViewModel = hiltViewModel<RuleSheetViewModel>()
             PaneContent(isTwoPane) {
                 InsertLinkScreen(
                     state = viewModel.uiState,
                     uiEffect = viewModel.uiEffect,
-                    event = { intent -> viewModel.onIntent(intent)}
+                    event = { intent -> viewModel.onIntent(intent)},
+                    openRuleSheet = { ruleSheetViewModel.open(it) },
+                    ruleSheetHost = {
+                        RuleSheetHost(ruleSheetViewModel) { event ->
+                            if (event is RuleSheetEvent.Created) {
+                                viewModel.onIntent(LinkSaveIntent.RuleCreated(event.ruleId, event.siteName, event.categoryName, event.move))
+                            }
+                        }
+                    },
                 )
             }
         }
@@ -197,6 +223,45 @@ private fun AppNavHost(
                 TrashScreen(state = viewModel.uiState, uiEffect = viewModel.uiEffect, event = { intent ->
                     viewModel.onIntent(intent)
                 })
+            }
+        }
+        // 링크 가져오기 (34번): 홈 → 읽는 중 → 미리보기 → 완료가 한 라우트 안의 단계다 (ImportViewModel 이 들고 있음).
+        // 2분할에서는 오른쪽 패널 (설정에서 열면 왼쪽 "링크 가져오기" 행 선택, 공유로 열면 왼쪽 메인 목록)
+        composable(
+            route = "${Navigation.Routes.IMPORT}?${ImportViewModel.ARG_ENTRY}={${ImportViewModel.ARG_ENTRY}}",
+            arguments = listOf(
+                navArgument(ImportViewModel.ARG_ENTRY) {
+                    type = NavType.StringType
+                    defaultValue = ImportEntry.SETTINGS.name
+                },
+            )
+        ) {
+            val viewModel = hiltViewModel<ImportViewModel>()
+            PaneContent(isTwoPane) {
+                ImportScreen(
+                    viewModel = viewModel,
+                    onClose = { navController.popBackStack() },
+                    onOpenHistory = { navController.navigateToImportHistory() },
+                    onViewInList = { navController.navigateToMainFromImport() },
+                )
+            }
+        }
+        // 설정 → 자동 분류 (36번 §5). 2분할에서는 설정 위 오른쪽 패널
+        composable(route = Navigation.Routes.AUTO_CATEGORY) {
+            PaneContent(isTwoPane) {
+                AutoCategoryScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenTutorial = {
+                        // 튜토리얼 홈 위에 주제를 연다 (주제 화면의 "목록으로"가 홈으로 가도록)
+                        navController.navigate(Navigation.Routes.TUTORIAL)
+                        navController.navigateToTutorialTopic(TutorialTopics.AUTO_CATEGORY)
+                    },
+                )
+            }
+        }
+        composable(route = Navigation.Routes.IMPORT_HISTORY) {
+            PaneContent(isTwoPane) {
+                ImportHistoryScreen(onBack = { navController.popBackStack() })
             }
         }
         // 사용 방법(앱 안 튜토리얼): 홈(주제 목록) → 주제 상세. 2분할에서는 오른쪽 패널 안에서 바뀐다.
@@ -276,6 +341,12 @@ object Navigation {
         const val TUTORIAL = "tutorial"
         /** 앱 안 튜토리얼 주제 상세 (인자 topicId) */
         const val TUTORIAL_TOPIC = "tutorialTopic"
+        /** 링크 가져오기 (인자 entry = ImportEntry) */
+        const val IMPORT = "import"
+        /** 가져오기 기록 */
+        const val IMPORT_HISTORY = "importHistory"
+        /** 설정 → 자동 분류 */
+        const val AUTO_CATEGORY = "autoCategory"
         /** TODO: 통신판매업 신고 후 billing 복원 시 다시 노출 (현재 NavHost 에 등록하지 않음) */
         const val SUPPORT = "supportScreen"
     }
@@ -346,6 +417,36 @@ fun NavController.navigateToSaveLink(url: String? = null, replaceRightPane: Bool
     }
 }
 
+/**
+ * 링크 가져오기 열기.
+ * - 설정(2분할 왼쪽 목록)에서: [inSettingsPane] = true → 설정 위 오른쪽 패널에
+ * - 메인 빈 화면·공유: [replaceRightPane] = true(2분할) → 메인 위에 열린 오른쪽 패널을 닫고 그 자리에
+ */
+fun NavController.navigateToImport(entry: ImportEntry, replaceRightPane: Boolean = false, inSettingsPane: Boolean = false) {
+    val route = "${Navigation.Routes.IMPORT}?${ImportViewModel.ARG_ENTRY}=${entry.name}"
+    when {
+        inSettingsPane -> navigateInSettingsPane(route)
+        replaceRightPane -> navigate(route) { popUpTo(Navigation.MAIN_ROUTE_PATTERN) { inclusive = false } }
+        else -> navigate(route) { launchSingleTop = true }
+    }
+}
+
+fun NavController.navigateToImportHistory(replaceRightPane: Boolean = false) {
+    if (replaceRightPane) {
+        navigate(Navigation.Routes.IMPORT_HISTORY) { popUpTo(Navigation.MAIN_ROUTE_PATTERN) { inclusive = false } }
+    } else {
+        navigate(Navigation.Routes.IMPORT_HISTORY) { launchSingleTop = true }
+    }
+}
+
+/** 가져오기 완료 [목록에서 보기]: 가져오기·설정을 닫고 메인으로 (보여 줄 카테고리는 MainListRequests 로 넘긴다) */
+fun NavController.navigateToMainFromImport() {
+    navigate(Navigation.MAIN_ROUTE_PATTERN.replace("{scrollToTop}", "true")) {
+        popUpTo(Navigation.MAIN_ROUTE_PATTERN) { inclusive = true }
+        launchSingleTop = true
+    }
+}
+
 fun NavController.navigateToEditCategory() {
     navigate(route = "${Navigation.Routes.EDIT_CATEGORY}")
 }
@@ -356,6 +457,22 @@ fun NavController.navigateToSearch() {
 
 fun NavController.navigateToAppSetting() {
     navigate(route = "${Navigation.Routes.APP_SETTING}")
+}
+
+/**
+ * 설정 → 자동 분류 열기.
+ * - 설정 목록(폰)에서: 그대로 위에 / 2분할 설정 왼쪽 목록에서: [inSettingsPane] = true
+ * - 메인 첫 실행 카드·스낵바에서: [fromMain] = true → 설정을 열고 그 위에 (2분할이면 설정 오른쪽 패널)
+ */
+fun NavController.navigateToAutoCategory(inSettingsPane: Boolean = false, fromMain: Boolean = false) {
+    when {
+        inSettingsPane -> navigateInSettingsPane(Navigation.Routes.AUTO_CATEGORY)
+        fromMain -> {
+            navigate(Navigation.Routes.APP_SETTING) { popUpTo(Navigation.MAIN_ROUTE_PATTERN) { inclusive = false } }
+            navigate(Navigation.Routes.AUTO_CATEGORY)
+        }
+        else -> navigate(Navigation.Routes.AUTO_CATEGORY) { launchSingleTop = true }
+    }
 }
 
 fun NavController.navigateToTrash() {

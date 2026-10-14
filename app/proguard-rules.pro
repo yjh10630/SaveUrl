@@ -68,3 +68,10 @@
 -keepattributes Signature
 -keep,allowobfuscation class com.google.gson.reflect.TypeToken
 -keep,allowobfuscation class * extends com.google.gson.reflect.TypeToken
+
+# 오류 보고 (CrashReporter, 41번 독립 리뷰 D1·D2)
+# - SanitizedException 이 R8 수평 병합으로 다른 라이브러리 예외(예: Compose ResourceResolutionException)로 둔갑하지 않게
+# - 메시지에 남기는 원래 예외 이름(originalClassName)을 읽을 수 있게 예외 클래스 이름을 유지한다
+#   (Crashlytics 는 스택 프레임만 매핑으로 복원하고 메시지 문자열은 복원하지 않음)
+-keepnames class com.jinscompany.saveurl.utils.CrashReporter$SanitizedException
+-keepnames class * extends java.lang.Throwable

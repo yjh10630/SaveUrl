@@ -5,6 +5,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.source.CategoryDBSourceImpl
+import com.jinscompany.saveurl.domain.model.AutoCategoryRule
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.TrashItem
 import com.jinscompany.saveurl.domain.model.UrlData
@@ -50,7 +51,9 @@ class CategoryDeletionTest {
         db.baseSaveUrlDao().insert(UrlData(id = 1, url = "https://a.com", category = "개발"))
         db.baseSaveUrlDao().insert(UrlData(id = 2, url = "https://b.com", category = "뉴스"))
         db.trashDao().insert(trash(3, "개발"))
-        db.domainCategoryDao().upsert("a.com", "개발")
+        val devId = categoryDao.get("개발")!!.id
+        db.autoCategoryRuleDao().insert(AutoCategoryRule(matchType = "HOST", pattern = "a.com", categoryId = devId))
+        db.autoCategoryRuleDao().insert(AutoCategoryRule(matchType = "HOST", pattern = "b.com", categoryId = categoryDao.get("뉴스")!!.id))
 
         assertTrue(source.delete(categoryDao.get("개발")!!))
 
@@ -61,7 +64,9 @@ class CategoryDeletionTest {
         assertEquals(CategoryModel.UNCATEGORIZED, db.baseSaveUrlDao().get("https://a.com")!!.category)
         assertEquals("뉴스", db.baseSaveUrlDao().get("https://b.com")!!.category)
         assertEquals(CategoryModel.UNCATEGORIZED, db.trashDao().getAll().single().category)
-        assertNull(db.domainCategoryDao().get("a.com"))
+        // 이 카테고리를 가리키던 자동 분류 규칙도 지워지고, 다른 카테고리 규칙은 남는다 (36번 §8)
+        assertNull(db.autoCategoryRuleDao().getByKey("HOST", "a.com"))
+        assertNotNull(db.autoCategoryRuleDao().getByKey("HOST", "b.com"))
         // 순서 재정렬: 뉴스(2→1), 미분류는 뒤
         assertEquals(1, categoryDao.get("뉴스")!!.order)
         assertTrue(uncategorized.order > 1)

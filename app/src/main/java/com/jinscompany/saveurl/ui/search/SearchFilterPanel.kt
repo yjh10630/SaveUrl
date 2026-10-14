@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -18,6 +20,7 @@ import com.jinscompany.saveurl.ui.filter.FilterScreenBottomSheet
 import com.jinscompany.saveurl.ui.filter.FilterUiEffect
 import com.jinscompany.saveurl.ui.filter.FilterUiState
 import com.jinscompany.saveurl.ui.filter.FilterViewModel
+import com.jinscompany.saveurl.ui.lock.LocalCategoryLockSession
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
 
@@ -32,9 +35,13 @@ fun SearchFilterPanel(
     searchViewModel: SearchViewModel = hiltViewModel(),
     filterViewModel: FilterViewModel = hiltViewModel(key = "searchFilterPanel"),
 ) {
-    LaunchedEffect(Unit) {
-        // 패널에 들어올 때마다(카테고리 편집에서 돌아온 경우 포함) 선택지(카테고리·사이트·태그)를 다시 읽는다
+    val isUnlocked by LocalCategoryLockSession.current.isUnlocked.collectAsState()
+    LaunchedEffect(isUnlocked) {
+        // 패널에 들어올 때마다(카테고리 편집에서 돌아온 경우 포함), 그리고 잠금 카테고리가 열리거나 다시 잠길 때마다
+        // 선택지(카테고리·사이트·태그)를 다시 읽는다. 숨겨진 값은 선택에서도 빠진다 (38번 리뷰 3번)
         filterViewModel.onIntent(FilterIntent.InitData(searchViewModel.filterParams))
+    }
+    LaunchedEffect(Unit) {
         filterViewModel.uiEffect.collectLatest { effect ->
             if (effect is FilterUiEffect.GoToCategorySetting) onEditCategory()
         }

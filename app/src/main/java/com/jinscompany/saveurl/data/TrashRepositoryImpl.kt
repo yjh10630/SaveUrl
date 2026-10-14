@@ -2,8 +2,6 @@ package com.jinscompany.saveurl.data
 
 import androidx.paging.PagingSource
 import androidx.room.withTransaction
-import com.google.firebase.crashlytics.ktx.crashlytics
-import com.google.firebase.ktx.Firebase
 import com.jinscompany.saveurl.SaveUrlApplication.Companion.DEBUG
 import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.room.TrashDao
@@ -16,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import com.jinscompany.saveurl.utils.CrashReporter
 
 class TrashRepositoryImpl @Inject constructor(
     private val trashDao: TrashDao,
@@ -31,7 +30,7 @@ class TrashRepositoryImpl @Inject constructor(
         preferencesManager.setAutoDeleteEnabled(isEnable)
     }
 
-    override fun getTrashItems(): PagingSource<Int, TrashItem> = trashDao.getPagingItemAll()
+    override fun getTrashItems(includeLocked: Boolean): PagingSource<Int, TrashItem> = trashDao.getPagingItems(includeLocked)
     override suspend fun getAllTrashItems(): List<TrashItem> = withContext(Dispatchers.IO) {
         return@withContext trashDao.getAll()
     }
@@ -39,13 +38,14 @@ class TrashRepositoryImpl @Inject constructor(
         return@withContext trashDao.insert(item) > -1
     }
 
-    override suspend fun getAllItemsAfterDeleteAll(): List<TrashItem> =
+    override suspend fun getAllItemsAfterDeleteAll(includeLocked: Boolean): List<TrashItem> =
         withContext(Dispatchers.IO) {
             return@withContext try {
                 db.withTransaction {
-                    val list = trashDao.getAll()
+                    // 닫힌 잠금 카테고리 항목은 보이지 않으므로 건드리지 않는다
+                    val list = trashDao.getVisible(includeLocked)
                     if (list.isNotEmpty()) {
-                        trashDao.deleteAll()
+                        trashDao.deleteItems(list)
                     }
                     list
                 }
@@ -76,7 +76,7 @@ class TrashRepositoryImpl @Inject constructor(
                 false
             }
         } catch (e: Exception) {
-            Firebase.crashlytics.recordException(e)
+            CrashReporter.record(e)
             return@withContext false
         }
 

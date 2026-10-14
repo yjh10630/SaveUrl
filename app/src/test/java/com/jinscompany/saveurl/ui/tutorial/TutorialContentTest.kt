@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.ui.tutorial
 
+import com.jinscompany.saveurl.utils.RemoteFlags
 import com.jinscompany.saveurl.utils.tutorialUrl
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -10,28 +11,57 @@ import org.junit.Test
 class TutorialContentTest {
 
     @Test
-    fun `전체 주제는 14개이고 id 가 겹치지 않는다`() {
-        assertEquals(14, TutorialTopics.all.size)
-        assertEquals(14, TutorialTopics.all.map { it.id }.toSet().size)
+    fun `전체 주제는 17개이고 id 가 겹치지 않는다`() {
+        assertEquals(17, TutorialTopics.all.size)
+        assertEquals(17, TutorialTopics.all.map { it.id }.toSet().size)
     }
 
     @Test
-    fun `폰에서는 2분할 주제를 빼고 13개, 2분할에서는 14개`() {
+    fun `링크 가져오기 주제 - 원격 스위치가 켜져야 보이고, 시작하기 그룹 직접 저장 다음`() {
+        val on = TutorialFeatureFlags { it == RemoteFlags.KEY_IMPORT_ENABLED }
+        val phoneOn = TutorialTopics.visible(isTwoPane = false, flags = on)
+        val wideOn = TutorialTopics.visible(isTwoPane = true, flags = on)
+        assertEquals(16, phoneOn.size)
+        assertEquals(17, wideOn.size)
+        assertEquals(TutorialTopics.IMPORT, TutorialTopics.next(phoneOn, TutorialTopics.DIRECT)?.id)
+        assertEquals(3, TutorialTopics.position(phoneOn, TutorialTopics.IMPORT))
+        assertEquals(TutorialGroup.START, TutorialTopics.find(TutorialTopics.IMPORT)?.group)
+        // 꺼지면 숨고 다음 주제가 이어진다
+        assertFalse(TutorialTopics.visible(isTwoPane = false).any { it.id == TutorialTopics.IMPORT })
+        assertEquals(TutorialTopics.AUTOFILL, TutorialTopics.next(TutorialTopics.visible(isTwoPane = false), TutorialTopics.DIRECT)?.id)
+    }
+
+    @Test
+    fun `폰에서는 2분할 주제를 빼고 15개, 2분할에서는 16개`() {
         val phone = TutorialTopics.visible(isTwoPane = false)
         val wide = TutorialTopics.visible(isTwoPane = true)
-        assertEquals(13, phone.size)
-        assertEquals(14, wide.size)
+        assertEquals(15, phone.size)
+        assertEquals(16, wide.size)
         assertFalse(phone.any { it.id == TutorialTopics.TWO_PANE })
         assertTrue(wide.any { it.id == TutorialTopics.TWO_PANE })
     }
 
     @Test
-    fun `2분할 주제만 TwoPaneOnly 이고 나머지는 Always, 2_0_0 주제는 addedInVersionCode 가 없다`() {
+    fun `2분할 주제는 TwoPaneOnly, 가져오기는 원격 스위치, 나머지는 Always, 2_0_0 주제는 addedInVersionCode 가 없다`() {
         TutorialTopics.all.forEach { topic ->
-            val expected = if (topic.id == TutorialTopics.TWO_PANE) TutorialAvailability.TwoPaneOnly else TutorialAvailability.Always
+            val expected = when (topic.id) {
+                TutorialTopics.TWO_PANE -> TutorialAvailability.TwoPaneOnly
+                TutorialTopics.IMPORT -> TutorialAvailability.Flag(RemoteFlags.KEY_IMPORT_ENABLED)
+                else -> TutorialAvailability.Always
+            }
             assertEquals(topic.id, expected, topic.availability)
-            assertNull(topic.id, topic.addedInVersionCode)
+            if (topic.id in setOf(TutorialTopics.CATEGORY_LOCK, TutorialTopics.IMPORT, TutorialTopics.AUTO_CATEGORY)) assertEquals(40, topic.addedInVersionCode)
+            else assertNull(topic.id, topic.addedInVersionCode)
         }
+    }
+
+    @Test
+    fun `자동 분류 주제는 카테고리 바로 다음, 잠금 카테고리는 그다음`() {
+        val phone = TutorialTopics.visible(isTwoPane = false)
+        assertEquals(TutorialTopics.AUTO_CATEGORY, TutorialTopics.next(phone, TutorialTopics.CATEGORY)?.id)
+        assertEquals(TutorialTopics.CATEGORY_LOCK, TutorialTopics.next(phone, TutorialTopics.AUTO_CATEGORY)?.id)
+        assertEquals(TutorialGroup.ORGANIZE, TutorialTopics.find(TutorialTopics.AUTO_CATEGORY)?.group)
+        assertEquals(TutorialGroup.ORGANIZE, TutorialTopics.find(TutorialTopics.CATEGORY_LOCK)?.group)
     }
 
     @Test
@@ -101,13 +131,13 @@ class TutorialContentTest {
         val viewed = setOf(TutorialTopics.SHARE, TutorialTopics.TWO_PANE, "removed_topic")
         val progress = TutorialProgress.of(phone, viewed)
         assertEquals(1, progress.viewed)
-        assertEquals(13, progress.total)
-        assertEquals(7, progress.percent)
+        assertEquals(15, progress.total)
+        assertEquals(6, progress.percent)
 
         val wide = TutorialProgress.of(TutorialTopics.visible(isTwoPane = true), viewed)
         assertEquals(2, wide.viewed)
-        assertEquals(14, wide.total)
-        assertEquals(14, wide.percent)
+        assertEquals(16, wide.total)
+        assertEquals(12, wide.percent)
     }
 
     @Test
@@ -125,8 +155,8 @@ class TutorialContentTest {
         val phone = TutorialTopics.visible(isTwoPane = false)
         val wide = TutorialTopics.visible(isTwoPane = true)
         assertEquals(1, TutorialTopics.position(phone, TutorialTopics.SHARE))
-        assertEquals(13, TutorialTopics.position(phone, TutorialTopics.CONTACT))
-        assertEquals(14, TutorialTopics.position(wide, TutorialTopics.CONTACT))
+        assertEquals(15, TutorialTopics.position(phone, TutorialTopics.CONTACT))
+        assertEquals(16, TutorialTopics.position(wide, TutorialTopics.CONTACT))
         assertEquals(TutorialTopics.DIRECT, TutorialTopics.next(phone, TutorialTopics.SHARE)?.id)
         // 폰: 화면 모드와 백업 → (2분할 건너뜀) → 문의
         assertEquals(TutorialTopics.CONTACT, TutorialTopics.next(phone, TutorialTopics.SETTINGS)?.id)

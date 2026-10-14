@@ -13,6 +13,8 @@ data class CategoryModel(
     @ColumnInfo(name = "addDate") val addDate: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "order") var order: Int = 0,
     @ColumnInfo(name = "isEditable") val isEditable: Boolean = true,
+    /** 잠금 카테고리: 전체·검색·통계 등에서 숨기고 인증해야 연다 (Room v5) */
+    @ColumnInfo(name = "isLocked", defaultValue = "0") val isLocked: Boolean = false,
 ) {
     @Ignore
     var isSelected: Boolean = false

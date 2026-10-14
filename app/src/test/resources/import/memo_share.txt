@@ -1,0 +1,6 @@
+주말에 볼 것들
+1) https://www.youtube.com/watch?v=abc123&t=30s
+2) (https://brunch.co.kr/@writer/99) 괄호
+3) https://namu.wiki/w/서울특별시 문서
+붙은 링크: https://a.example.com/x;https://b.example.com/y
+끝 마침표 https://c.example.com/z.

@@ -1,5 +1,7 @@
 package com.jinscompany.saveurl.ui.main
 
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
@@ -49,6 +51,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -102,9 +105,35 @@ import com.jinscompany.saveurl.ui.navigation.navigateToEditCategory
 import com.jinscompany.saveurl.ui.navigation.navigateToSaveLink
 import com.jinscompany.saveurl.ui.navigation.navigateToSearch
 import com.jinscompany.saveurl.ui.navigation.navigateToTutorial
+import com.jinscompany.saveurl.ui.lock.rememberOpenLockedCategories
 import com.jinscompany.saveurl.ui.tutorial.TutorialCardMode
 import com.jinscompany.saveurl.ui.tutorial.TutorialEntryCard
+import com.jinscompany.saveurl.domain.model.MetaFillProgress
+import com.jinscompany.saveurl.domain.model.MetaState
+import com.jinscompany.saveurl.ui.importer.ImportEntry
+import com.jinscompany.saveurl.ui.navigation.navigateToImport
+import com.jinscompany.saveurl.ui.navigation.navigateToImportHistory
+import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material3.CircularProgressIndicator
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
+import androidx.compose.foundation.layout.Row
+import com.jinscompany.saveurl.ui.theme.AppDimens
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.MaterialTheme
 import com.jinscompany.saveurl.ui.tutorial.TutorialNews
+import com.jinscompany.saveurl.ui.tutorial.EntryCardContent
+import com.jinscompany.saveurl.domain.autocat.AutoCategoryNotice
+import com.jinscompany.saveurl.ui.autocat.RuleSheetEvent
+import com.jinscompany.saveurl.ui.autocat.RuleSheetHost
+import com.jinscompany.saveurl.ui.autocat.RuleSheetRequest
+import com.jinscompany.saveurl.ui.autocat.RuleSheetViewModel
+import com.jinscompany.saveurl.ui.navigation.navigateToAutoCategory
+import androidx.compose.material.icons.outlined.Bolt
 import com.jinscompany.saveurl.ui.tutorial.currentVisibleTutorialTopics
 import com.jinscompany.saveurl.ui.theme.AppTheme
 import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
@@ -144,6 +173,7 @@ fun MainListScreen(
     coroutineScope: CoroutineScope = rememberCoroutineScope()
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val isListPane = pane != null
     val snackBarHostState = remember { SnackbarHostState() }
 
@@ -151,15 +181,28 @@ fun MainListScreen(
     val filterSelectedItems by viewModel.filterSelectedItems.collectAsState()
     val selectedTab by viewModel.selectedTab.collectAsState()
     val categoryNames by viewModel.categoryNames.collectAsState()
+    val lockedCategoryNames by viewModel.lockedCategoryNames.collectAsState()
+    val isLockedUnlocked by viewModel.isUnlocked.collectAsState()
+    val openLockedCategories = rememberOpenLockedCategories("main_open")
     val viewMode by sharedViewModel.listViewMode.collectAsState()
     val tutorialCardVisible by viewModel.tutorialCardVisible.collectAsState()
+    val importEnabled by viewModel.importEnabled.collectAsState()
+    val metaFillProgress by viewModel.metaFillProgress.collectAsState()
+    val metaFillCellular by viewModel.metaFillCellular.collectAsState()
     val tutorialBadgePrefs by viewModel.tutorialBadgePrefs.collectAsState()
+    val autoCategoryLaunchCard by viewModel.autoCategoryLaunchCard.collectAsState()
+    val autoCategoryCardShownThisRun by viewModel.autoCategoryCardShownThisRun.collectAsState()
     val visibleTutorialTopics = currentVisibleTutorialTopics()
-    val tutorialCard = TutorialNews.cardMode(
+    // 메인 상단 카드 자리는 하나: 자동 분류 첫 실행 카드 > 튜토리얼 새 기능 카드 > 튜토리얼 첫 실행 카드 (36번 §4.2).
+    // 자동 분류 카드가 이번 실행에 보였으면 닫아도 튜토리얼 카드는 다음 실행부터
+    val tutorialCard = if (autoCategoryCardShownThisRun) TutorialCardMode.Hidden else TutorialNews.cardMode(
         introCardVisible = tutorialCardVisible,
         newTopics = TutorialNews.newTopics(visibleTutorialTopics, tutorialBadgePrefs),
         dismissedVersionCode = tutorialBadgePrefs?.newCardDismissedVersionCode ?: 0,
     )
+    // 규칙을 고칠까요? 시트 (점검 스낵바 "고치기")
+    val ruleSheetViewModel: RuleSheetViewModel = hiltViewModel()
+    val autoCategoryNotice by viewModel.autoCategoryNotice.collectAsState()
 
     val mainListPagingData = when (val uiState = mainListUiState) {
         is MainListUiState.Success -> uiState.urlFlowState.collectAsLazyPagingItems()
@@ -171,6 +214,78 @@ fun MainListScreen(
     var linkInfoDialog by remember { mutableStateOf<SimpleMenuModel?>(null) }
     // 2분할: 링크 메뉴 드롭다운을 붙일 행 (⋮ 또는 길게 누른 행)
     var menuTargetId by remember { mutableStateOf<Int?>(null) }
+    // 다시 잠기면 열려 있던 링크 정보 시트·메뉴를 닫는다 (잠금 링크의 제목·카테고리가 남지 않게. 38번 리뷰 4번)
+    LaunchedEffect(isLockedUnlocked) {
+        if (!isLockedUnlocked) {
+            linkInfoDialog = null
+            menuTargetId = null
+        }
+    }
+
+    // 저장 직후 자동 분류 스낵바 (점검 > 제안, 한 번에 하나). 받아 가면 비워서 두 번 뜨지 않는다
+    LaunchedEffect(autoCategoryNotice) {
+        if (autoCategoryNotice == null) return@LaunchedEffect
+        val notice = viewModel.takeAutoCategoryNotice() ?: return@LaunchedEffect
+        coroutineScope.launch {
+            snackBarHostState.currentSnackbarData?.dismiss()
+            when (notice) {
+                is AutoCategoryNotice.Suggest -> {
+                    val s = notice.suggestion
+                    val result = snackBarHostState.showSnackbar(
+                        message = if (s.unanimous) resources.getString(R.string.autocat_suggest_msg, notice.siteName, s.count, s.categoryName)
+                        else resources.getString(R.string.autocat_suggest_msg_most, notice.siteName, s.count, s.topCount, s.categoryName),
+                        actionLabel = resources.getString(R.string.autocat_suggest_accept),
+                        withDismissAction = true,
+                        duration = SnackbarDuration.Long,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        val accepted = viewModel.acceptSuggestion(s)
+                        if (accepted == null) {
+                            snackBarHostState.showSnackbar(resources.getString(R.string.autocat_suggest_rule_exists, notice.siteName))
+                            return@launch
+                        }
+                        val undo = snackBarHostState.showSnackbar(
+                            message = resources.getString(R.string.autocat_suggest_accepted, notice.siteName, s.categoryName),
+                            actionLabel = resources.getString(R.string.autocat_undo),
+                            duration = SnackbarDuration.Long,
+                        )
+                        if (undo == SnackbarResult.ActionPerformed) viewModel.undoAcceptedSuggestion(accepted)
+                    }
+                }
+                is AutoCategoryNotice.Fix -> {
+                    val result = snackBarHostState.showSnackbar(
+                        message = resources.getString(R.string.autocat_fix_snackbar, notice.siteName, notice.overrides),
+                        actionLabel = resources.getString(R.string.autocat_fix_action),
+                        withDismissAction = true,
+                        duration = SnackbarDuration.Long,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) ruleSheetViewModel.open(RuleSheetRequest.Fix(notice.ruleId))
+                }
+            }
+        }
+    }
+    RuleSheetHost(ruleSheetViewModel) { event ->
+        when (event) {
+            is RuleSheetEvent.FixChanged -> coroutineScope.launch {
+                val undo = snackBarHostState.showSnackbar(
+                    message = resources.getString(R.string.autocat_fix_changed, event.categoryName),
+                    actionLabel = resources.getString(R.string.autocat_undo),
+                    duration = SnackbarDuration.Long,
+                )
+                if (undo == SnackbarResult.ActionPerformed) ruleSheetViewModel.undoCategoryChange(event.ruleId, event.previousCategoryId)
+            }
+            is RuleSheetEvent.Moved -> coroutineScope.launch {
+                val undo = snackBarHostState.showSnackbar(
+                    message = resources.getString(R.string.autocat_apply_done, event.result.count),
+                    actionLabel = resources.getString(R.string.autocat_undo),
+                    duration = SnackbarDuration.Long,
+                )
+                if (undo == SnackbarResult.ActionPerformed) ruleSheetViewModel.undoMove(event.result)
+            }
+            RuleSheetEvent.OpenSettings -> navController.navigateToAutoCategory(fromMain = true)
+            else -> Unit
+        }
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -238,6 +353,8 @@ fun MainListScreen(
 
                 is MainListUiEffect.ShowLinkInfoDialog -> { linkInfoDialog = effect.model }
                 MainListUiEffect.OpenTutorial -> navController.navigateToTutorial(replaceRightPane = isListPane)
+                MainListUiEffect.OpenImport -> navController.navigateToImport(ImportEntry.EMPTY_STATE, replaceRightPane = isListPane)
+                MainListUiEffect.OpenImportHistory -> navController.navigateToImportHistory(replaceRightPane = isListPane)
             }
         }
     }
@@ -368,6 +485,10 @@ fun MainListScreen(
             onTabSelect = { viewModel.onIntent(MainListIntent.SelectTab(it)) },
             filterParams = filterSelectedItems,
             categoryNames = categoryNames,
+            lockedCategoryNames = lockedCategoryNames,
+            isLockedUnlocked = isLockedUnlocked,
+            onLockedEntryClick = { openLockedCategories(R.string.prompt_open_locked) {} },
+            onRelockClick = { viewModel.onIntent(MainListIntent.RelockCategories) },
             onSearchClick = { viewModel.onIntent(GoToSearchScreen) },
             onAppSettingClick = { viewModel.onIntent(GoToAppSetting) },
             onLinkItemClick = { url -> viewModel.onIntent(GoToOutLinkWebSite(url)) },
@@ -391,6 +512,12 @@ fun MainListScreen(
             },
             onSaveClick = { viewModel.onIntent(GoToLinkInsertScreen("")) },
             onTutorialClick = { viewModel.onIntent(MainListIntent.OpenTutorial) },
+            autoCategoryLaunchCard = autoCategoryLaunchCard,
+            onAutoCategoryCardOpen = {
+                viewModel.finishAutoCategoryLaunchCard()
+                navController.navigateToAutoCategory(fromMain = true)
+            },
+            onAutoCategoryCardDismiss = { viewModel.finishAutoCategoryLaunchCard() },
             tutorialCard = tutorialCard,
             onTutorialCardDismiss = {
                 when (tutorialCard) {
@@ -401,6 +528,12 @@ fun MainListScreen(
             listState = listState,
             selectedUrl = pane?.selectedUrl,
             itemMenu = itemMenu,
+            onImportClick = if (importEnabled) ({ viewModel.onIntent(MainListIntent.OpenImport) }) else null,
+            metaFillProgress = metaFillProgress,
+            metaFillCellular = metaFillCellular,
+            onMetaFillCardClick = { viewModel.onIntent(MainListIntent.OpenImportHistory) },
+            onPrioritizeMeta = { id, explicit -> viewModel.onIntent(MainListIntent.PrioritizeMeta(id, explicit)) },
+            onCancelPrioritizeMeta = { id -> viewModel.onIntent(MainListIntent.CancelPrioritizeMeta(id)) },
         )
     }
 }
@@ -417,6 +550,11 @@ fun MainListScreen(
         categories = listOf(FilterDefaults.CATEGORY_ALL), sort = FilterDefaults.SORT_LATEST, siteList = listOf(), tagList = listOf()
     ),
     categoryNames: List<String> = emptyList(),
+    /** 잠금 카테고리 이름과 세션 상태 (37번 기획서 5.1) */
+    lockedCategoryNames: List<String> = emptyList(),
+    isLockedUnlocked: Boolean = false,
+    onLockedEntryClick: () -> Unit = {},
+    onRelockClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onAppSettingClick: () -> Unit = {},
     onLinkItemClick: (String?) -> Unit = {},
@@ -426,12 +564,25 @@ fun MainListScreen(
     onSortChange: (String) -> Unit = {},
     onSaveClick: () -> Unit = {},
     onTutorialClick: () -> Unit = {},
+    /** 업데이트 후 첫 실행 자동 분류 카드 (제안 수, null = 숨김). 튜토리얼 카드보다 먼저 */
+    autoCategoryLaunchCard: Int? = null,
+    onAutoCategoryCardOpen: () -> Unit = {},
+    onAutoCategoryCardDismiss: () -> Unit = {},
     /** 맨 위 튜토리얼 카드: 첫 실행 안내(새로 설치, ✕ 전까지) 또는 새 기능 안내 */
     tutorialCard: TutorialCardMode = TutorialCardMode.Hidden,
     onTutorialCardDismiss: () -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
     selectedUrl: String? = null,
     itemMenu: (@Composable (UrlData) -> Unit)? = null,
+    /** 빈 화면 "카톡·북마크에서 가져오기" (null = 숨김) */
+    onImportClick: (() -> Unit)? = null,
+    /** 가져온 링크 미리보기 채우기 진행 (상태 카드) */
+    metaFillProgress: MetaFillProgress = MetaFillProgress(0, 0),
+    metaFillCellular: Boolean = false,
+    onMetaFillCardClick: () -> Unit = {},
+    /** 미리보기를 기다리는 카드가 1초 넘게 보였거나 실패한 링크를 열었을 때 */
+    onPrioritizeMeta: (id: Int, explicit: Boolean) -> Unit = { _, _ -> },
+    onCancelPrioritizeMeta: (Int) -> Unit = {},
 ) {
     val colors = AppTheme.colors
     val tutorialCardVisible = tutorialCard != TutorialCardMode.Hidden
@@ -440,7 +591,7 @@ fun MainListScreen(
     // "전체" + 사용자 카테고리. 필터 시트에서 고른 값 중 목록에 없는 항목(예: 북마크)은 앞쪽에 함께 보여준다
     val chips = buildList {
         add(FilterDefaults.CATEGORY_ALL)
-        selectedCategories.filter { it != FilterDefaults.CATEGORY_ALL && it !in categoryNames }.forEach { add(it) }
+        selectedCategories.filter { it != FilterDefaults.CATEGORY_ALL && it !in categoryNames && it !in lockedCategoryNames }.forEach { add(it) }
         addAll(categoryNames)
     }.distinct()
     val detailFilters = filterParams.siteList + filterParams.tagList
@@ -490,20 +641,51 @@ fun MainListScreen(
             onSettingClick = onAppSettingClick,
         )
         MainTabRow(selectedTab = selectedTab, onTabSelect = onTabSelect)
+        val hasLocked = lockedCategoryNames.isNotEmpty()
+        var showRelockDialog by rememberSaveable { mutableStateOf(false) }
         CategoryChipRow(
             chips = chips,
             selected = selectedCategories,
             hasDetailFilter = detailFilters.isNotEmpty(),
             onCategoryClick = onCategoryClick,
             onFilterClick = onFilterOpen,
+            lockedChips = if (isLockedUnlocked) lockedCategoryNames else emptyList(),
+            showLockToggle = hasLocked,
+            lockOpen = isLockedUnlocked,
+            onLockedEntryClick = onLockedEntryClick,
+            onRelockClick = onRelockClick,
+            onLockedChipLongClick = { showRelockDialog = true },
         )
+        // 잠금 카테고리 칩 길게 누르기 → "다시 잠글까요?" (37번 §19). 그사이 자동으로 잠기면 닫는다
+        if (showRelockDialog) {
+            AlertDialog(
+                onDismissRequest = { showRelockDialog = false },
+                title = { Text(stringResource(R.string.relock_dialog_title)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showRelockDialog = false
+                        onRelockClick()
+                    }) { Text(stringResource(R.string.relock_dialog_confirm)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showRelockDialog = false }) { Text(stringResource(R.string.btn_cancel)) }
+                },
+            )
+        }
+        LaunchedEffect(isLockedUnlocked) { if (!isLockedUnlocked) showRelockDialog = false }
         ActiveFilterRow(filters = detailFilters)
+        if (metaFillProgress.isActive && !isEmpty) {
+            MetaFillStatusCard(progress = metaFillProgress, cellularAllowed = metaFillCellular, onClick = onMetaFillCardClick)
+        }
         if (!isEmpty) {
             SortRow(countLabel = countLabel, sort = filterParams.sort, onSortChange = onSortChange)
         }
 
         if (isEmpty) {
             Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                if (autoCategoryLaunchCard != null) {
+                    AutoCategoryLaunchCard(count = autoCategoryLaunchCard, onOpen = onAutoCategoryCardOpen, onDismiss = onAutoCategoryCardDismiss)
+                }
                 if (tutorialCardVisible) {
                     TutorialEntryCard(onOpen = onTutorialClick, onDismiss = onTutorialCardDismiss, newCount = tutorialNewCount)
                 }
@@ -511,6 +693,7 @@ fun MainListScreen(
                     type = emptyType,
                     onSaveClick = onSaveClick,
                     onTutorialClick = onTutorialClick,
+                    onImportClick = onImportClick,
                     modifier = Modifier.padding(top = if (tutorialCardVisible) 8.dp else 48.dp)
                 )
             }
@@ -523,6 +706,16 @@ fun MainListScreen(
             // FAB 에 마지막 아이템이 가리지 않도록 하단 여백
             contentPadding = PaddingValues(bottom = 96.dp)
         ) {
+            if (autoCategoryLaunchCard != null) {
+                item(key = "autocat_launch_card", contentType = "tutorial_entry_card") {
+                    AutoCategoryLaunchCard(
+                        count = autoCategoryLaunchCard,
+                        onOpen = onAutoCategoryCardOpen,
+                        onDismiss = onAutoCategoryCardDismiss,
+                        modifier = Modifier.animateItem(),
+                    )
+                }
+            }
             if (tutorialCardVisible) {
                 item(key = "tutorial_entry_card", contentType = "tutorial_entry_card") {
                     TutorialEntryCard(
@@ -548,10 +741,29 @@ fun MainListScreen(
                         } else if (index == 0 && viewMode == ListViewMode.DEFAULT) {
                             Spacer(modifier = Modifier.height(4.dp))
                         }
+                        if (MetaState.isPending(item.metaState)) {
+                            // 화면에 1초 넘게 보이면 그 링크를 먼저 채운다 (모바일 데이터 허용, 동시 1개).
+                            // 화면에서 사라지면 기다리던 요청을 뺀다 (목록을 훑어도 요청이 쌓이지 않게)
+                            LaunchedEffect(item.id) {
+                                var requested = false
+                                try {
+                                    delay(PENDING_VISIBLE_MS)
+                                    requested = true
+                                    onPrioritizeMeta(item.id, false)
+                                    awaitCancellation()
+                                } finally {
+                                    if (requested) onCancelPrioritizeMeta(item.id)
+                                }
+                            }
+                        }
                         LinkListItem(
                             data = item,
                             viewMode = viewMode,
-                            onClick = { onLinkItemClick.invoke(item.url) },
+                            onClick = {
+                                // 미리보기를 못 가져온 링크는 열 때 다시 시도
+                                if (item.metaState == MetaState.FAILED) onPrioritizeMeta(item.id, true)
+                                onLinkItemClick.invoke(item.url)
+                            },
                             onLongClick = { onLinkItemLongClick.invoke(item) },
                             showDivider = index < snapshot.size - 1,
                             selected = selectedUrl != null && item.url == selectedUrl,
@@ -563,6 +775,52 @@ fun MainListScreen(
         }
     }
 }
+
+private const val PENDING_VISIBLE_MS = 1_000L
+
+/**
+ * "미리보기 채우는 중 done / total" 상태 카드 (34번 §S12). 누르면 가져오기 기록. 다 채우면 사라진다.
+ * 연결이 데이터 요금 네트워크뿐이고 모바일 데이터를 허용하지 않았으면 "Wi-Fi에 연결되면 미리보기를 채워요".
+ */
+@Composable
+private fun MetaFillStatusCard(progress: MetaFillProgress, cellularAllowed: Boolean, onClick: () -> Unit) {
+    val colors = AppTheme.colors
+    val context = LocalContext.current
+    val waiting = !cellularAllowed && runCatching {
+        val cm = context.getSystemService(android.net.ConnectivityManager::class.java)
+        cm.activeNetwork == null || cm.isActiveNetworkMetered
+    }.getOrDefault(false)
+    Row(
+        modifier = Modifier
+            .padding(horizontal = AppDimens.Gutter, vertical = 6.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(colors.surface)
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (waiting) {
+            Icon(Icons.Outlined.WifiOff, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(16.dp))
+        } else {
+            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = colors.accent)
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = if (waiting) stringResource(R.string.import_main_status_waiting)
+                else stringResource(R.string.import_main_status, fmtNumber(progress.done), fmtNumber(progress.total)),
+            style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+            color = colors.textPrimary,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+        )
+        if (!waiting && !cellularAllowed) {
+            Text(stringResource(R.string.import_main_status_wifi_only), style = MaterialTheme.typography.labelMedium, color = colors.textSecondary)
+        }
+    }
+}
+
+private fun fmtNumber(n: Int): String = java.text.NumberFormat.getInstance(java.util.Locale.KOREA).format(n)
 
 @Composable
 @Preview(showBackground = true)
@@ -579,4 +837,21 @@ fun MainListScreenPreview() {
             categoryNames = listOf("개발", "뉴스"),
         )
     }
+}
+
+/** 업데이트 후 첫 실행 자동 분류 카드 (튜토리얼 카드 자리, 36번 §4.2) */
+@Composable
+private fun AutoCategoryLaunchCard(count: Int, onOpen: () -> Unit, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    TutorialEntryCard(
+        onOpen = onOpen,
+        onDismiss = onDismiss,
+        modifier = modifier,
+        content = EntryCardContent(
+            title = stringResource(R.string.autocat_launch_card_title, count),
+            body = stringResource(R.string.autocat_launch_card_body),
+            action = stringResource(R.string.autocat_launch_card_action),
+            icon = Icons.Outlined.Bolt,
+            dismissDescription = stringResource(R.string.autocat_launch_card_dismiss_cd),
+        ),
+    )
 }

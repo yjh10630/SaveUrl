@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.jinscompany.saveurl.R
 import com.jinscompany.saveurl.domain.model.ListViewMode
+import com.jinscompany.saveurl.domain.model.MetaState
+import androidx.compose.material.icons.outlined.Sync
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.ui.composable.singleClick
 import com.jinscompany.saveurl.ui.theme.AppDimens
@@ -101,6 +103,20 @@ internal fun highlightText(text: String, keyword: String?, color: Color): Annota
 
 internal fun UrlData.metaText(): String =
     listOf(displayDomain(), displayTime()).filter { it.isNotEmpty() }.joinToString(" · ")
+
+/**
+ * 목록 제목. 가져와서 제목을 아직 못 채운 링크는 스킴을 뗀 URL (34번 §S12), 그 밖에는 지금처럼 제목이 없으면 URL.
+ */
+internal fun UrlData.displayTitle(): String {
+    val t = title.orEmpty()
+    if (t.isNotBlank()) return t
+    val u = url.orEmpty()
+    return if (metaState != MetaState.DONE) u.substringAfter("://") else u
+}
+
+/** 썸네일 자리표시 글자 (도메인 첫 글자, 대문자) */
+internal fun UrlData.placeholderLetter(): String =
+    displayDomain().firstOrNull()?.uppercaseChar()?.toString().orEmpty()
 
 /**
  * 보기 방식에 맞는 링크 아이템.
@@ -184,11 +200,11 @@ fun DefaultLinkItem(
             .padding(horizontal = AppDimens.Gutter, vertical = AppDimens.ItemSpacing / 2),
         verticalAlignment = Alignment.Top,
     ) {
-        LinkThumbnail(imgUrl = data.imgUrl, size = AppDimens.ThumbDefault)
+        LinkThumbnail(imgUrl = data.imgUrl, size = AppDimens.ThumbDefault, pendingLetter = data.pendingLetter())
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = highlightText(data.title.orEmpty().ifBlank { data.url.orEmpty() }, highlight, colors.accent),
+                text = highlightText(data.displayTitle(), highlight, colors.accent),
                 style = MaterialTheme.typography.titleMedium,
                 color = colors.textPrimary,
                 maxLines = 2,
@@ -237,6 +253,14 @@ private fun LargeCardLinkItem(
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                 )
+            } else if (data.pendingLetter() != null) {
+                // 미리보기 기다리는 중: 도메인 첫 글자 자리표시
+                Text(
+                    text = data.pendingLetter().orEmpty(),
+                    style = MaterialTheme.typography.headlineMedium.copy(fontSize = 36.sp, fontWeight = FontWeight.SemiBold),
+                    color = colors.textSecondary,
+                    modifier = Modifier.align(Alignment.Center),
+                )
             } else {
                 Icon(
                     imageVector = Icons.Outlined.Link,
@@ -267,7 +291,7 @@ private fun LargeCardLinkItem(
         Column(modifier = Modifier.padding(start = 16.dp, end = 12.dp, top = 14.dp, bottom = 14.dp)) {
             Row(verticalAlignment = Alignment.Top) {
                 Text(
-                    text = data.title.orEmpty().ifBlank { data.url.orEmpty() },
+                    text = data.displayTitle(),
                     style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp, lineHeight = 24.sp),
                     color = colors.textPrimary,
                     maxLines = 2,
@@ -296,8 +320,10 @@ private fun LargeCardLinkItem(
                     text = data.displayTime(),
                     style = MaterialTheme.typography.labelMedium,
                     color = colors.textSecondary,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f, fill = false),
                 )
+                MetaStateTail(data)
+                Spacer(modifier = Modifier.weight(1f))
                 data.tagList?.firstOrNull { it.isNotBlank() }?.let { TagChip(it) }
             }
         }
@@ -323,11 +349,11 @@ private fun CompactLinkItem(
                 .padding(horizontal = AppDimens.Gutter, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            LinkThumbnail(imgUrl = data.imgUrl, size = AppDimens.ThumbCompact, radius = 10.dp)
+            LinkThumbnail(imgUrl = data.imgUrl, size = AppDimens.ThumbCompact, radius = 10.dp, pendingLetter = data.pendingLetter())
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = data.title.orEmpty().ifBlank { data.url.orEmpty() },
+                    text = data.displayTitle(),
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium, fontSize = 15.sp, lineHeight = 20.sp),
                     color = colors.textPrimary,
                     maxLines = 1,
@@ -362,6 +388,7 @@ private fun MetaRow(data: UrlData, showTag: Boolean) {
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f, fill = false)
         )
+        MetaStateTail(data)
         if (showTag) {
             data.tagList?.firstOrNull { it.isNotBlank() }?.let {
                 Spacer(modifier = Modifier.width(8.dp))
@@ -412,8 +439,32 @@ private fun BookmarkStar(isBookmarked: Boolean, modifier: Modifier = Modifier) {
     )
 }
 
+/**
+ * 가져온 링크의 미리보기 상태를 메타 줄 끝에 붙인다 (34번 §S12).
+ * 기다리는 중: " · ⟳ 미리보기 준비 중", 실패: " · 미리보기를 가져오지 못했어요" (회색, 빨강 아님). 썸네일만 기다리면 표시 안 함.
+ */
 @Composable
-private fun LinkThumbnail(imgUrl: String?, size: Dp, radius: Dp = AppDimens.ThumbRadius) {
+private fun MetaStateTail(data: UrlData) {
+    val colors = AppTheme.colors
+    val text = when (data.metaState) {
+        MetaState.PENDING -> stringResource(R.string.link_meta_pending)
+        MetaState.FAILED -> stringResource(R.string.link_meta_failed)
+        else -> return
+    }
+    Text(" · ", style = MaterialTheme.typography.labelMedium, color = colors.textSecondary)
+    if (data.metaState == MetaState.PENDING) {
+        Icon(Icons.Outlined.Sync, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(12.dp))
+        Spacer(modifier = Modifier.width(2.dp))
+    }
+    Text(text, style = MaterialTheme.typography.labelMedium, color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+}
+
+/** 미리보기(썸네일)를 기다리는 링크의 자리표시 글자. 기다리지 않으면 null */
+private fun UrlData.pendingLetter(): String? =
+    if (MetaState.isPending(metaState) && imgUrl.isNullOrEmpty()) placeholderLetter().ifEmpty { null } else null
+
+@Composable
+private fun LinkThumbnail(imgUrl: String?, size: Dp, radius: Dp = AppDimens.ThumbRadius, pendingLetter: String? = null) {
     val colors = AppTheme.colors
     val shape = RoundedCornerShape(radius)
     Box(
@@ -433,6 +484,12 @@ private fun LinkThumbnail(imgUrl: String?, size: Dp, radius: Dp = AppDimens.Thum
                 error = ColorPainter(colors.surface),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
+            )
+        } else if (pendingLetter != null) {
+            Text(
+                text = pendingLetter,
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = if (size < 50.dp) 18.sp else 24.sp, fontWeight = FontWeight.SemiBold),
+                color = colors.textSecondary,
             )
         } else {
             Icon(

@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -44,6 +45,7 @@ import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
  * 메인 목록 맨 위 튜토리얼 카드 (Stitch E1).
  * - [newCount] = null: 첫 실행 안내 카드. 카드나 "둘러보기"를 누르면 튜토리얼을 열고, ✕ 를 누르면 다시 보이지 않는다.
  * - [newCount] = n: 새 기능 안내 카드 ("새 기능 안내 n개"). ✕ 는 이번 NEW 묶음만 닫는다 ([TutorialNews.cardMode]).
+ * - [content] 를 주면 같은 모양으로 다른 안내를 그린다 (자동 분류 첫 실행 제안 카드, 36번 §4.2).
  */
 @Composable
 fun TutorialEntryCard(
@@ -51,12 +53,14 @@ fun TutorialEntryCard(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     newCount: Int? = null,
+    content: EntryCardContent? = null,
 ) {
     val colors = AppTheme.colors
-    val title = if (newCount != null) stringResource(R.string.tutorial_new_card_title, newCount) else stringResource(R.string.tutorial_card_title)
-    val body = stringResource(if (newCount != null) R.string.tutorial_new_card_body else R.string.tutorial_card_body)
-    val action = stringResource(if (newCount != null) R.string.tutorial_new_card_action else R.string.tutorial_card_action)
-    val icon = if (newCount != null) Icons.Outlined.NewReleases else Icons.AutoMirrored.Outlined.MenuBook
+    val title = content?.title ?: if (newCount != null) stringResource(R.string.tutorial_new_card_title, newCount) else stringResource(R.string.tutorial_card_title)
+    val body = content?.body ?: stringResource(if (newCount != null) R.string.tutorial_new_card_body else R.string.tutorial_card_body)
+    val action = content?.action ?: stringResource(if (newCount != null) R.string.tutorial_new_card_action else R.string.tutorial_card_action)
+    val icon = content?.icon ?: if (newCount != null) Icons.Outlined.NewReleases else Icons.AutoMirrored.Outlined.MenuBook
+    val dismissCd = content?.dismissDescription ?: stringResource(R.string.tutorial_card_dismiss_cd)
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -108,13 +112,22 @@ fun TutorialEntryCard(
         ) {
             Icon(
                 Icons.Filled.Close,
-                contentDescription = stringResource(R.string.tutorial_card_dismiss_cd),
+                contentDescription = dismissCd,
                 tint = colors.textSecondary,
                 modifier = Modifier.size(20.dp)
             )
         }
     }
 }
+
+/** 같은 카드 모양의 다른 안내 문구 */
+data class EntryCardContent(
+    val title: String,
+    val body: String,
+    val action: String,
+    val icon: ImageVector,
+    val dismissDescription: String,
+)
 
 @Preview(showBackground = true)
 @Composable

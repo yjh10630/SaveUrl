@@ -29,6 +29,8 @@ import com.jinscompany.saveurl.ui.main.components.displayDomain
 import com.jinscompany.saveurl.ui.theme.AppDimens
 import com.jinscompany.saveurl.ui.theme.AppTheme
 import com.jinscompany.saveurl.R
+import com.jinscompany.saveurl.ui.lock.rememberOpenLockedCategories
+import com.jinscompany.saveurl.ui.composable.TextAction
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -98,6 +100,7 @@ fun TrashScreen(
     var showAlert by remember { mutableStateOf<TrashViewModel.AlertDataModel?>(null) }
     var showMenuAlert by remember { mutableStateOf<SimpleMenuModel?>(null) }
     val snackBarHostState = remember { SnackbarHostState() }
+    val openLocked = rememberOpenLockedCategories("trash_open")
     LaunchedEffect(Unit) {
         uiEffect.filterNotIsInstance<TrashUiEffect.GotoNextScreen>().collectLatest { effect ->
             when (effect) {
@@ -223,6 +226,17 @@ fun TrashScreen(
                         if (index < items.itemCount - 1) {
                             HorizontalDivider(color = colors.outline, thickness = 1.dp, modifier = Modifier.padding(horizontal = AppDimens.Gutter))
                         }
+                    }
+                }
+                if (uiState.showLockedEntry) {
+                    // 잠금 카테고리에서 온 항목이 있는지와 관계없이 같은 조건으로 보인다 (힌트를 주지 않음)
+                    item(key = "trash_show_locked") {
+                        TextAction(
+                            text = stringResource(R.string.trash_show_locked),
+                            onClick = { openLocked(R.string.prompt_open_locked) {} },
+                            color = colors.accent,
+                            modifier = Modifier.padding(start = AppDimens.Gutter - 8.dp, top = 12.dp),
+                        )
                     }
                 }
                 if (items.itemCount > 0) {

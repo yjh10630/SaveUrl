@@ -8,6 +8,7 @@ import androidx.room.Query
 import androidx.room.Update
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.UrlData
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CategoryDao {
@@ -21,7 +22,7 @@ interface CategoryDao {
      * 실제와 어긋나므로 표시용 개수는 BaseSaveUrl 에서 매번 집계한다 (컬럼은 스키마 유지를 위해 남겨둠).
      */
     @Query("""
-        SELECT c.id, c.name, COUNT(b.id) AS contentCnt, c.addDate, c.`order`, c.isEditable
+        SELECT c.id, c.name, COUNT(b.id) AS contentCnt, c.addDate, c.`order`, c.isEditable, c.isLocked
         FROM Category c
         LEFT JOIN BaseSaveUrl b ON b.category = c.name
         GROUP BY c.id
@@ -38,6 +39,16 @@ interface CategoryDao {
     // deletedOrder 번호 이후의 데이터들을 순차적으로 가져옴
     @Query("SELECT * FROM Category WHERE `order` > :deletedOrder ORDER BY `order` ASC")
     suspend fun getCategoriesAfter(deletedOrder: Int): List<CategoryModel>
+
+    /** 잠금 카테고리 이름 (순서대로). 잠그거나 풀면 다시 내보낸다 */
+    @Query("SELECT name FROM Category WHERE isLocked = 1 ORDER BY `order` ASC")
+    fun observeLockedNames(): Flow<List<String>>
+
+    @Query("SELECT COUNT(*) FROM Category WHERE name = :name AND isLocked = 1")
+    suspend fun countLocked(name: String): Int
+
+    @Query("UPDATE Category SET isLocked = :locked WHERE name = :name")
+    suspend fun setLocked(name: String, locked: Boolean): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(data: CategoryModel): Long

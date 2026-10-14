@@ -44,6 +44,19 @@ class PreferencesManager @Inject constructor(
     /** 권장(FLEXIBLE) 업데이트 동의 창에서 "나중에" 를 누른 버전(versionCode)과 시각. 3일 동안 다시 묻지 않는 데 쓴다 */
     private val FLEXIBLE_UPDATE_DECLINED_VERSION = intPreferencesKey("flexible_update_declined_version")
     private val FLEXIBLE_UPDATE_DECLINED_AT = longPreferencesKey("flexible_update_declined_at")
+    /** 설정 "링크 가져오기" 의 NEW: 가져오기 홈을 한 번 열면 true */
+    private val IMPORT_ENTRY_SEEN = booleanPreferencesKey("import_entry_seen")
+    /** 가져온 링크 미리보기 채우기: 멈춤 / 모바일 데이터에서도 채우기 (기본 끔) */
+    private val META_FILL_PAUSED = booleanPreferencesKey("meta_fill_paused")
+    private val META_FILL_CELLULAR = booleanPreferencesKey("meta_fill_cellular")
+    /** 자동 분류 사용 (마스터 스위치, 기본 켬. 36번 §5.2) */
+    private val AUTOCAT_ENABLED = booleanPreferencesKey("autocat_enabled")
+    /** 저장 후 제안 스낵바를 마지막으로 띄운 날 (yyyyMMdd, 하루 1번) */
+    private val AUTOCAT_LAST_SUGGEST_DAY = intPreferencesKey("autocat_last_suggest_day")
+    /** 업데이트 후 첫 실행 제안 카드를 닫았거나 눌렀음 */
+    private val AUTOCAT_LAUNCH_CARD_DONE = booleanPreferencesKey("autocat_launch_card_done")
+    /** 처음 카테고리를 잠근 뒤 "잠근 링크는 나만 볼 수 있어요" 안내를 닫았음 (37번 §19) */
+    private val LOCK_INTRO_SEEN = booleanPreferencesKey("lock_intro_seen")
 
     val autoDeleteEnabled: Flow<Boolean> = context.dataStore.data
         .map { it[TRASH_ENABLE] ?: true }
@@ -159,6 +172,23 @@ class PreferencesManager @Inject constructor(
         context.dataStore.edit { it[NORMALIZED_URL_VERSION] = version }
     }
 
+    val importEntrySeen: Flow<Boolean> = context.dataStore.data.map { it[IMPORT_ENTRY_SEEN] ?: false }
+
+    suspend fun setImportEntrySeen() {
+        context.dataStore.edit { it[IMPORT_ENTRY_SEEN] = true }
+    }
+
+    val metaFillPaused: Flow<Boolean> = context.dataStore.data.map { it[META_FILL_PAUSED] ?: false }
+    val metaFillCellular: Flow<Boolean> = context.dataStore.data.map { it[META_FILL_CELLULAR] ?: false }
+
+    suspend fun setMetaFillPaused(paused: Boolean) {
+        context.dataStore.edit { it[META_FILL_PAUSED] = paused }
+    }
+
+    suspend fun setMetaFillCellular(allowed: Boolean) {
+        context.dataStore.edit { it[META_FILL_CELLULAR] = allowed }
+    }
+
     suspend fun getFlexibleUpdateDecline(): FlexibleDecline? {
         val prefs = context.dataStore.data.first()
         val version = prefs[FLEXIBLE_UPDATE_DECLINED_VERSION] ?: return null
@@ -171,5 +201,38 @@ class PreferencesManager @Inject constructor(
             prefs[FLEXIBLE_UPDATE_DECLINED_VERSION] = decline.versionCode
             prefs[FLEXIBLE_UPDATE_DECLINED_AT] = decline.declinedAtMillis
         }
+    }
+
+    val lockIntroSeen: Flow<Boolean> = context.dataStore.data.map { it[LOCK_INTRO_SEEN] ?: false }
+
+    suspend fun setLockIntroSeen() {
+        context.dataStore.edit { it[LOCK_INTRO_SEEN] = true }
+    }
+
+    val autoCategoryEnabled: Flow<Boolean> = context.dataStore.data.map { it[AUTOCAT_ENABLED] ?: true }
+
+    suspend fun setAutoCategoryEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[AUTOCAT_ENABLED] = enabled }
+    }
+
+    /**
+     * 오늘([day], yyyyMMdd) 제안 스낵바를 아직 띄우지 않았으면 오늘로 기록하고 true.
+     * 읽기와 쓰기를 한 트랜잭션으로 해서 같은 날 두 번 뜨지 않게 한다.
+     */
+    suspend fun claimAutoCategorySuggestDay(day: Int): Boolean {
+        var claimed = false
+        context.dataStore.edit { prefs ->
+            if (prefs[AUTOCAT_LAST_SUGGEST_DAY] != day) {
+                prefs[AUTOCAT_LAST_SUGGEST_DAY] = day
+                claimed = true
+            }
+        }
+        return claimed
+    }
+
+    val autoCategoryLaunchCardDone: Flow<Boolean> = context.dataStore.data.map { it[AUTOCAT_LAUNCH_CARD_DONE] ?: false }
+
+    suspend fun setAutoCategoryLaunchCardDone() {
+        context.dataStore.edit { it[AUTOCAT_LAUNCH_CARD_DONE] = true }
     }
 }

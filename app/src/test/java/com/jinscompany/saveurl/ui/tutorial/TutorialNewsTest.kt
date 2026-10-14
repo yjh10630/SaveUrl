@@ -27,7 +27,7 @@ class TutorialNewsTest {
     @Test
     fun `addedInVersionCode 가 없는 기본 주제는 NEW 가 아니다`() {
         assertFalse(TutorialNews.isNew(base, emptySet(), baselineVersionCode = 0))
-        assertTrue(TutorialTopics.all.none { TutorialNews.isNew(it, emptySet(), baselineVersionCode = 0) })
+        assertTrue(TutorialTopics.all.filter { it.addedInVersionCode == null }.none { TutorialNews.isNew(it, emptySet(), baselineVersionCode = 38) })
     }
 
     @Test
@@ -66,11 +66,16 @@ class TutorialNewsTest {
     }
 
     @Test
-    fun `지금 앱의 주제는 기존 사용자, 새 사용자 모두 NEW 가 없다`() {
+    fun `2_1(40) 에서는 자동 분류·잠금 카테고리 주제가 기존 사용자에게 NEW, 40 에 새로 설치한 사용자에게는 없다`() {
         listOf(38, 39).forEach { baseline ->
             val prefs = TutorialBadgePrefs(baselineVersionCode = baseline)
-            assertTrue(TutorialNews.newTopics(TutorialTopics.visible(isTwoPane = true), prefs).isEmpty())
+            assertEquals(
+                listOf(TutorialTopics.AUTO_CATEGORY, TutorialTopics.CATEGORY_LOCK),
+                TutorialNews.newTopics(TutorialTopics.visible(isTwoPane = true), prefs).map { it.id }
+            )
         }
+        val freshInstall = TutorialBadgePrefs(baselineVersionCode = 40)
+        assertTrue(TutorialNews.newTopics(TutorialTopics.visible(isTwoPane = true), freshInstall).isEmpty())
     }
 
     @Test

@@ -17,15 +17,19 @@ object CsvBackupManager {
     // R8 full mode 대응: 익명 TypeToken 서브클래스 대신 getParameterized 사용
     private val listType = TypeToken.getParameterized(List::class.java, String::class.java).type
 
-    private val header = "id,url,imageUrl,siteName,title,description,tagList,addDate,category,isBookMark,isRead,normalizedUrl"
+    // categoryLocked: 그 링크의 카테고리가 잠금 카테고리인지 (2.1 부터, 맨 끝 열). 없는 예전 파일도 그대로 읽는다
+    private val header = "id,url,imageUrl,siteName,title,description,tagList,addDate,category,isBookMark,isRead,normalizedUrl,categoryLocked"
 
-    suspend fun export(context: Context, uri: Uri, items: List<UrlData>): Int = withContext(Dispatchers.IO) {
+    /** 가져온 한 행. [categoryLocked] = 백업할 때 이 링크의 카테고리가 잠금 카테고리였음 */
+    data class ImportedRow(val data: UrlData, val categoryLocked: Boolean)
+
+    suspend fun export(context: Context, uri: Uri, items: List<UrlData>, lockedCategories: Set<String> = emptySet()): Int = withContext(Dispatchers.IO) {
         context.contentResolver.openOutputStream(uri)?.use { stream ->
             OutputStreamWriter(stream, Charsets.UTF_8).use { writer ->
                 writer.write(header)
                 writer.write("\n")
                 items.forEach { item ->
-                    writer.write(buildCsvRow(item))
+                    writer.write(buildCsvRow(item, categoryLocked = item.category in lockedCategories))
                     writer.write("\n")
                 }
             }
@@ -33,12 +37,12 @@ object CsvBackupManager {
         items.size
     }
 
-    suspend fun import(context: Context, uri: Uri): List<UrlData> = withContext(Dispatchers.IO) {
-        val results = mutableListOf<UrlData>()
+    suspend fun import(context: Context, uri: Uri): List<ImportedRow> = withContext(Dispatchers.IO) {
+        val results = mutableListOf<ImportedRow>()
         context.contentResolver.openInputStream(uri)?.use { stream ->
             BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).use { reader ->
                 readRecords(reader).drop(1) // skip header
-                    .forEach { record -> parseCsvRow(record)?.let { results.add(it) } }
+                    .forEach { record -> parseCsvRow(record)?.let { results.add(ImportedRow(it, parseCategoryLocked(record))) } }
             }
         }
         results
@@ -68,7 +72,7 @@ object CsvBackupManager {
         return records
     }
 
-    internal fun buildCsvRow(item: UrlData): String {
+    internal fun buildCsvRow(item: UrlData, categoryLocked: Boolean = false): String {
         val tagsJson = gson.toJson(item.tagList ?: emptyList<String>())
         return listOf(
             item.id.toString(),
@@ -83,6 +87,7 @@ object CsvBackupManager {
             item.isBookMark.toString(),
             item.isRead.toString(),
             item.normalizedUrl.escapeCsv(),
+            categoryLocked.toString(),
         ).joinToString(",")
     }
 
@@ -115,6 +120,10 @@ object CsvBackupManager {
             null
         }
     }
+
+    /** 13번째 열(categoryLocked)이 "true" 인지. 열이 없는 예전 파일·다른 앱 파일은 false */
+    internal fun parseCategoryLocked(line: String): Boolean =
+        runCatching { splitCsvLine(line).getOrNull(12)?.trim()?.toBooleanStrictOrNull() == true }.getOrDefault(false)
 
     private fun splitCsvLine(line: String): List<String> {
         val result = mutableListOf<String>()

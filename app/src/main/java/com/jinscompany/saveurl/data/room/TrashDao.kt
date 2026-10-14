@@ -10,8 +10,15 @@ import com.jinscompany.saveurl.domain.model.TrashItem
 
 @Dao
 interface TrashDao {
-    @Query("SELECT * FROM trash")
-    fun getPagingItemAll(): PagingSource<Int, TrashItem>
+    /** 휴지통 화면. 잠금 카테고리에서 온 항목은 [includeLocked] 일 때만 (LockSql.VISIBLE) */
+    @Query("SELECT * FROM trash WHERE ${LockSql.VISIBLE}")
+    fun getPagingItems(includeLocked: Boolean): PagingSource<Int, TrashItem>
+
+    /** 전체 복원·전체 삭제 대상 = 지금 보이는 항목 */
+    @Query("SELECT * FROM trash WHERE ${LockSql.VISIBLE}")
+    suspend fun getVisible(includeLocked: Boolean): List<TrashItem>
+
+    /** 잠금과 관계없이 전체 (기간 지난 항목 자동 삭제용) */
     @Query("SELECT * FROM trash")
     suspend fun getAll(): List<TrashItem>
 

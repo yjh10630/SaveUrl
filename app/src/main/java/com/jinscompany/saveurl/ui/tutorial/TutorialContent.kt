@@ -3,6 +3,7 @@ package com.jinscompany.saveurl.ui.tutorial
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import com.jinscompany.saveurl.R
+import com.jinscompany.saveurl.utils.RemoteFlags
 import com.jinscompany.saveurl.utils.tutorialUrl
 
 /**
@@ -101,9 +102,12 @@ sealed interface TutorialAvailability {
 object TutorialTopics {
     const val SHARE = "share"
     const val DIRECT = "direct"
+    const val IMPORT = "import"
     const val AUTOFILL = "autofill"
     const val CLEAN = "clean_duplicate"
     const val CATEGORY = "category"
+    const val CATEGORY_LOCK = "category_lock"
+    const val AUTO_CATEGORY = "auto_category"
     const val TAG = "tag"
     const val FAVORITE = "favorite"
     const val VIEW_MODE = "view_mode"
@@ -129,6 +133,16 @@ object TutorialTopics {
             stepRes = listOf(R.string.tut_direct_step1, R.string.tut_direct_step2, R.string.tut_direct_step3),
             imageRows = listOf(listOf(TutorialImage(R.drawable.tut_direct_light, R.drawable.tut_direct_dark, R.string.tut_direct_image_cd))),
         ),
+        // 2.1 (versionCode 40): 링크 가져오기. 원격 스위치 import_enabled 가 꺼지면 숨는다 (34번 7장).
+        // 스크린샷은 실제 미리보기 화면 캡처 후 추가
+        TutorialTopic(
+            id = IMPORT, group = TutorialGroup.START,
+            titleRes = R.string.tut_import_title, subtitleRes = R.string.tut_import_subtitle, bodyRes = R.string.tut_import_body,
+            stepRes = listOf(R.string.tut_import_step1, R.string.tut_import_step2, R.string.tut_import_step3),
+            tipRes = R.string.tut_import_tip,
+            availability = TutorialAvailability.Flag(RemoteFlags.KEY_IMPORT_ENABLED),
+            addedInVersionCode = 40,
+        ),
         TutorialTopic(
             id = AUTOFILL, group = TutorialGroup.START,
             titleRes = R.string.tut_autofill_title, subtitleRes = R.string.tut_autofill_subtitle, bodyRes = R.string.tut_autofill_body,
@@ -148,6 +162,22 @@ object TutorialTopics {
             stepRes = listOf(R.string.tut_category_step1, R.string.tut_category_step2, R.string.tut_category_step3),
             tipRes = R.string.tut_category_tip,
             imageRows = listOf(listOf(TutorialImage(R.drawable.tut_category_light, R.drawable.tut_category_dark, R.string.tut_category_image_cd))),
+        ),
+        // 2.1 (versionCode 40): 자동 분류 (36번 §14). 스크린샷은 실제 저장 화면·설정 캡처 후 추가
+        TutorialTopic(
+            id = AUTO_CATEGORY, group = TutorialGroup.ORGANIZE,
+            titleRes = R.string.tut_auto_category_title, subtitleRes = R.string.tut_auto_category_subtitle, bodyRes = R.string.tut_auto_category_body,
+            stepRes = listOf(R.string.tut_auto_category_step1, R.string.tut_auto_category_step2, R.string.tut_auto_category_step3),
+            tipRes = R.string.tut_auto_category_tip,
+            addedInVersionCode = 40,
+        ),
+        // 2.1 (versionCode 40): 잠금 카테고리. 스크린샷은 실제 화면 캡처 후 추가 (37번 기획서 10장)
+        TutorialTopic(
+            id = CATEGORY_LOCK, group = TutorialGroup.ORGANIZE,
+            titleRes = R.string.tut_category_lock_title, subtitleRes = R.string.tut_category_lock_subtitle, bodyRes = R.string.tut_category_lock_body,
+            stepRes = listOf(R.string.tut_category_lock_step1, R.string.tut_category_lock_step2, R.string.tut_category_lock_step3),
+            tipRes = R.string.tut_category_lock_tip,
+            addedInVersionCode = 40,
         ),
         TutorialTopic(
             id = TAG, group = TutorialGroup.ORGANIZE,
@@ -225,7 +255,7 @@ object TutorialTopics {
 
     /**
      * 지금 화면에서 보여줄 주제 (각 주제의 [TutorialTopic.availability] 로 거른다).
-     * "큰 화면에서는 2분할" 은 2분할 구성일 때만 보인다 (폰 13개 / 펼친 화면 14개).
+     * "큰 화면에서는 2분할" 은 2분할 구성일 때만 보인다 (가져오기 원격 스위치가 켜졌을 때 폰 16개 / 펼친 화면 17개).
      * 진행 표시("N개 주제 중 M개"), "n / N", 다음 주제, NEW 개수도 이 목록 기준으로 센다.
      */
     fun visible(context: TutorialAvailabilityContext, topics: List<TutorialTopic> = all): List<TutorialTopic> =

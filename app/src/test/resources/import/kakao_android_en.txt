@@ -1,0 +1,6 @@
+Talk with Study Group
+Date Saved : September 18, 2026, 7:25 PM
+
+March 2, 2026, 9:05 AM, Alice : read this https://developer.android.com/jetpack/compose
+March 2, 2026, 12:30 PM, Bob : https://kotlinlang.org/docs/coroutines-overview.html
+March 3, 2026, 12:05 AM, Alice : late night link https://github.com/square/okhttp
