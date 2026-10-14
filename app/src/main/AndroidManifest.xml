@@ -46,7 +46,24 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- 링크 공유(text/plain) + 링크 가져오기: 카톡 대화 .txt/.zip, 북마크 .html, 백업 .csv (34번 §2.1) -->
+        </activity>
+        <!--
+            공유 입구 (44번). 보던 앱 위에 반투명 시트로 떠서 저장하면 닫힌다.
+            taskAffinity="" + excludeFromRecents + autoRemoveFromRecents: 공유할 때마다 최근 앱에 SaveLink 카드가 남지 않게 (§1.2, §8).
+            noHistory 는 쓰지 않는다 (지문·PIN 확인, 알림 권한 대화상자를 다녀오면 시트가 닫혀 버림).
+            screenOrientation 을 정하지 않는다 (API 26 반투명 Activity 방향 고정 크래시).
+        -->
+        <activity
+            android:name=".ui.share.ShareActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.SaveUrl.Share"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:configChanges="uiMode"
+            android:windowSoftInputMode="adjustResize">
+            <!-- 링크 공유(text/plain) + 링크 가져오기: 카톡 대화 .txt/.zip, 북마크 .html, 백업 .csv (34번 §2.1). MainActivity 에서 옮김 -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />

@@ -6,13 +6,11 @@ import android.os.Build
 import android.os.SystemClock
 import android.content.Intent
 import android.os.Bundle
-import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.biometric.BiometricPrompt
-import androidx.core.content.ContextCompat
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -44,7 +42,6 @@ import com.jinscompany.saveurl.domain.lock.CategoryLockSession
 import com.jinscompany.saveurl.ui.lock.LocalCategoryLockSession
 import com.jinscompany.saveurl.ui.lock.LocalLockPromptBroker
 import com.jinscompany.saveurl.ui.lock.LockPromptBroker
-import com.jinscompany.saveurl.ui.lock.toPromptInfo
 import com.jinscompany.saveurl.ui.adaptive.LocalWindowLayout
 import com.jinscompany.saveurl.ui.composable.ForceUpdateDialog
 import com.jinscompany.saveurl.ui.adaptive.currentWindowLayout
@@ -55,22 +52,23 @@ import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
 import com.jinscompany.saveurl.ui.theme.isDarkTheme
 import com.jinscompany.saveurl.utils.CmLog
 import com.jinscompany.saveurl.utils.InAppUpdateCheck
-import com.jinscompany.saveurl.utils.extractUrlFromText
 import com.jinscompany.saveurl.utils.RemoteFlags
-import com.jinscompany.saveurl.utils.UrlNormalizer
-import com.jinscompany.saveurl.domain.importer.KakaoChatParser
-import com.jinscompany.saveurl.domain.importer.UrlExtractor
 import com.jinscompany.saveurl.ui.importer.ImportEntry
 import com.jinscompany.saveurl.ui.importer.ImportShare
 import com.jinscompany.saveurl.ui.importer.ImportShareInbox
 import com.jinscompany.saveurl.ui.navigation.navigateToImport
+import com.jinscompany.saveurl.ui.navigation.Navigation
+import com.jinscompany.saveurl.ui.importer.MainListRequests
+import com.jinscompany.saveurl.ui.lock.LockPromptHost
+import com.jinscompany.saveurl.ui.lock.hideFromRecentsWhileLockedCategoriesOpen
+import com.jinscompany.saveurl.ui.share.AppHandoff
+import com.jinscompany.saveurl.ui.share.AppHandoffInbox
+import com.jinscompany.saveurl.ui.share.SavePrefillStore
 import com.jinscompany.saveurl.data.revisit.RevisitRepository
 import com.jinscompany.saveurl.ui.revisit.RevisitOpenHandler
 import com.jinscompany.saveurl.ui.revisit.RevisitOpenViewModel
 import com.jinscompany.saveurl.ui.tutorial.LocalTutorialFeatureFlags
 import com.jinscompany.saveurl.ui.tutorial.TutorialFeatureFlags
-import android.net.Uri
-import androidx.core.content.IntentCompat
 import androidx.navigation.NavHostController
 import com.jinscompany.saveurl.utils.openPlayStorePage
 import dagger.hilt.android.AndroidEntryPoint
@@ -96,14 +94,16 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var revisitRepository: RevisitRepository
 
-    private val revisitOpenViewModel by viewModels<RevisitOpenViewModel>()
+    @Inject
+    lateinit var appHandoffInbox: AppHandoffInbox
 
-    /** 잠금 카테고리 인증 프롬프트. onCreate 에서 만들어야 회전·폴드 뒤 새 Activity 가 진행 중인 프롬프트의 결과를 받는다 */
-    private lateinit var lockPrompt: BiometricPrompt
-    private val showLockPrompt: (LockPromptBroker.Request) -> Unit = { request ->
-        runCatching { lockPrompt.authenticate(request.toPromptInfo()) }
-            .onFailure { lockPromptBroker.onPromptError(LockPromptBroker.ERROR_SHOW_FAILED) }
-    }
+    @Inject
+    lateinit var savePrefillStore: SavePrefillStore
+
+    @Inject
+    lateinit var mainListRequests: MainListRequests
+
+    private val revisitOpenViewModel by viewModels<RevisitOpenViewModel>()
 
     private val sharedViewModel by viewModels<SharedViewModel>()
     private lateinit var inAppUpdateCheck: InAppUpdateCheck
@@ -144,26 +144,24 @@ class MainActivity : FragmentActivity() {
             },
         )
         setupBackPressedHandler()
-        setupLockPrompt()
-        hideFromRecentsWhileLockedCategoriesOpen()
+        // 잠금 카테고리 인증 프롬프트 (onStart/onStop 에 연결, 공유 시트와 함께 쓰는 규칙 44번 §1.5)
+        LockPromptHost(this, lockPromptBroker)
+        hideFromRecentsWhileLockedCategoriesOpen(categoryLockSession)
 
         // 첫 프레임은 시스템 설정 기준으로 시스템 바를 맞추고, 테마가 정해지면 아래 DisposableEffect 에서 다시 적용
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
         )
-        // 회전/프로세스 재생성 시에는 NavController 가 백스택을 복원하므로 공유 Intent 를 다시 처리하지 않는다
-        val isFreshLaunch = savedInstanceState == null
-        // 알림에서 연 요청은 RevisitOpenActivity 가 inbox 에 넣고 온다 (이 Activity 는 알림 action 을 직접 받지 않음)
+        // 알림에서 연 요청은 RevisitOpenActivity 가, 공유 시트에서 넘긴 요청은 ShareActivity 가 전달함에 넣고 온다
+        // (이 Activity 는 내보내져 있어 Intent 내용으로 요청을 받지 않는다. 공유 intent-filter 도 ShareActivity 로 옮김, 44번 §6)
         setContent {
             val navController = rememberNavController()
-            val context = LocalContext.current
-            val activity = context as? Activity
 
-            // 공유 Intent 확인 (34번 §2.1 분기 순서: 파일 → 링크 여러 개·카톡 형식 글 → 링크 1개)
-            LaunchedEffect(Unit) {
-                if (!isFreshLaunch) return@LaunchedEffect
-                handleShareIntent(activity?.intent ?: return@LaunchedEffect, navController)
+            // 공유 시트 → 앱 (저장 화면·수정·목록·가져오기). 떠 있는 동안 넘어오면 onNewIntent 뒤 여기서 받는다
+            val handoff by appHandoffInbox.pending.collectAsState()
+            LaunchedEffect(handoff) {
+                if (handoff != null) appHandoffInbox.take()?.let { handleHandoff(it, navController) }
             }
 
             val themeMode by sharedViewModel.themeMode.collectAsState()
@@ -250,41 +248,25 @@ class MainActivity : FragmentActivity() {
     }
 
     /**
-     * 공유로 들어온 것:
-     * 1. 파일(EXTRA_STREAM, SEND_MULTIPLE) → 링크 가져오기
-     * 2. 글에 링크가 2개 이상이거나 앞 8줄이 카톡 대화 형식 → 링크 가져오기 미리보기
-     * 3. 링크 1개 → 지금처럼 저장 화면
-     * 공유 글 내용은 로그에 남기지 않는다 (대화일 수 있음).
+     * 공유 시트([com.jinscompany.saveurl.ui.share.ShareActivity])에서 넘긴 요청 (44번 §6.2).
+     * 2분할이면 메인 위에 열린 오른쪽 패널을 닫고 그 자리에 연다 (지금 공유 → 저장 화면과 같음).
      */
-    private fun handleShareIntent(intent: Intent, navController: NavHostController) {
-        val importEnabled = remoteFlags.importEnabled.value
-        when (intent.action) {
-            Intent.ACTION_SEND_MULTIPLE -> {
-                val uris = IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java).orEmpty()
-                if (importEnabled && uris.isNotEmpty()) {
-                    importShareInbox.put(ImportShare.Files(uris))
-                    navController.navigateToImport(ImportEntry.SHARE, replaceRightPane = true)
-                }
+    private fun handleHandoff(handoff: AppHandoff, navController: NavHostController) {
+        when (handoff) {
+            is AppHandoff.OpenSave -> {
+                handoff.prefill?.let { savePrefillStore.put(handoff.url, it) }
+                navController.navigateToSaveLink(url = handoff.url, replaceRightPane = true)
             }
-            Intent.ACTION_SEND -> {
-                val stream = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
-                if (importEnabled && stream != null) {
-                    importShareInbox.put(ImportShare.Files(listOf(stream)))
-                    navController.navigateToImport(ImportEntry.SHARE, replaceRightPane = true)
-                    return
-                }
-                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT).orEmpty()
-                if (sharedText.isEmpty()) return
-                val distinctUrls = UrlExtractor.extractAll(sharedText).map { UrlNormalizer.normalize(it) }.distinct()
-                val looksLikeChat = KakaoChatParser.looksLikeKakao(sharedText.lineSequence().take(8).toList())
-                if (importEnabled && (distinctUrls.size >= 2 || (looksLikeChat && distinctUrls.isNotEmpty()))) {
-                    CmLog.d("share → import (urls=${distinctUrls.size}, chat=$looksLikeChat)")
-                    importShareInbox.put(ImportShare.Text(sharedText))
-                    navController.navigateToImport(ImportEntry.SHARE, replaceRightPane = true)
-                    return
-                }
-                val realUrl = extractUrlFromText(sharedText)
-                if (!realUrl.isNullOrEmpty()) navController.navigateToSaveLink(url = realUrl)
+            // 저장된 링크면 저장 화면이 수정 모드로 연다 (잠금 링크는 시트에서 인증하고 왔으므로 세션이 열려 있다)
+            is AppHandoff.OpenEdit -> navController.navigateToSaveLink(url = handoff.url, replaceRightPane = true)
+            is AppHandoff.OpenList -> {
+                mainListRequests.showCategory(handoff.category)
+                runCatching { navController.popBackStack(Navigation.MAIN_ROUTE_PATTERN, inclusive = false) }
+            }
+            AppHandoff.Import -> {
+                // 그 사이 프로세스가 죽었으면 받은 내용이 없다: 가져오기 홈 + 다시 보내 달라고 알림 (§7)
+                if (!importShareInbox.hasPending()) Toast.makeText(this, R.string.share_import_resend, Toast.LENGTH_SHORT).show()
+                navController.navigateToImport(ImportEntry.SHARE, replaceRightPane = true)
             }
         }
     }
@@ -301,43 +283,7 @@ class MainActivity : FragmentActivity() {
             .onFailure { CmLog.e("setApplicationNightMode failed: ${it.message}") }
     }
 
-    private fun setupLockPrompt() {
-        lockPrompt = BiometricPrompt(
-            this,
-            ContextCompat.getMainExecutor(this),
-            object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    lockPromptBroker.onPromptSucceeded()
-                }
-
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    lockPromptBroker.onPromptError(errorCode)
-                }
-                // onAuthenticationFailed(지문 불일치)는 프롬프트가 계속 떠 있으므로 따로 처리하지 않는다
-            }
-        )
-        lockPromptBroker.attach(showLockPrompt)
-    }
-
-    /**
-     * 잠금 카테고리 세션이 열린 동안만 최근 앱 화면에서 내용을 가린다 (잠긴 링크가 화면에 있을 수 있는 유일한 때).
-     * API 33+: 최근 앱 미리보기만 끈다(스크린샷은 됨). 32 이하: FLAG_SECURE (그동안 스크린샷도 막힘).
-     */
-    private fun hideFromRecentsWhileLockedCategoriesOpen() {
-        lifecycleScope.launch {
-            categoryLockSession.isUnlocked.collect { unlocked ->
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    setRecentsScreenshotEnabled(!unlocked)
-                } else if (unlocked) {
-                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                } else {
-                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                }
-            }
-        }
-    }
-
-    /** 앱이 떠 있을 때 알림을 누름 (RevisitOpenActivity 가 SINGLE_TOP | CLEAR_TOP 로 띄움, 요청은 이미 inbox 에 있음) */
+    /** 앱이 떠 있을 때 알림을 누르거나 공유 시트에서 넘어옴 (SINGLE_TOP | CLEAR_TOP, 요청은 이미 전달함에 있음) */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -350,7 +296,6 @@ class MainActivity : FragmentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        lockPromptBroker.detach(showLockPrompt)
         inAppUpdateCheck.unregisterListener()
     }
 

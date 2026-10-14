@@ -309,7 +309,7 @@ fun InsertLinkScreen(
 
 /** "카테고리 ........ 레시피 ›" (선택 안 함 = 전체) */
 @Composable
-private fun CategoryRow(categoryName: String, isLocked: Boolean, onClick: () -> Unit) {
+internal fun CategoryRow(categoryName: String, isLocked: Boolean, onClick: () -> Unit) {
     val colors = AppTheme.colors
     val isNone = categoryName.isEmpty() || categoryName == FilterDefaults.CATEGORY_ALL
     Row(
@@ -344,7 +344,7 @@ private fun CategoryRow(categoryName: String, isLocked: Boolean, onClick: () -> 
 
 /** "알림 ........ 없음 ›" / "… 10월 15일 (목) 오전 9:00 ›" */
 @Composable
-private fun ReminderRow(reminderAt: Long?, onClick: () -> Unit) {
+internal fun ReminderRow(reminderAt: Long?, onClick: () -> Unit) {
     val colors = AppTheme.colors
     Row(
         modifier = Modifier
@@ -370,7 +370,7 @@ private fun ReminderRow(reminderAt: Long?, onClick: () -> Unit) {
 
 /** ☆ 즐겨찾기에 추가 ............ [스위치] */
 @Composable
-private fun BookmarkRow(isBookMark: Boolean, onToggle: (Boolean) -> Unit) {
+internal fun BookmarkRow(isBookMark: Boolean, onToggle: (Boolean) -> Unit) {
     val colors = AppTheme.colors
     Row(
         modifier = Modifier
