@@ -15,6 +15,8 @@ import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.repository.AutoCategoryRepository
 import com.jinscompany.saveurl.domain.repository.BulkMoveResult
 import com.jinscompany.saveurl.domain.usecase.GetCategoriesUseCase
+import com.jinscompany.saveurl.domain.lock.CategoryLockSession
+import kotlinx.coroutines.flow.drop
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -128,6 +130,7 @@ sealed interface RuleSheetEvent {
 class RuleSheetViewModel @Inject constructor(
     private val repository: AutoCategoryRepository,
     private val getCategoriesUseCase: GetCategoriesUseCase,
+    private val lockSession: CategoryLockSession,
 ) : ViewModel() {
 
     private val _sheet = MutableStateFlow<RuleSheet?>(null)
@@ -137,6 +140,26 @@ class RuleSheetViewModel @Inject constructor(
     val events = _events.asSharedFlow()
 
     private var distributionJob: Job? = null
+
+    init {
+        // 다시 잠기면 잠금 카테고리 규칙을 보여 주던 시트를 닫는다 (이름이 화면에 남지 않게)
+        viewModelScope.launch {
+            lockSession.isUnlocked.drop(1).collect { unlocked -> if (!unlocked && showsLockedCategory()) _sheet.value = null }
+        }
+    }
+
+    private suspend fun showsLockedCategory(): Boolean {
+        val ruleId = when (val sheet = _sheet.value) {
+            is RuleSheet.Editor -> sheet.ruleId
+            is RuleSheet.Apply -> sheet.ruleId
+            is RuleSheet.Fix -> sheet.rule.rule.id
+            null -> return false
+        } ?: return false
+        return repository.getRule(ruleId)?.categoryLocked != false
+    }
+
+    /** 닫힌 세션에서는 잠금 카테고리로 가는 규칙을 열지 않는다 */
+    private fun AutoRuleWithCategory.hiddenByLock(): Boolean = categoryLocked && !lockSession.isUnlocked.value
 
     fun open(request: RuleSheetRequest) {
         viewModelScope.launch {
@@ -154,7 +177,7 @@ class RuleSheetViewModel @Inject constructor(
                     loadDistribution(editor.selectedKey)
                 }
                 is RuleSheetRequest.Edit -> {
-                    val rule = repository.getRule(request.ruleId) ?: return@launch
+                    val rule = repository.getRule(request.ruleId)?.takeUnless { it.hiddenByLock() } ?: return@launch
                     val preset = request.presetCategoryId?.let { id -> categories.firstOrNull { it.id == id } }
                     val editor = RuleSheet.Editor(
                         mode = RuleEditorMode.EDIT, ruleId = rule.rule.id,
@@ -174,7 +197,7 @@ class RuleSheetViewModel @Inject constructor(
     }
 
     private suspend fun openFix(ruleId: Long) {
-        val rule = repository.getRule(ruleId) ?: return
+        val rule = repository.getRule(ruleId)?.takeUnless { it.hiddenByLock() } ?: return
         val all = getCategoriesUseCase(includeLocked = false)
         val nameOf = { id: Int -> all.firstOrNull { it.id == id }?.name }
         val recent = rule.rule.recentCategoryIds.mapNotNull { it.toIntOrNull() }.map { id ->
