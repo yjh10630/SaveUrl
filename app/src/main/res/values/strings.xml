@@ -392,6 +392,8 @@
     <string name="import_dup_existing">이미 저장된 링크 %s개</string>
     <string name="import_dup_infile">이 파일 안에서 겹친 링크 %s개는 뺐어요</string>
     <string name="import_skipped_scheme">열 수 없는 링크 %s개는 건너뛰었어요</string>
+    <string name="import_skipped_rows">읽지 못한 줄 %s개는 건너뛰었어요</string>
+    <string name="import_unread_files">파일 %d개는 읽지 못해 빼고 보여 드려요</string>
     <string name="import_privacy_kakao">대화 내용은 저장하지 않아요. 링크와 날짜만 가져와요.</string>
     <string name="import_limit_banner">파일이 너무 커요. 처음 50,000개만 보여 드려요.</string>
     <string name="import_senders">보낸 사람</string>
@@ -451,6 +453,7 @@
     <string name="import_progress_category">카테고리 \'%s\'에 넣고 있어요</string>
     <string name="import_progress_categories">카테고리 %d개에 나눠 넣고 있어요</string>
     <string name="import_progress_uncategorized">미분류에 넣고 있어요</string>
+    <string name="import_progress_hidden">링크를 넣고 있어요</string>
     <string name="import_progress_background">다른 앱으로 가도 계속 가져와요</string>
     <string name="import_progress_cancel_note">취소하면 이번에 넣은 링크를 모두 지우고 처음 상태로 돌아가요</string>
     <string name="import_cancel_title">가져오기를 취소할까요?</string>

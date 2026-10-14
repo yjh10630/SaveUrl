@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -101,6 +102,31 @@ class ImportViewModel @Inject constructor(
             }
         }
         observeRunner()
+        viewModelScope.launch {
+            lockSession.isUnlocked.drop(1).collect { unlocked -> if (!unlocked) onRelocked() }
+        }
+    }
+
+    /**
+     * 다시 잠기면(앱을 1분 넘게 나갔다 옴) 잠금 카테고리 이름이 화면에 남지 않게 한다 (39번 독립 리뷰 R9, 37번 §1.3).
+     * - 미리보기: 잠금 카테고리를 넣을 곳으로 골라 두었으면 미분류로 (폴더별 대상도 같음)
+     * - 가져오는 중: 이름 대신 "링크를 넣고 있어요"
+     * - 완료: 이름 대신 개수, [목록에서 보기]는 전체로
+     */
+    private suspend fun onRelocked() {
+        val locked = runCatching { categoryRepository.get() }.getOrDefault(emptyList()).filter { it.isLocked }.map { it.name }.toSet()
+        loadCategories()
+        if (locked.isEmpty()) return
+        _step.value = hideLockedNames(_step.value, locked)
+        lastPreview = lastPreview?.let { hideLockedNames(it, locked) as ImportStep.Preview }
+        pendingCommit = pendingCommit?.let { pending ->
+            val label = pending.label
+            pending.copy(
+                preview = hideLockedNames(pending.preview, locked) as ImportStep.Preview,
+                label = if (label is ProgressCategory.Single && label.name in locked) ProgressCategory.Hidden else label,
+                relocked = true,
+            )
+        }
     }
 
     fun onHomeShown() {
@@ -140,14 +166,25 @@ class ImportViewModel @Inject constructor(
         startReading(file) { reader, onFound, isCancelled ->
             val sources = ArrayList<ParsedSource>()
             var truncated = false
+            val errors = ArrayList<ImportError>()
             for ((uri, info) in described) {
-                val outcome = runCatching {
-                    opener.open(uri)?.use { reader.read(info.first, info.second, it, isCancelled, onFound) }
-                }.getOrElse { e -> if (e is CancellationException) throw e else null }
-                outcome?.let { sources.addAll(it.sources); truncated = truncated || it.truncated }
+                try {
+                    val outcome = opener.open(uri)?.use { reader.read(info.first, info.second, it, isCancelled, onFound) }
+                    if (outcome == null) errors.add(ImportError.IO)
+                    else { sources.addAll(outcome.sources); truncated = truncated || outcome.truncated }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: ImportFailure) {
+                    errors.add(e.error)
+                } catch (e: Exception) {
+                    errors.add(ImportError.IO)
+                }
             }
-            if (sources.isEmpty()) throw ImportFailure(ImportError.NO_LINKS)
-            ReadOutcome(file.name, file.size, isZip = true, sources = sources, truncated = truncated)
+            // 모두 못 읽었으면 실제 원인을 보여 준다 (너무 큼·지원 안 함 등). "링크 없음"은 다른 원인이 없을 때만 (39번 독립 리뷰 R13)
+            if (sources.isEmpty()) throw ImportFailure(errors.firstOrNull { it != ImportError.NO_LINKS } ?: ImportError.NO_LINKS)
+            // 링크가 없던 파일은 "못 읽음"으로 세지 않는다
+            val unread = errors.count { it != ImportError.NO_LINKS && it != ImportError.EMPTY }
+            ReadOutcome(file.name, file.size, isZip = true, sources = sources, truncated = truncated, unreadFiles = unread)
         }
     }
 
@@ -194,13 +231,17 @@ class ImportViewModel @Inject constructor(
                 if (outcome.sources.size >= 2) {
                     _step.value = ImportStep.PickSources(file, outcome, defaultSourceSelection(outcome))
                 } else {
-                    showPreview(file, outcome.sources, outcome.truncated)
+                    showPreview(file, outcome.sources, outcome.truncated, outcome.unreadFiles)
                 }
             } catch (e: ImportFailure) {
                 reveal.cancel()
                 _step.value = ImportStep.Error(e.error, file)
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: OutOfMemoryError) {
+                // 읽기 상한 안에서도 기기 메모리가 모자라면 앱을 끝내지 않고 "파일이 너무 커요" (39번 독립 리뷰 R4)
+                reveal.cancel()
+                _step.value = ImportStep.Error(ImportError.TOO_BIG, file)
             } catch (e: Exception) {
                 reveal.cancel()
                 _step.value = ImportStep.Error(ImportError.IO, file)
@@ -235,13 +276,13 @@ class ImportViewModel @Inject constructor(
         val s = _step.value as? ImportStep.PickSources ?: return
         if (s.selected.isEmpty()) return
         val sources = s.selected.sorted().map { s.outcome.sources[it] }
-        viewModelScope.launch { showPreview(s.file, sources, s.outcome.truncated) }
+        viewModelScope.launch { showPreview(s.file, sources, s.outcome.truncated, s.outcome.unreadFiles) }
     }
 
-    private suspend fun showPreview(file: ImportFileInfo, sources: List<ParsedSource>, truncated: Boolean) {
+    private suspend fun showPreview(file: ImportFileInfo, sources: List<ParsedSource>, truncated: Boolean, unreadFiles: Int = 0) {
         val existing = withContext(Dispatchers.IO) { repository.existingNormalizedKeys() }
         val label = sources.singleOrNull()?.let { s -> s.roomName?.takeIf { it.isNotBlank() } ?: s.fileName } ?: file.name
-        val preview = withContext(Dispatchers.Default) { ImportPlanner.buildPreview(sources, existing, label, truncated) }
+        val preview = withContext(Dispatchers.Default) { ImportPlanner.buildPreview(sources, existing, label, truncated, unreadFiles) }
         val step = ImportStep.Preview(file, preview, ImportPlanner.defaultSelection(preview), query = "")
         lastPreview = step
         _step.value = step
@@ -304,7 +345,13 @@ class ImportViewModel @Inject constructor(
         runner.start(request)
     }
 
-    private data class PendingCommit(val preview: ImportStep.Preview, val total: Int, val label: ProgressCategory)
+    private data class PendingCommit(
+        val preview: ImportStep.Preview,
+        val total: Int,
+        val label: ProgressCategory,
+        /** 넣는 동안 다시 잠겼음: 완료 화면에서도 잠금 카테고리 이름을 숨긴다 */
+        val relocked: Boolean = false,
+    )
     private var pendingCommit: PendingCommit? = null
 
     private fun observeRunner() {
@@ -353,7 +400,7 @@ class ImportViewModel @Inject constructor(
         val result = done.result
         val used = ImportPlanner.targetCategories(p.preview, p.selection)
         val lockedNow = runCatching { categoryRepository.get() }.getOrDefault(emptyList()).filter { it.isLocked }.map { it.name }.toSet()
-        val hideLocked = !lockSession.isUnlocked.value
+        val hideLocked = !lockSession.isUnlocked.value || pending.relocked
         val usedHidden = hideLocked && used.any { it in lockedNow }
         val includesUncategorized = ImportPlanner.selectedItems(p.preview, p.selection).any { ImportPlanner.targetCategory(it, p.selection) == null }
         val category = when {
@@ -426,5 +473,37 @@ class ImportViewModel @Inject constructor(
         }
 
         fun formatCount(n: Int): String = java.text.NumberFormat.getInstance(java.util.Locale.KOREA).format(n)
+
+        /** [onRelocked] 의 단계별 처리 (JVM 테스트) */
+        internal fun hideLockedNames(step: ImportStep, locked: Set<String>): ImportStep = when (step) {
+            is ImportStep.Preview -> {
+                val sel = step.selection
+                val mode = (sel.categoryMode as? CategoryMode.Single)
+                    ?.takeIf { ImportPlanner.normalizeName(it.name) in locked }
+                    ?.let { CategoryMode.Uncategorized }
+                    ?: sel.categoryMode
+                val rules = sel.groupRules.mapValues { (_, rule) ->
+                    if (ImportPlanner.normalizeName(rule.targetName) in locked) rule.copy(targetName = null) else rule
+                }
+                step.copy(selection = sel.copy(categoryMode = mode, groupRules = rules))
+            }
+            is ImportStep.Progress -> {
+                val label = step.categoryLabel
+                if (label is ProgressCategory.Single && label.name in locked) step.copy(categoryLabel = ProgressCategory.Hidden) else step
+            }
+            is ImportStep.Done -> {
+                val summary = step.summary
+                val category = summary.category
+                val hideSingle = category is DoneCategory.Single && category.name in locked
+                step.copy(
+                    summary = summary.copy(
+                        category = if (hideSingle) DoneCategory.Many(1, if ((category as DoneCategory.Single).isNew) 1 else 0) else category,
+                        viewCategory = summary.viewCategory?.takeUnless { it in locked },
+                        hideCreatedNames = summary.hideCreatedNames || summary.createdCategories.any { it in locked },
+                    )
+                )
+            }
+            else -> step
+        }
     }
 }

@@ -40,6 +40,8 @@ sealed interface ProgressCategory {
     data class Single(val name: String) : ProgressCategory
     data class Many(val count: Int) : ProgressCategory
     data object Uncategorized : ProgressCategory
+    /** 닫힌 잠금 카테고리 (이름을 보이지 않음) */
+    data object Hidden : ProgressCategory
 }
 
 /** 완료 화면 카테고리 줄 */

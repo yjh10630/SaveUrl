@@ -587,6 +587,7 @@ private fun ProgressScreen(step: ImportStep.Progress, onCancel: () -> Unit) {
                     is ProgressCategory.Single -> stringResource(R.string.import_progress_category, c.name)
                     is ProgressCategory.Many -> stringResource(R.string.import_progress_categories, c.count)
                     ProgressCategory.Uncategorized -> stringResource(R.string.import_progress_uncategorized)
+                    ProgressCategory.Hidden -> stringResource(R.string.import_progress_hidden)
                 },
                 style = MaterialTheme.typography.bodyMedium, color = colors.textPrimary, textAlign = TextAlign.Center,
             )
