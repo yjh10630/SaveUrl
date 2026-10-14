@@ -133,10 +133,10 @@
     <!-- 1. 다른 앱에서 바로 저장 -->
     <string name="tut_share_title">다른 앱에서 바로 저장</string>
     <string name="tut_share_subtitle">공유 → SaveLink</string>
-    <string name="tut_share_body">브라우저나 유튜브에서 **공유 → SaveLink**를 누르면 저장 화면이 열려요.</string>
+    <string name="tut_share_body">브라우저나 유튜브에서 **공유 → SaveLink**를 누르면 작은 창이 떠요. **저장**을 누르면 보던 화면으로 바로 돌아가요.</string>
     <string name="tut_share_step1">저장할 페이지에서 공유 버튼을 눌러요.</string>
     <string name="tut_share_step2">앱 목록에서 SaveLink를 골라요.</string>
-    <string name="tut_share_step3">저장 화면에서 카테고리와 태그를 정하고 저장해요.</string>
+    <string name="tut_share_step3">카테고리를 확인하고 **저장**을 눌러요. 태그를 붙이려면 **자세히**를 눌러요.</string>
     <string name="tut_share_tip">목록에 SaveLink가 안 보이면 공유 화면의 더보기에서 찾아보세요.</string>
     <string name="tut_share_image_cd">공유 화면에서 SaveLink를 고르는 모습</string>
 
@@ -790,4 +790,28 @@
     <string name="tut_revisit_step2">링크를 길게 눌러 **나중에 알림 받기**를 골라요.</string>
     <string name="tut_revisit_step3">알림에서 **열기**를 누르면 바로 열려요. **내일 다시**를 누르면 내일 아침에 다시 알려 드려요.</string>
     <string name="tut_revisit_tip">알림은 이 폰 안에서만 예약돼요. 직접 예약한 것만 보내요.</string>
+
+    <!-- 공유 빠른 저장 (44번) -->
+    <string name="quick_save_title">링크 저장</string>
+    <string name="quick_save_loading">미리보기를 불러오는 중…</string>
+    <string name="quick_save_preview_failed">미리보기를 못 가져왔어요</string>
+    <string name="quick_save_edit_title">제목 직접 입력</string>
+    <string name="quick_save_more">자세히</string>
+    <string name="quick_save_save">저장</string>
+    <string name="quick_save_done_category">✓ \'%1$s\'에 저장했어요</string>
+    <string name="quick_save_done">✓ 저장했어요</string>
+    <string name="quick_save_done_locked">✓ 잠금 카테고리에 저장했어요</string>
+    <string name="quick_save_view_in_app">앱에서 보기</string>
+    <string name="quick_save_already_title">이미 저장한 링크예요</string>
+    <string name="quick_save_already_category">\'%1$s\' 카테고리 · %2$s에 저장</string>
+    <string name="quick_save_already_date">%1$s에 저장</string>
+    <string name="quick_save_already_hidden">이미 저장된 링크예요</string>
+    <string name="quick_save_close">닫기</string>
+    <string name="quick_save_edit">수정하기</string>
+    <string name="quick_save_failed">저장하지 못했어요. 다시 시도해 주세요</string>
+    <string name="prompt_open_locked_link">잠금 카테고리 링크 보기</string>
+    <string name="prompt_edit_locked_link">잠금 카테고리 링크 수정</string>
+    <string name="share_no_link">공유한 내용에서 링크를 찾지 못했어요</string>
+    <string name="share_file_not_supported">이 파일은 아직 가져올 수 없어요</string>
+    <string name="share_import_resend">공유한 내용을 다시 보내 주세요</string>
 </resources>

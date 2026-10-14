@@ -55,6 +55,8 @@ class LinkSaveViewModelLockTest {
             autoCategorySaveFlow = disabledAutoCategory(),
             autoCategoryRepository = emptyAutoCategoryRepository(),
             revisitRepository = io.mockk.mockk(relaxed = true),
+            savePrefillStore = com.jinscompany.saveurl.ui.share.SavePrefillStore(),
+            metaFillScheduler = io.mockk.mockk(relaxed = true),
         )
     }
 

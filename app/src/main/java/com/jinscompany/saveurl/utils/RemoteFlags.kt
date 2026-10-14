@@ -24,6 +24,9 @@ import javax.inject.Singleton
  *   `weekly_prompt_min_links` (기본 20, 하한 5): 다시 보게 만들기 (42번 §10.1). 링크별 알림·안 읽음에는 원격 스위치가 없다
  *   (사용자가 직접 예약한 알림을 원격으로 없애지 않음). weekly_digest_enabled 는 기능을 쓸 수 있는지이고, 사용자 기본값은 꺼짐.
  *
+ * - `quick_save_enabled` (기본 true): 공유 빠른 저장 시트 (44번 §11). 끄면 링크 1개 공유는 시트 대신 앱(자기 작업)의 저장 화면.
+ *   공유 시트(ShareActivity)는 Remote Config 를 새로 가져오지 않고 마지막으로 활성화된 값을 쓴다 (44번 §10.3).
+ *
  * 콘솔에 값이 없거나 아직 한 번도 받지 못했으면 기본값을 쓴다 (기본값 등록 전에도 켜져 있도록 여기서 직접 판단).
  */
 @Singleton
@@ -31,6 +34,9 @@ class RemoteFlags @Inject constructor() : TutorialFeatureFlags {
 
     private val _importEnabled = MutableStateFlow(read(KEY_IMPORT_ENABLED, DEFAULT_IMPORT_ENABLED))
     val importEnabled: StateFlow<Boolean> = _importEnabled.asStateFlow()
+
+    private val _quickSaveEnabled = MutableStateFlow(read(KEY_QUICK_SAVE_ENABLED, true))
+    val quickSaveEnabled: StateFlow<Boolean> = _quickSaveEnabled.asStateFlow()
 
     private val _revisitCardEnabled = MutableStateFlow(read(KEY_REVISIT_CARD_ENABLED, true))
     val revisitCardEnabled: StateFlow<Boolean> = _revisitCardEnabled.asStateFlow()
@@ -56,6 +62,7 @@ class RemoteFlags @Inject constructor() : TutorialFeatureFlags {
     /** Remote Config 를 활성화한 뒤 부른다 */
     fun refresh() {
         _importEnabled.value = read(KEY_IMPORT_ENABLED, DEFAULT_IMPORT_ENABLED)
+        _quickSaveEnabled.value = read(KEY_QUICK_SAVE_ENABLED, true)
         autoCategoryThresholds = readThresholds()
         _revisitCardEnabled.value = read(KEY_REVISIT_CARD_ENABLED, true)
         _weeklyDigestEnabled.value = read(KEY_WEEKLY_DIGEST_ENABLED, true)
@@ -109,6 +116,7 @@ class RemoteFlags @Inject constructor() : TutorialFeatureFlags {
         const val KEY_WEEKLY_DIGEST_ENABLED = "weekly_digest_enabled"
         const val KEY_WEEKLY_PROMPT_MIN_LINKS = "weekly_prompt_min_links"
         const val DEFAULT_WEEKLY_PROMPT_MIN_LINKS = 20
+        const val KEY_QUICK_SAVE_ENABLED = "quick_save_enabled"
 
         /** Remote Config 기본값 (InAppUpdateCheck.setDefaultsAsync 에 함께 넣는다) */
         val DEFAULTS: Map<String, Any> = mapOf(
@@ -120,6 +128,7 @@ class RemoteFlags @Inject constructor() : TutorialFeatureFlags {
             KEY_REVISIT_MIN_AGE_DAYS to DEFAULT_REVISIT_MIN_AGE_DAYS.toLong(),
             KEY_WEEKLY_DIGEST_ENABLED to true,
             KEY_WEEKLY_PROMPT_MIN_LINKS to DEFAULT_WEEKLY_PROMPT_MIN_LINKS.toLong(),
+            KEY_QUICK_SAVE_ENABLED to true,
         )
     }
 }

@@ -78,6 +78,15 @@ data class LinkSaveUiState (
     val reminderPreset: com.jinscompany.saveurl.domain.revisit.ReminderPreset? = null,
     /** 이 화면에서 알림을 바꿨음 (저장할 때 예약·취소) */
     val reminderDirty: Boolean = false,
+    // ---- 공유 빠른 저장 시트 (44번 §3·§4) ----
+    /** 공유 시트에서 연 빠른 저장 (이미 있는 링크를 수정 모드로 열지 않고 [alreadySaved] 로, 저장하면 [quickSaved]) */
+    val isQuick: Boolean = false,
+    /** 이미 저장한 링크 (빠른 저장) */
+    val alreadySaved: AlreadySaved? = null,
+    /** 저장 완료 막대 (빠른 저장) */
+    val quickSaved: QuickSaved? = null,
+    /** 저장 중 (두 번 누름 방지) */
+    val isSaving: Boolean = false,
 ) {
     fun getSaveData(): UrlData? {
         return (linkUrlPreviewUiState as? LinkUrlPreviewUiState.LinkUrlData) ?.let {
@@ -120,6 +129,12 @@ data class LinkSaveUiState (
     }
 }
 
+/** 빠른 저장: 이미 저장한 링크. [hiddenByLock] = 닫힌 잠금 카테고리에 있어 제목·카테고리·날짜를 보여 주면 안 됨 */
+data class AlreadySaved(val link: UrlData, val hiddenByLock: Boolean)
+
+/** 빠른 저장 완료. [categoryName] = 실제 카테고리 이름(없으면 null), [isLocked] = 잠금 카테고리 (이름을 쓰지 않음) */
+data class QuickSaved(val categoryName: String?, val isLocked: Boolean)
+
 sealed class LinkUrlPreviewUiState {
     data object Idle: LinkUrlPreviewUiState()
     data object Loading: LinkUrlPreviewUiState()
@@ -158,6 +173,9 @@ sealed class LinkSaveIntent {
     // ---- 링크 알림 (42번 §2.1): 저장을 눌러야 예약된다 ----
     data class SetReminder(val preset: com.jinscompany.saveurl.domain.revisit.ReminderPreset, val at: Long): LinkSaveIntent()
     data object ClearReminder: LinkSaveIntent()
+    // ---- 공유 빠른 저장 (44번 §3.5) ----
+    /** 시트의 [저장]: 미리보기를 불러오는 중이면 URL 만으로 저장하고 제목·썸네일은 나중에 채운다 */
+    data object QuickSave: LinkSaveIntent()
 }
 
 sealed class LinkSaveUiEffect {
