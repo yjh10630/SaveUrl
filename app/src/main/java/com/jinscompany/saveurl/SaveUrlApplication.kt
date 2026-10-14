@@ -53,10 +53,11 @@ class SaveUrlApplication: Application(), ImageLoaderFactory {
     override fun onCreate() {
         // 화면 모드 기본값 마이그레이션용: DataStore/Room 이 파일을 만들기 전(Hilt 주입·백필 시작 전)에 이전 데이터 유무를 확인
         val hadPriorData = ThemeMigrationRunner.snapshotPriorData(this)
-        super.onCreate()
+        // release: 앱 종료 오류도 메시지(링크 주소 등) 없이 보낸다. debug 는 원래 메시지를 보도록 그대로 둔다.
+        // super.onCreate()(Hilt 주입) 중 크래시도 정리되도록 그 전에 건다 (Crashlytics 핸들러는 ContentProvider 에서 이미 설치됨)
         DEBUG = isDebuggable(this)
-        // release: 앱 종료 오류도 메시지(링크 주소 등) 없이 보낸다. debug 는 원래 메시지를 보도록 그대로 둔다
         if (!DEBUG) CrashReporter.installUncaughtHandler()
+        super.onCreate()
         themeMigrationRunner.start(hadPriorData)
         // 업데이트 전 저장된 링크의 normalizedUrl 채우기 / 정규화 규칙 변경 시 재계산 (IO 스레드, 시작을 막지 않음)
         normalizedUrlBackfillRunner.start()

@@ -2,6 +2,7 @@ package com.jinscompany.saveurl.utils
 
 import com.google.firebase.crashlytics.ktx.crashlytics
 import com.google.firebase.ktx.Firebase
+import androidx.annotation.VisibleForTesting
 import org.jsoup.HttpStatusException
 
 /**
@@ -50,14 +51,19 @@ object CrashReporter {
         return null
     }
 
+    /** non-fatal 을 실제로 보내는 곳. 테스트에서 무엇이 나가는지 확인할 수 있게 바꿀 수 있다 */
+    @VisibleForTesting
+    internal var sink: (Throwable) -> Unit = { Firebase.crashlytics.recordException(it) }
+
     /** non-fatal 기록. 단위 테스트처럼 Firebase 가 없을 때도 죽지 않는다. */
     fun record(t: Throwable, safeDetail: String? = null) {
-        runCatching { Firebase.crashlytics.recordException(sanitize(t, safeDetail)) }
+        runCatching { sink(sanitize(t, safeDetail)) }
     }
 
     /**
      * 앱 종료 예외도 메시지 없이 보내도록, Crashlytics 가 걸어 둔 기본 핸들러 앞에 끼운다.
-     * Application.onCreate 에서 한 번 부른다 (Crashlytics 는 그보다 먼저 ContentProvider 로 초기화됨).
+     * Application.onCreate 에서 super.onCreate() 전에 한 번 부른다
+     * (Crashlytics 핸들러는 그보다 먼저 FirebaseInitProvider 에서 동기로 설치됨 → 우리 핸들러가 그 바깥을 감싼다).
      */
     fun installUncaughtHandler() {
         val next = Thread.getDefaultUncaughtExceptionHandler() ?: return

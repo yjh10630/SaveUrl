@@ -73,4 +73,54 @@ class CrashReporterTest {
     fun `Firebase 가 없는 단위 테스트에서도 기록이 죽지 않는다`() {
         CrashReporter.record(RuntimeException(url))
     }
+
+    @Test
+    fun `record 는 정리된 예외만 보낸다`() {
+        val sent = mutableListOf<Throwable>()
+        val original = CrashReporter.sink
+        CrashReporter.sink = { sent += it }
+        try {
+            CrashReporter.record(IOException("failed $url", UnknownHostException("blog.naver.com")), safeDetail = "preview")
+        } finally {
+            CrashReporter.sink = original
+        }
+        assertEquals(1, sent.size)
+        assertTrue(sent[0] is CrashReporter.SanitizedException)
+        assertFalse(sent[0].allText().contains("naver"))
+        assertEquals("java.io.IOException (preview)", sent[0].message)
+    }
+
+    @Test
+    fun `앱 종료 핸들러는 정리된 예외를 다음 핸들러에 넘기고 두 번 걸어도 한 번만 감싼다`() {
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        val received = mutableListOf<Throwable>()
+        try {
+            Thread.setDefaultUncaughtExceptionHandler { _, e -> received += e }
+            CrashReporter.installUncaughtHandler()
+            CrashReporter.installUncaughtHandler()
+            val installed = Thread.getDefaultUncaughtExceptionHandler()!!
+
+            val crash = IllegalStateException("저장 실패 $url")
+            installed.uncaughtException(Thread.currentThread(), crash)
+
+            assertEquals(1, received.size)
+            assertFalse(received[0].allText().contains("naver"))
+            assertEquals("java.lang.IllegalStateException", received[0].message)
+            assertTrue(crash.stackTrace.contentEquals(received[0].stackTrace))
+        } finally {
+            Thread.setDefaultUncaughtExceptionHandler(previous)
+        }
+    }
+
+    @Test
+    fun `다음 핸들러가 없으면 아무것도 걸지 않는다`() {
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        try {
+            Thread.setDefaultUncaughtExceptionHandler(null)
+            CrashReporter.installUncaughtHandler()
+            assertNull(Thread.getDefaultUncaughtExceptionHandler())
+        } finally {
+            Thread.setDefaultUncaughtExceptionHandler(previous)
+        }
+    }
 }
