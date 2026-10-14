@@ -13,7 +13,10 @@ import com.jinscompany.saveurl.domain.usecase.InsertCategoryUseCase
 import com.jinscompany.saveurl.domain.usecase.SetCategoryLockedUseCase
 import com.jinscompany.saveurl.domain.usecase.UpdateCategoryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.jinscompany.saveurl.domain.repository.AutoCategoryRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
@@ -27,7 +30,11 @@ class EditCategoryViewModel @Inject constructor(
     private val updateCategoryUseCase: UpdateCategoryUseCase,
     private val setCategoryLockedUseCase: SetCategoryLockedUseCase,
     lockSession: CategoryLockSession,
+    private val autoCategoryRepository: AutoCategoryRepository,
 ) : ViewModel() {
+
+    private val _pendingDelete = MutableStateFlow<DeleteConfirm?>(null)
+    val pendingDelete: StateFlow<DeleteConfirm?> = _pendingDelete.asStateFlow()
 
     /** 편집할 수 있는 카테고리 전체 (잠금 카테고리 포함). 세션이 닫혀 있으면 화면이 잠금 카테고리를 "잠금 카테고리 n개 · 보기" 한 행으로 접는다 */
     private val _categoryItemsState: MutableState<List<CategoryModel>> = mutableStateOf(listOf())
@@ -42,7 +49,12 @@ class EditCategoryViewModel @Inject constructor(
         when (intent) {
             EditCategoryIntent.Load -> getCategoryList()
             is EditCategoryIntent.Insert -> insertCategory(intent.name)
-            is EditCategoryIntent.Delete -> deleteCategory(intent.name)
+            is EditCategoryIntent.Delete -> {
+                _pendingDelete.value = null
+                deleteCategory(intent.name)
+            }
+            is EditCategoryIntent.RequestDelete -> requestDelete(intent.name)
+            EditCategoryIntent.CancelDelete -> _pendingDelete.value = null
             is EditCategoryIntent.Update -> updateCategoryName(intent.oldName, intent.newName)
             is EditCategoryIntent.SetLocked -> setLocked(intent.name, intent.locked)
         }
@@ -64,6 +76,18 @@ class EditCategoryViewModel @Inject constructor(
             // 중복 이름 검사도 이 목록으로 하므로 닫힌 잠금 카테고리까지 모두 읽는다 (화면에서 접어 보여 줌)
             val list = getCategoriesUseCase(includeLocked = true).filter { it.isEditable }
             _categoryItemsState.value = list
+        }
+    }
+
+    private fun requestDelete(name: String) {
+        viewModelScope.launch {
+            val target = _categoryItemsState.value.firstOrNull { it.name == name } ?: return@launch
+            val rules = runCatching { autoCategoryRepository.countRulesForCategory(target.id) }.getOrDefault(0)
+            if (target.isLocked || rules > 0) {
+                _pendingDelete.value = DeleteConfirm(name, target.contentCnt, rules, target.isLocked)
+            } else {
+                deleteCategory(name)
+            }
         }
     }
 

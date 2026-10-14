@@ -130,6 +130,37 @@ fun EditCategoryScreen(navController: NavHostController) {
     }
     if (showNeedDeviceLock) NeedDeviceLockSheet(onDismiss = { showNeedDeviceLock = false })
 
+    // 삭제 확인: 잠금 카테고리(잠금이 풀린다는 안내)나 자동 분류 규칙이 있는 카테고리 (36번 §8)
+    val pendingDelete by viewModel.pendingDelete.collectAsState()
+    pendingDelete?.let { target ->
+        val colors = AppTheme.colors
+        val body = buildList {
+            add(
+                if (target.locked) stringResource(R.string.category_locked_delete_body, target.linkCount)
+                else stringResource(R.string.category_delete_body_links, target.linkCount)
+            )
+            if (target.ruleCount > 0) add(stringResource(R.string.autocat_category_delete_note, target.ruleCount))
+        }.joinToString("\n")
+        AlertDialog(
+            onDismissRequest = { viewModel.onIntent(EditCategoryIntent.CancelDelete) },
+            title = {
+                Text(
+                    if (target.locked) stringResource(R.string.category_locked_delete_title)
+                    else stringResource(R.string.category_delete_title, target.name)
+                )
+            },
+            text = { Text(body) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.onIntent(EditCategoryIntent.Delete(target.name)) }) {
+                    Text(stringResource(R.string.btn_delete), color = colors.danger)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onIntent(EditCategoryIntent.CancelDelete) }) { Text(stringResource(R.string.btn_cancel)) }
+            },
+        )
+    }
+
     // 결과와 함께 카테고리 이름(payload)을 돌려받으므로, 인증 중에 Activity 가 다시 만들어져도 그 카테고리에 적용된다
     val unlockCategoryAuth = rememberLockAuthRequest("edit_category_unlock") { result, name ->
         if (name == null) return@rememberLockAuthRequest
@@ -187,7 +218,7 @@ fun EditCategoryScreen(navController: NavHostController) {
         onBack = { navController.popBackStack() },
         onInsert = { viewModel.onIntent(EditCategoryIntent.Insert(it)) },
         onUpdate = { old, new -> viewModel.onIntent(EditCategoryIntent.Update(oldName = old, newName = new)) },
-        onDelete = { viewModel.onIntent(EditCategoryIntent.Delete(it)) },
+        onDelete = { viewModel.onIntent(EditCategoryIntent.RequestDelete(it)) },
         onToggleLock = onToggleLock,
         onShowLocked = { openLocked(R.string.prompt_open_locked) {} },
     )
@@ -210,30 +241,10 @@ private fun EditCategoryContent(
     val focusManager = LocalFocusManager.current
     var newName by remember { mutableStateOf("") }
     var editingName by remember { mutableStateOf<String?>(null) }
-    // 잠금 카테고리 삭제 확인 (링크가 미분류로 옮겨지며 잠금이 풀린다)
-    var confirmDeleteLocked by remember { mutableStateOf<CategoryModel?>(null) }
     // 세션이 닫혀 있으면 잠금 카테고리는 목록 맨 아래 "잠금 카테고리 n개 · 보기" 한 행으로 접는다
     val visibleCategories = if (isUnlocked) categories else categories.filterNot { it.isLocked }
     val hiddenLockedCount = categories.size - visibleCategories.size
     val hasLocked = categories.any { it.isLocked }
-
-    confirmDeleteLocked?.let { target ->
-        AlertDialog(
-            onDismissRequest = { confirmDeleteLocked = null },
-            title = { Text(stringResource(R.string.category_locked_delete_title)) },
-            text = { Text(stringResource(R.string.category_locked_delete_body, target.contentCnt)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    onDelete(target.name)
-                    confirmDeleteLocked = null
-                    editingName = null
-                }) { Text(stringResource(R.string.btn_delete), color = colors.danger) }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmDeleteLocked = null }) { Text(stringResource(R.string.btn_cancel)) }
-            },
-        )
-    }
 
     val submitNew = {
         val name = newName.trim()
@@ -347,12 +358,9 @@ private fun EditCategoryContent(
                                     focusManager.clearFocus()
                                 },
                                 onDelete = {
-                                    if (item.isLocked) {
-                                        confirmDeleteLocked = item
-                                    } else {
-                                        onDelete(item.name)
-                                        editingName = null
-                                    }
+                                    // 확인이 필요한지(잠금·자동 분류 규칙)는 ViewModel 이 판단한다
+                                    onDelete(item.name)
+                                    editingName = null
                                     focusManager.clearFocus()
                                 }
                             )
