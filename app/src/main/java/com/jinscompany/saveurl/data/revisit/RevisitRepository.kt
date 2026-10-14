@@ -20,7 +20,12 @@ import com.jinscompany.saveurl.utils.CrashReporter
 import com.jinscompany.saveurl.utils.PreferencesManager
 import com.jinscompany.saveurl.utils.RemoteFlags
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -82,135 +87,161 @@ class RevisitRepository @Inject constructor(
 
     suspend fun setReminder(linkId: Int, at: Long, preset: ReminderPreset) = mutex.withLock {
         reminderDao.upsert(LinkReminder(linkId = linkId, remindAt = at, createdAt = clock.now(), preset = preset.key))
-        alarms.scheduleLink(linkId, ReminderSync.wakeAt(at, clock.now()))
+        rearmLocked()
     }
 
     /** 실행 취소·되돌리기용: 예전 예약 그대로 (없으면 지움) */
     suspend fun restoreReminder(linkId: Int, previous: LinkReminder?) {
         if (previous == null) cancelReminder(linkId) else mutex.withLock {
             reminderDao.upsert(previous.copy(id = 0))
-            alarms.scheduleLink(linkId, ReminderSync.wakeAt(previous.remindAt, clock.now()))
+            rearmLocked()
         }
     }
 
     suspend fun cancelReminder(linkId: Int) = mutex.withLock {
         reminderDao.delete(linkId)
-        alarms.cancelLink(linkId)
+        rearmLocked()
     }
 
-    /** 알림의 [내일 다시]: 내일 09:00 로 새로 예약하고 알림을 지운다 */
+    /**
+     * 알림의 [내일 다시]: 내일 09:00 로 새로 예약하고 알림을 지운다.
+     * 알림이 뜬 뒤 앱에서 그 링크를 이미 다시 예약했으면(행이 있음) 그 예약을 덮어쓰지 않고 알림만 지운다.
+     */
     suspend fun snooze(linkId: Int) {
         notifier.cancelLink(linkId)
         if (urlDao.getById(linkId) == null) return
+        if (reminderDao.get(linkId) != null) return
         setReminder(linkId, ReminderTimes.tomorrowMorning(clock.now(), clock.zone()), ReminderPreset.SNOOZE)
     }
 
     // ---- 알람 ----
 
-    /** 링크 알람이 울림 */
-    suspend fun onLinkAlarm(linkId: Int) = mutex.withLock {
-        val reminder = reminderDao.getUpcoming(linkId) ?: run {
-            // 링크가 지워졌거나 예약이 이미 끝났음
-            reminderDao.delete(linkId)
-            return@withLock
-        }
-        val now = clock.now()
-        when (ReminderSync.onAlarm(reminder.remindAt, now)) {
-            ReminderSync.FireDecision.RESCHEDULE -> alarms.scheduleLink(linkId, ReminderSync.wakeAt(reminder.remindAt, now))
-            ReminderSync.FireDecision.DROP -> reminderDao.delete(linkId)
-            ReminderSync.FireDecision.FIRE -> {
-                reminderDao.delete(linkId)
-                post(reminder, now)
-            }
-        }
-    }
+    /** 예약 알람이 울림: 기한이 된 링크 알림·주간 정리를 처리하고 다음 시각으로 다시 건다 */
+    suspend fun onTick() = mutex.withLock { processLocked() }
 
     /**
      * 모든 예약을 다시 맞춘다 (앱 시작·재부팅·앱 업데이트·시간·시간대 변경). 여러 번 불러도 같다.
-     * 지난 예약은 24시간 안이면 지금 띄우고(여러 개면 묶음), 그보다 오래면 버린다. 주간 정리 예약도 다시 맞춘다.
+     * 알람은 하나만 다시 걸므로 앱을 켤 때마다 불러도 가볍다.
      */
-    suspend fun syncAll() = mutex.withLock {
-        runCatching {
-            reminderDao.getOrphanLinkIds().takeIf { it.isNotEmpty() }?.let { orphans ->
-                orphans.forEach { alarms.cancelLink(it) }
-                reminderDao.deleteAll(orphans)
-            }
-            val now = clock.now()
-            val plan = ReminderSync.plan(reminderDao.getAll().map { it.linkId to it.remindAt }, now)
-            plan.schedule.forEach { (linkId, at) -> alarms.scheduleLink(linkId, ReminderSync.wakeAt(at, now)) }
-            if (plan.drop.isNotEmpty()) reminderDao.deleteAll(plan.drop)
-            val toFire = plan.fireNow.mapNotNull { reminderDao.getUpcoming(it) }
-            if (plan.fireNow.isNotEmpty()) reminderDao.deleteAll(plan.fireNow)
-            toFire.forEach { post(it, now) }
-            notifier.notifyLinkSummary(toFire.size)
-            syncWeeklyLocked()
-        }.onFailure { CrashReporter.record(it) }
+    suspend fun syncAll() = mutex.withLock { processLocked() }
+
+    /** 주간 정리 스위치(사용자·원격)가 바뀌었을 때 */
+    suspend fun syncWeekly() = mutex.withLock { catchingNonCancel { rearmLocked() } }
+
+    /**
+     * 한 번의 처리. 띄운 뒤에 행을 지운다 (중간에 프로세스가 죽어도 다음 처리 때 다시 띄움, mutex 가 중복을 막음).
+     * 썸네일은 하나만 띄울 때만, 짧게 받는다 (재부팅 직후 여러 개를 하나하나 받느라 receiver 시간을 다 쓰지 않게).
+     */
+    private suspend fun processLocked() = catchingNonCancel {
+        val orphans = reminderDao.getOrphanLinkIds()
+        if (orphans.isNotEmpty()) reminderDao.deleteAll(orphans)
+        val now = clock.now()
+        val plan = ReminderSync.plan(reminderDao.getAll().map { it.linkId to it.remindAt }, now)
+        if (plan.drop.isNotEmpty()) reminderDao.deleteAll(plan.drop)
+        val toFire = plan.fireNow.mapNotNull { reminderDao.getUpcoming(it) }
+        val single = toFire.singleOrNull()
+        val thumb = if (single != null && !single.locked) loadThumbnail(single.imageUrl) else null
+        plan.fireNow.forEach { linkId ->
+            toFire.firstOrNull { it.linkId == linkId }?.let { notifier.notifyLink(it, thumb, now) }
+            reminderDao.delete(linkId)
+        }
+        if (toFire.isNotEmpty()) notifier.updateSummary()
+        processWeeklyLocked(now)
+        rearmLocked()
     }
 
-    private suspend fun post(reminder: UpcomingReminder, now: Long) {
-        val thumb = if (reminder.locked) null else loadThumbnail(reminder.imageUrl)
-        notifier.notifyLink(reminder, thumb, now)
+    /** 다음 알람: 남은 링크 예약 중 가장 이른 것과 다음 주간 정리 중 먼저 오는 것 하나 */
+    private suspend fun rearmLocked() {
+        val now = clock.now()
+        val nextLink = reminderDao.getAll().minOfOrNull { it.remindAt }?.coerceAtLeast(now)
+        val nextWeekly = if (weeklyEnabled()) ReminderTimes.nextWeeklyDigest(now + WEEKLY_DUE_TOLERANCE_MS, clock.zone()) else null
+        alarms.arm(ReminderSync.nextWake(nextLink, nextWeekly), now)
     }
 
-    /** 썸네일은 링크 사이트에서 직접 받는다 (기존 미리보기와 같음). 3초 안에 못 받으면 없이 */
+    /** 썸네일은 링크 사이트에서 직접 받는다 (기존 미리보기와 같음). 짧게 기다리고 못 받으면 없이 */
     private suspend fun loadThumbnail(url: String?): Bitmap? {
         if (url.isNullOrBlank()) return null
         return withTimeoutOrNull(THUMBNAIL_TIMEOUT_MS) {
-            runCatching {
+            try {
                 val request = ImageRequest.Builder(context).data(url).size(THUMBNAIL_PX).allowHardware(false).build()
-                val result = context.imageLoader.execute(request) as? SuccessResult ?: return@runCatching null
+                val result = context.imageLoader.execute(request) as? SuccessResult ?: return@withTimeoutOrNull null
                 (result.drawable as? BitmapDrawable)?.bitmap ?: result.drawable.toBitmap()
-            }.getOrNull()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    // ---- 이미 뜬 알림 정리 (잠금·이동·삭제 뒤) ----
+
+    /**
+     * 떠 있는 링크 알림 중 링크가 지워졌거나, 일반 문구로 띄운 뒤 잠금 카테고리가 된 것을 지운다 (37번: 닫힌 세션 밖에 잠금 링크 제목이 남지 않게).
+     * 링크가 지워진 예약 행도 정리하고 알람을 다시 건다 (휴지통·영구 삭제·가져오기 되돌리기).
+     * [startNotificationGuard] 가 링크·카테고리 표가 바뀔 때마다 부른다.
+     */
+    suspend fun refreshShownNotifications() = mutex.withLock {
+        catchingNonCancel {
+            notifier.shownLinks().forEach { (linkId, postedLocked) ->
+                val gone = urlDao.getById(linkId) == null
+                val nowLocked = !gone && urlDao.isLocked(linkId) > 0
+                if (gone || (nowLocked && !postedLocked)) notifier.cancelLink(linkId)
+            }
+            val orphans = reminderDao.getOrphanLinkIds()
+            if (orphans.isNotEmpty()) {
+                reminderDao.deleteAll(orphans)
+                rearmLocked()
+            }
+        }
+    }
+
+    @OptIn(kotlinx.coroutines.FlowPreview::class)
+    fun startNotificationGuard(scope: CoroutineScope) {
+        scope.launch {
+            urlDao.observeLinkOrLockChanges().drop(1).debounce(GUARD_DEBOUNCE_MS).collect { refreshShownNotifications() }
         }
     }
 
     // ---- 주간 정리 (§4) ----
 
-    /** 사용자 스위치 + 원격 스위치가 모두 켜졌을 때만 예약한다 */
-    suspend fun syncWeekly() = mutex.withLock { syncWeeklyLocked() }
+    private suspend fun weeklyEnabled(): Boolean =
+        preferences.weeklyDigestEnabled.first() && remoteFlags.weeklyDigestEnabled.value
 
-    private suspend fun syncWeeklyLocked() {
-        val enabled = preferences.weeklyDigestEnabled.first() && remoteFlags.weeklyDigestEnabled.value
-        val now = clock.now()
-        if (enabled) alarms.scheduleWeekly(ReminderSync.wakeAt(ReminderTimes.nextWeeklyDigest(now, clock.zone()), now))
-        else alarms.cancelWeekly()
+    /**
+     * 가장 최근 일요일 20:00(이번 처리 시각 기준)이 12시간 안이면 그 주 정리를 한 번 보낸다.
+     * 숫자는 울린 시각이 아니라 그 일요일 기준으로 센다 (월요일 새벽에 늦게 울려도 지난주 숫자).
+     */
+    private suspend fun processWeeklyLocked(now: Long) {
+        if (!weeklyEnabled()) return
+        val zone = clock.zone()
+        val next = ReminderTimes.nextWeeklyDigest(now, zone)
+        val due = if (next - now <= WEEKLY_DUE_TOLERANCE_MS) next else next - WEEK_MS
+        if (now - due > WEEKLY_LATE_LIMIT_MS || due - now > WEEKLY_DUE_TOLERANCE_MS) return
+        val week = ReminderTimes.isoWeekKey(due, zone)
+        if (preferences.weeklyLastSentWeek.first() == week) return
+        val (saved, unread) = weeklyCounts(due, zone)
+        if (RevisitRules.shouldSendWeekly(saved, unread, preferences.weeklyLastSentWeek.first(), week) &&
+            preferences.claimWeeklySent(week)
+        ) {
+            notifier.notifyWeekly(saved, unread)
+        }
     }
 
-    suspend fun onWeeklyAlarm() = mutex.withLock {
-        runCatching {
-            val enabled = preferences.weeklyDigestEnabled.first() && remoteFlags.weeklyDigestEnabled.value
-            if (!enabled) {
-                alarms.cancelWeekly()
-                return@runCatching
-            }
-            val now = clock.now()
-            val zone = clock.zone()
-            val next = ReminderTimes.nextWeeklyDigest(now, zone)
-            // 단계 예약으로 일찍 깼으면 다시 건다 (일요일 20:00 전)
-            if (next - now > WEEKLY_DUE_TOLERANCE_MS && next - now < WEEKLY_EARLY_LIMIT_MS) {
-                alarms.scheduleWeekly(ReminderSync.wakeAt(next, now))
-                return@runCatching
-            }
-            // 일요일 20:00 이 됐거나 지났음. 너무 늦게(12시간 넘게) 깼으면 이번 주는 건너뛴다
-            val due = if (next - now <= WEEKLY_DUE_TOLERANCE_MS) next else next - WEEK_MS
-            if (now - due <= WEEKLY_LATE_LIMIT_MS) {
-                val (saved, unread) = weeklyCounts(now, zone)
-                val week = ReminderTimes.isoWeekKey(due, zone)
-                if (RevisitRules.shouldSendWeekly(saved, unread, preferences.weeklyLastSentWeek.first(), week) &&
-                    preferences.claimWeeklySent(week)
-                ) {
-                    notifier.notifyWeekly(saved, unread)
-                }
-            }
-            // 다음 일요일 (이번 일요일 20:00 은 지났으므로 그다음)
-            val following = ReminderTimes.nextWeeklyDigest(maxOf(now, due) + 2 * 60_000L, zone)
-            alarms.scheduleWeekly(ReminderSync.wakeAt(following, now))
-        }.onFailure { CrashReporter.record(it) }
+    /** s = 그 주(월 00:00~일 20:00) 직접 저장, u = 지금 안 읽은 링크(직접 저장). 잠금 카테고리는 세지 않는다 */
+    suspend fun weeklyCounts(due: Long, zone: ZoneId): Pair<Int, Int> = withContext(Dispatchers.IO) {
+        urlDao.countSavedBetween(ReminderTimes.weekStart(due, zone), due) to urlDao.countUnreadDirect()
     }
 
-    /** s = 이번 주(월 00:00~지금) 직접 저장, u = 지금 안 읽은 링크(직접 저장). 잠금 카테고리는 세지 않는다 */
-    suspend fun weeklyCounts(now: Long, zone: ZoneId): Pair<Int, Int> = withContext(Dispatchers.IO) {
-        urlDao.countSavedSince(ReminderTimes.weekStart(now, zone)) to urlDao.countUnreadDirect()
+    /** CancellationException 은 다시 던지고 나머지는 기록만 (receiver 시간 초과가 오류로 남지 않게) */
+    private inline fun catchingNonCancel(block: () -> Unit) {
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            CrashReporter.record(e)
+        }
     }
 
     // ---- 다시 볼 링크 카드 (§5) ----
@@ -242,11 +273,10 @@ class RevisitRepository @Inject constructor(
 
     private companion object {
         const val WEEKLY_DUE_TOLERANCE_MS = 60_000L
-        /** 이보다 많이 남았으면 단계 예약으로 일찍 깬 것이 아니라 일요일이 지난 것 */
-        const val WEEKLY_EARLY_LIMIT_MS = 24 * 60 * 60_000L
+        const val GUARD_DEBOUNCE_MS = 500L
         const val WEEKLY_LATE_LIMIT_MS = 12 * 60 * 60_000L
         const val WEEK_MS = 7 * 24 * 60 * 60_000L
-        const val THUMBNAIL_TIMEOUT_MS = 3_000L
+        const val THUMBNAIL_TIMEOUT_MS = 2_000L
         const val THUMBNAIL_PX = 256
     }
 }

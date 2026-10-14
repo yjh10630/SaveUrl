@@ -22,7 +22,7 @@ private fun BroadcastReceiver.runAsync(block: suspend () -> Unit) {
         try {
             withTimeoutOrNull(RECEIVER_BUDGET_MS) { block() }
         } catch (t: Throwable) {
-            CrashReporter.record(t)
+            if (t !is kotlinx.coroutines.CancellationException) CrashReporter.record(t)
         } finally {
             pending.finish()
         }
@@ -38,7 +38,7 @@ abstract class HiltBroadcastReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) = Unit
 }
 
-/** 링크 알람·주간 정리 알람·알림의 [내일 다시] (앱 안에서만 보내는 명시적 broadcast) */
+/** 예약 알람(링크 알림 + 주간 정리를 한 알람으로)·알림의 [내일 다시] (앱 안에서만 보내는 명시적 broadcast) */
 @AndroidEntryPoint
 class RevisitAlarmReceiver : HiltBroadcastReceiver() {
     @Inject
@@ -48,16 +48,14 @@ class RevisitAlarmReceiver : HiltBroadcastReceiver() {
         super.onReceive(context, intent)
         val linkId = intent.getIntExtra(RevisitNotifier.EXTRA_LINK_ID, -1)
         when (intent.action) {
-            ACTION_LINK -> if (linkId >= 0) runAsync { repository.onLinkAlarm(linkId) }
+            ACTION_TICK -> runAsync { repository.onTick() }
             ACTION_SNOOZE -> if (linkId >= 0) runAsync { repository.snooze(linkId) }
-            ACTION_WEEKLY -> runAsync { repository.onWeeklyAlarm() }
         }
     }
 
     companion object {
-        const val ACTION_LINK = "com.jinscompany.saveurl.action.REMINDER_LINK"
+        const val ACTION_TICK = "com.jinscompany.saveurl.action.REMINDER_TICK"
         const val ACTION_SNOOZE = "com.jinscompany.saveurl.action.REMINDER_SNOOZE"
-        const val ACTION_WEEKLY = "com.jinscompany.saveurl.action.REMINDER_WEEKLY"
     }
 }
 

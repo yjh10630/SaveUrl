@@ -21,6 +21,7 @@ import com.jinscompany.saveurl.utils.isDebuggable
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import javax.inject.Inject
@@ -75,7 +76,10 @@ class SaveUrlApplication: Application(), ImageLoaderFactory {
         importCommitRunner.cleanupInterrupted()
         // 링크 알림·주간 정리: 채널을 만들고, 강제 종료 등으로 지워진 알람을 다시 맞춘다 (지난 예약은 24시간 안이면 지금 띄움. 42번 §2.4)
         revisitNotifier.ensureChannels()
-        CoroutineScope(Dispatchers.IO + globalCoroutineExceptionHandler).launch { revisitRepository.syncAll() }
+        // 알람은 하나만 다시 걸어 가볍다. 이미 뜬 링크 알림은 잠금·이동·삭제 뒤 정리한다 (리뷰 R4)
+        val revisitScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + globalCoroutineExceptionHandler)
+        revisitScope.launch { revisitRepository.syncAll() }
+        revisitRepository.startNotificationGuard(revisitScope)
         // 잠금 카테고리: 앱 전체가 나간 시각을 적고, 1분 넘게 지나 돌아오면 다시 잠근다 (회전·접기는 프로세스 이벤트가 아님)
         ProcessLifecycleOwner.get().lifecycle.addObserver(LifecycleEventObserver { _, event ->
             when (event) {

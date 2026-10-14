@@ -66,8 +66,6 @@ import com.jinscompany.saveurl.ui.importer.ImportShareInbox
 import com.jinscompany.saveurl.ui.navigation.navigateToImport
 import com.jinscompany.saveurl.data.revisit.RevisitRepository
 import com.jinscompany.saveurl.ui.revisit.RevisitOpenHandler
-import com.jinscompany.saveurl.ui.revisit.RevisitOpenInbox
-import com.jinscompany.saveurl.ui.revisit.RevisitOpenRequest
 import com.jinscompany.saveurl.ui.revisit.RevisitOpenViewModel
 import com.jinscompany.saveurl.ui.tutorial.LocalTutorialFeatureFlags
 import com.jinscompany.saveurl.ui.tutorial.TutorialFeatureFlags
@@ -94,9 +92,6 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var importShareInbox: ImportShareInbox
-
-    @Inject
-    lateinit var revisitOpenInbox: RevisitOpenInbox
 
     @Inject
     lateinit var revisitRepository: RevisitRepository
@@ -159,8 +154,7 @@ class MainActivity : FragmentActivity() {
         )
         // 회전/프로세스 재생성 시에는 NavController 가 백스택을 복원하므로 공유 Intent 를 다시 처리하지 않는다
         val isFreshLaunch = savedInstanceState == null
-        // 알림에서 연 경우 (링크 열기 / 안 읽음 탭). 앱이 이미 떠 있으면 onNewIntent 로 온다
-        if (isFreshLaunch) RevisitOpenRequest.from(intent)?.let { revisitOpenInbox.put(it) }
+        // 알림에서 연 요청은 RevisitOpenActivity 가 inbox 에 넣고 온다 (이 Activity 는 알림 action 을 직접 받지 않음)
         setContent {
             val navController = rememberNavController()
             val context = LocalContext.current
@@ -343,11 +337,10 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    /** 앱이 떠 있을 때 알림을 누름 (FLAG_ACTIVITY_SINGLE_TOP | CLEAR_TOP) */
+    /** 앱이 떠 있을 때 알림을 누름 (RevisitOpenActivity 가 SINGLE_TOP | CLEAR_TOP 로 띄움, 요청은 이미 inbox 에 있음) */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        RevisitOpenRequest.from(intent)?.let { revisitOpenInbox.put(it) }
     }
 
     override fun onResume() {

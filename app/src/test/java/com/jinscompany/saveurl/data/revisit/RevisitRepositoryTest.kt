@@ -7,13 +7,13 @@ import com.jinscompany.saveurl.domain.model.LinkReminder
 import com.jinscompany.saveurl.domain.model.UpcomingReminder
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.domain.revisit.ReminderPreset
-import com.jinscompany.saveurl.domain.revisit.ReminderSync
 import com.jinscompany.saveurl.domain.revisit.ReminderTimes
 import com.jinscompany.saveurl.domain.revisit.RevisitRules
 import com.jinscompany.saveurl.utils.PreferencesManager
 import com.jinscompany.saveurl.utils.RemoteFlags
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -51,50 +51,69 @@ class RevisitRepositoryTest {
     private fun upcoming(linkId: Int, at: Long, locked: Boolean = false) =
         UpcomingReminder(linkId, at, "https://e.com/$linkId", "제목$linkId", null, "e", now - 14 * day, "개발", locked)
 
+    private fun weeklyOff() {
+        every { prefs.weeklyDigestEnabled } returns flowOf(false)
+        every { remote.weeklyDigestEnabled } returns MutableStateFlow(true)
+    }
+
+    private fun weeklyOn(lastSentWeek: Int = -1) {
+        every { prefs.weeklyDigestEnabled } returns flowOf(true)
+        every { remote.weeklyDigestEnabled } returns MutableStateFlow(true)
+        every { prefs.weeklyLastSentWeek } returns flowOf(lastSentWeek)
+        coEvery { prefs.claimWeeklySent(any()) } returns true
+    }
+
+    private fun reminder(linkId: Int, at: Long) = LinkReminder(linkId = linkId, remindAt = at, createdAt = 0, preset = "tonight")
+
     @Test
-    fun `예약하면 행을 덮어쓰고 알람을 건다, 끄면 행과 알람을 지운다`() = runTest {
+    fun `예약하면 행을 덮어쓰고 가장 이른 예약 하나에만 알람을 건다, 끄면 남은 것으로 다시 건다`() = runTest {
+        weeklyOff()
         val saved = slot<LinkReminder>()
         coEvery { reminderDao.upsert(capture(saved)) } returns 1L
+        coEvery { reminderDao.getAll() } returns listOf(reminder(7, now + day), reminder(9, now + 3 * hour))
         repo.setReminder(7, now + day, ReminderPreset.TOMORROW)
         assertEquals(7, saved.captured.linkId)
-        assertEquals(now + day, saved.captured.remindAt)
         assertEquals("tomorrow", saved.captured.preset)
-        // 정확하지 않은 알람의 창(최대 1시간) 때문에 80분 전에 먼저 깨어 다시 건다
-        verify { alarms.scheduleLink(7, now + day - 80 * 60_000L) }
+        verify { alarms.arm(now + 3 * hour, now) }
 
-        repo.cancelReminder(7)
-        coVerify { reminderDao.delete(7) }
-        verify { alarms.cancelLink(7) }
+        coEvery { reminderDao.getAll() } returns emptyList()
+        repo.cancelReminder(9)
+        coVerify { reminderDao.delete(9) }
+        verify { alarms.arm(null, now) }
     }
 
     @Test
-    fun `알람이 울리면 알림을 띄우고 예약을 지운다 - 잠금 링크도 같은 경로 (문구는 알림이 가림)`() = runTest {
+    fun `알람이 울리면 기한이 된 것을 띄운 뒤에 지우고(순서), 다음 예약으로 다시 건다 - 잠금 링크도 같은 경로`() = runTest {
+        weeklyOff()
+        coEvery { reminderDao.getOrphanLinkIds() } returns emptyList()
+        coEvery { reminderDao.getAll() } returnsMany listOf(
+            listOf(reminder(3, now - 60_000L), reminder(5, now + 3 * hour)),
+            listOf(reminder(5, now + 3 * hour)),
+        )
         coEvery { reminderDao.getUpcoming(3) } returns upcoming(3, now - 60_000L, locked = true)
-        repo.onLinkAlarm(3)
-        coVerify { reminderDao.delete(3) }
-        verify { notifier.notifyLink(match { it.linkId == 3 && it.locked }, null, now) }
+        repo.onTick()
+        coVerifyOrder {
+            notifier.notifyLink(match { it.linkId == 3 && it.locked }, null, now)
+            reminderDao.delete(3)
+        }
+        verify { alarms.arm(now + 3 * hour, now) }
     }
 
     @Test
-    fun `링크가 지워졌으면 아무것도 띄우지 않는다`() = runTest {
-        coEvery { reminderDao.getUpcoming(4) } returns null
-        repo.onLinkAlarm(4)
-        coVerify { reminderDao.delete(4) }
-        verify(exactly = 0) { notifier.notifyLink(any(), any(), any()) }
-    }
-
-    @Test
-    fun `시간을 뒤로 바꿔서 일찍 울린 알람은 다시 건다`() = runTest {
-        coEvery { reminderDao.getUpcoming(5) } returns upcoming(5, now + 3 * hour)
-        repo.onLinkAlarm(5)
-        verify { alarms.scheduleLink(5, now + 3 * hour - 80 * 60_000L) }
+    fun `일찍 울렸으면(1분 넘게 남음) 띄우지 않고 다시 건다`() = runTest {
+        weeklyOff()
+        coEvery { reminderDao.getAll() } returns listOf(reminder(5, now + 3 * hour))
+        repo.onTick()
         verify(exactly = 0) { notifier.notifyLink(any(), any(), any()) }
         coVerify(exactly = 0) { reminderDao.delete(5) }
+        verify { alarms.arm(now + 3 * hour, now) }
     }
 
     @Test
     fun `내일 다시 - 알림을 지우고 내일 9시로 새로 예약`() = runTest {
+        weeklyOff()
         coEvery { urlDao.getById(8) } returns UrlData(id = 8, url = "https://e.com/8")
+        coEvery { reminderDao.get(8) } returns null
         val saved = slot<LinkReminder>()
         coEvery { reminderDao.upsert(capture(saved)) } returns 1L
         repo.snooze(8)
@@ -104,92 +123,124 @@ class RevisitRepositoryTest {
     }
 
     @Test
-    fun `다시 맞추기 - 링크 없는 예약 정리, 지난 예약 묶어서 띄움, 오래된 건 버림, 주간 정리는 꺼져 있으면 취소`() = runTest {
+    fun `내일 다시 - 그사이 앱에서 다시 예약했으면 그 예약을 덮어쓰지 않는다`() = runTest {
+        coEvery { urlDao.getById(8) } returns UrlData(id = 8, url = "https://e.com/8")
+        coEvery { reminderDao.get(8) } returns reminder(8, now + 7 * day)
+        repo.snooze(8)
+        verify { notifier.cancelLink(8) }
+        coVerify(exactly = 0) { reminderDao.upsert(any()) }
+    }
+
+    @Test
+    fun `다시 맞추기 - 링크 없는 예약 정리, 지난 예약은 묶어서 띄움(썸네일 없이), 오래된 건 버림, 주간 꺼짐이면 링크 예약만`() = runTest {
+        weeklyOff()
         coEvery { reminderDao.getOrphanLinkIds() } returns listOf(99)
-        coEvery { reminderDao.getAll() } returns listOf(
-            LinkReminder(linkId = 1, remindAt = now + day, createdAt = 0, preset = "tomorrow"),
-            LinkReminder(linkId = 2, remindAt = now - hour, createdAt = 0, preset = "tonight"),
-            LinkReminder(linkId = 6, remindAt = now - 2 * hour, createdAt = 0, preset = "tonight"),
-            LinkReminder(linkId = 3, remindAt = now - 2 * day, createdAt = 0, preset = "tonight"),
-        )
+        val all = listOf(reminder(1, now + day), reminder(2, now - hour), reminder(6, now - 2 * hour), reminder(3, now - 2 * day))
+        coEvery { reminderDao.getAll() } returnsMany listOf(all, listOf(reminder(1, now + day)))
         coEvery { reminderDao.getUpcoming(2) } returns upcoming(2, now - hour)
         coEvery { reminderDao.getUpcoming(6) } returns upcoming(6, now - 2 * hour)
-        every { prefs.weeklyDigestEnabled } returns flowOf(false)
-        every { remote.weeklyDigestEnabled } returns MutableStateFlow(true)
 
         repo.syncAll()
 
-        verify { alarms.cancelLink(99) }
         coVerify { reminderDao.deleteAll(listOf(99)) }
-        verify { alarms.scheduleLink(1, ReminderSync.wakeAt(now + day, now)) }
         coVerify { reminderDao.deleteAll(listOf(3)) }
-        coVerify { reminderDao.deleteAll(listOf(6, 2)) }
-        verify { notifier.notifyLink(match { it.linkId == 2 }, any(), now) }
-        verify { notifier.notifyLink(match { it.linkId == 6 }, any(), now) }
-        verify { notifier.notifyLinkSummary(2) }
-        verify { alarms.cancelWeekly() }
+        verify { notifier.notifyLink(match { it.linkId == 2 }, null, now) }
+        verify { notifier.notifyLink(match { it.linkId == 6 }, null, now) }
+        coVerify { reminderDao.delete(2) }
+        coVerify { reminderDao.delete(6) }
+        verify { notifier.updateSummary() }
+        verify { alarms.arm(now + day, now) }
     }
 
     @Test
-    fun `주간 정리 - 일요일 8시가 지나 울리면 이번 주 숫자로 한 번 보내고 다음 일요일 예약`() = runTest {
+    fun `주간 정리 - 일요일 8시가 지나 울리면 그 주 숫자로 한 번 보내고 다음 일요일로 다시 건다`() = runTest {
         now = ZonedDateTime.of(2026, 10, 18, 20, 5, 0, 0, zone).toInstant().toEpochMilli() // 일 20:05
-        every { prefs.weeklyDigestEnabled } returns flowOf(true)
-        every { remote.weeklyDigestEnabled } returns MutableStateFlow(true)
-        every { prefs.weeklyLastSentWeek } returns flowOf(-1)
-        coEvery { prefs.claimWeeklySent(any()) } returns true
-        coEvery { urlDao.countSavedSince(ReminderTimes.weekStart(now, zone)) } returns 4
+        weeklyOn()
+        val sunday20 = ZonedDateTime.of(2026, 10, 18, 20, 0, 0, 0, zone).toInstant().toEpochMilli()
+        coEvery { urlDao.countSavedBetween(ReminderTimes.weekStart(sunday20, zone), sunday20) } returns 4
         coEvery { urlDao.countUnreadDirect() } returns 2
+        coEvery { reminderDao.getAll() } returns emptyList()
 
-        repo.onWeeklyAlarm()
+        repo.onTick()
 
         verify { notifier.notifyWeekly(4, 2) }
         val nextSunday = ZonedDateTime.of(2026, 10, 25, 20, 0, 0, 0, zone).toInstant().toEpochMilli()
-        verify { alarms.scheduleWeekly(ReminderSync.wakeAt(nextSunday, now)) }
+        verify { alarms.arm(nextSunday, now) }
     }
 
     @Test
-    fun `주간 정리 - 단계 예약으로 일요일 8시 전에 깨면 보내지 않고 다시 건다`() = runTest {
+    fun `주간 정리 - 월요일 1시에 늦게 울려도 지난주(울린 시각이 아닌 일요일) 기준으로 센다`() = runTest {
+        now = ZonedDateTime.of(2026, 10, 19, 1, 0, 0, 0, zone).toInstant().toEpochMilli() // 월 01:00
+        weeklyOn()
+        val sunday20 = ZonedDateTime.of(2026, 10, 18, 20, 0, 0, 0, zone).toInstant().toEpochMilli()
+        coEvery { urlDao.countSavedBetween(ReminderTimes.weekStart(sunday20, zone), sunday20) } returns 6
+        coEvery { urlDao.countUnreadDirect() } returns 1
+        coEvery { reminderDao.getAll() } returns emptyList()
+
+        repo.onTick()
+
+        verify { notifier.notifyWeekly(6, 1) }
+        coVerify { prefs.claimWeeklySent(ReminderTimes.isoWeekKey(sunday20, zone)) }
+    }
+
+    @Test
+    fun `주간 정리 - 일요일 8시 전이면 보내지 않고 일요일 8시로 건다`() = runTest {
         now = ZonedDateTime.of(2026, 10, 18, 18, 40, 0, 0, zone).toInstant().toEpochMilli() // 일 18:40
-        every { prefs.weeklyDigestEnabled } returns flowOf(true)
-        every { remote.weeklyDigestEnabled } returns MutableStateFlow(true)
-        repo.onWeeklyAlarm()
+        weeklyOn()
+        coEvery { reminderDao.getAll() } returns emptyList()
+        repo.onTick()
         verify(exactly = 0) { notifier.notifyWeekly(any(), any()) }
         val sunday20 = ZonedDateTime.of(2026, 10, 18, 20, 0, 0, 0, zone).toInstant().toEpochMilli()
-        verify { alarms.scheduleWeekly(ReminderSync.wakeAt(sunday20, now)) }
+        verify { alarms.arm(sunday20, now) }
     }
 
     @Test
-    fun `주간 정리 - 12시간 넘게 늦게 깨면 이번 주는 건너뛰고 다음 일요일 예약`() = runTest {
+    fun `주간 정리 - 12시간 넘게 늦게 깨면 이번 주는 건너뛴다, 이미 보낸 주도 다시 보내지 않는다`() = runTest {
         now = ZonedDateTime.of(2026, 10, 19, 10, 0, 0, 0, zone).toInstant().toEpochMilli() // 월 10:00
-        every { prefs.weeklyDigestEnabled } returns flowOf(true)
-        every { remote.weeklyDigestEnabled } returns MutableStateFlow(true)
-        repo.onWeeklyAlarm()
+        weeklyOn()
+        coEvery { reminderDao.getAll() } returns emptyList()
+        repo.onTick()
         verify(exactly = 0) { notifier.notifyWeekly(any(), any()) }
-        verify { alarms.scheduleWeekly(any()) }
+
+        now = ZonedDateTime.of(2026, 10, 18, 20, 30, 0, 0, zone).toInstant().toEpochMilli()
+        val sunday20 = ZonedDateTime.of(2026, 10, 18, 20, 0, 0, 0, zone).toInstant().toEpochMilli()
+        weeklyOn(lastSentWeek = ReminderTimes.isoWeekKey(sunday20, zone))
+        repo.onTick()
+        verify(exactly = 0) { notifier.notifyWeekly(any(), any()) }
     }
 
     @Test
-    fun `주간 정리 - 저장도 안 읽음도 0 이면 보내지 않지만 다음 주는 예약`() = runTest {
-        now = ZonedDateTime.of(2026, 10, 18, 20, 5, 0, 0, zone).toInstant().toEpochMilli()
-        every { prefs.weeklyDigestEnabled } returns flowOf(true)
-        every { remote.weeklyDigestEnabled } returns MutableStateFlow(true)
-        every { prefs.weeklyLastSentWeek } returns flowOf(-1)
-        coEvery { urlDao.countSavedSince(any()) } returns 0
-        coEvery { urlDao.countUnreadDirect() } returns 0
-
-        repo.onWeeklyAlarm()
-
-        verify(exactly = 0) { notifier.notifyWeekly(any(), any()) }
-        verify { alarms.scheduleWeekly(any()) }
-    }
-
-    @Test
-    fun `주간 정리 - 원격으로 꺼지면 보내지 않고 예약을 취소`() = runTest {
+    fun `주간 정리 - 원격으로 꺼지면 보내지 않고, 링크 예약도 없으면 알람을 취소`() = runTest {
         every { prefs.weeklyDigestEnabled } returns flowOf(true)
         every { remote.weeklyDigestEnabled } returns MutableStateFlow(false)
-        repo.onWeeklyAlarm()
+        coEvery { reminderDao.getAll() } returns emptyList()
+        repo.onTick()
         verify(exactly = 0) { notifier.notifyWeekly(any(), any()) }
-        verify { alarms.cancelWeekly() }
+        verify { alarms.arm(null, now) }
+    }
+
+    @Test
+    fun `떠 있는 알림 정리 - 일반 문구로 뜬 뒤 잠긴 링크와 지워진 링크만 지우고, 잠금 문구로 뜬 건 둔다`() = runTest {
+        weeklyOff()
+        every { notifier.shownLinks() } returns listOf(1 to false, 2 to true, 3 to false, 4 to false)
+        coEvery { urlDao.getById(1) } returns UrlData(id = 1, url = "https://e.com/1")
+        coEvery { urlDao.isLocked(1) } returns 1
+        coEvery { urlDao.getById(2) } returns UrlData(id = 2, url = "https://e.com/2")
+        coEvery { urlDao.isLocked(2) } returns 1
+        coEvery { urlDao.getById(3) } returns null
+        coEvery { urlDao.getById(4) } returns UrlData(id = 4, url = "https://e.com/4")
+        coEvery { urlDao.isLocked(4) } returns 0
+        coEvery { reminderDao.getOrphanLinkIds() } returns listOf(3)
+        coEvery { reminderDao.getAll() } returns emptyList()
+
+        repo.refreshShownNotifications()
+
+        verify { notifier.cancelLink(1) }
+        verify { notifier.cancelLink(3) }
+        verify(exactly = 0) { notifier.cancelLink(2) }
+        verify(exactly = 0) { notifier.cancelLink(4) }
+        coVerify { reminderDao.deleteAll(listOf(3)) }
+        verify { alarms.arm(null, now) }
     }
 
     @Test

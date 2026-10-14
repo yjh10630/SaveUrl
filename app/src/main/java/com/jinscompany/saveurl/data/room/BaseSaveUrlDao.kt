@@ -106,8 +106,15 @@ interface BaseSaveUrlDao {
     suspend fun countNotLocked(): Int
 
     // ---- 주간 정리 (42번 §4). 가져온 링크와 잠금 카테고리는 세지 않는다 ----
-    @Query("SELECT COUNT(*) FROM BaseSaveUrl WHERE importBatchId IS NULL AND addDate >= :since AND ${LockSql.NOT_LOCKED}")
-    suspend fun countSavedSince(since: Long): Int
+    @Query("SELECT COUNT(*) FROM BaseSaveUrl WHERE importBatchId IS NULL AND addDate >= :since AND addDate < :until AND ${LockSql.NOT_LOCKED}")
+    suspend fun countSavedBetween(since: Long, until: Long): Int
+
+    /**
+     * 링크·카테고리 표가 바뀔 때마다 값을 내보낸다 (값 자체는 쓰지 않음). 이미 뜬 링크 알림을 잠금·이동·삭제 뒤 정리하는 신호 (42번 §2.5).
+     * Room 은 쿼리가 읽는 표(BaseSaveUrl, Category)가 바뀌면 다시 내보낸다.
+     */
+    @Query("SELECT (SELECT COUNT(*) FROM BaseSaveUrl) + (SELECT COUNT(*) FROM Category WHERE isLocked = 1)")
+    fun observeLinkOrLockChanges(): kotlinx.coroutines.flow.Flow<Int>
 
     @Query("SELECT COUNT(*) FROM BaseSaveUrl WHERE importBatchId IS NULL AND isRead = 0 AND ${LockSql.NOT_LOCKED}")
     suspend fun countUnreadDirect(): Int

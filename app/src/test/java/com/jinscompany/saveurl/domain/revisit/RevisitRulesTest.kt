@@ -11,51 +11,50 @@ class RevisitRulesTest {
     private val hour = 60 * 60_000L
 
     @Test
-    fun `다시 맞추기 - 안 온 예약은 다시 걸고, 24시간 안에 지난 건 지금, 더 지난 건 버린다`() {
+    fun `처리 계획 - 기한이 된 것(1분 이내 포함)은 지금, 24시간 넘게 지난 건 버리고, 다음 알람은 가장 이른 남은 예약`() {
         val now = 1_000 * hour
         val plan = ReminderSync.plan(
-            listOf(1 to now + hour, 2 to now - hour, 3 to now - 25 * hour, 4 to now - 24 * hour, 5 to now + 2 * hour),
+            listOf(
+                1 to now + hour, 2 to now - hour, 3 to now - 25 * hour, 4 to now - 24 * hour,
+                5 to now + 2 * hour, 6 to now + 30_000L,
+            ),
             now,
         )
-        assertEquals(listOf(1 to now + hour, 5 to now + 2 * hour), plan.schedule)
-        assertEquals(listOf(4, 2), plan.fireNow)
+        assertEquals(listOf(4, 2, 6), plan.fireNow)
         assertEquals(listOf(3), plan.drop)
+        assertEquals(now + hour, plan.nextAt)
+        assertNull(ReminderSync.plan(emptyList(), now).nextAt)
     }
 
     @Test
-    fun `알람이 울렸을 때 - 예약이 뒤로 옮겨졌으면 다시 걸고, 하루 넘게 지났으면 버린다`() {
-        val now = 1_000 * hour
-        assertEquals(ReminderSync.FireDecision.FIRE, ReminderSync.onAlarm(now, now))
-        assertEquals(ReminderSync.FireDecision.FIRE, ReminderSync.onAlarm(now + 30_000L, now))
-        assertEquals(ReminderSync.FireDecision.RESCHEDULE, ReminderSync.onAlarm(now + 2 * hour, now))
-        assertEquals(ReminderSync.FireDecision.DROP, ReminderSync.onAlarm(now - 25 * hour, now))
-        assertEquals(ReminderSync.FireDecision.FIRE, ReminderSync.onAlarm(now - 23 * hour, now))
+    fun `다음 알람은 링크 예약과 주간 정리 중 먼저 오는 것 하나`() {
+        assertEquals(5L, ReminderSync.nextWake(9L, null, 5L))
+        assertNull(ReminderSync.nextWake(null, null))
     }
 
     @Test
-    fun `단계 예약 - 마지막 단계는 20분 안쪽에서 목표 시각, 그 전에는 창이 끝나도 목표 20분 전`() {
+    fun `Doze 대비 알람 - Android 12+ 는 목표 그대로, 11 이하는 창 끝이 목표를 넘지 않게 앞당겨 몇 단계 안에 닿는다`() {
         val min = 60_000L
-        val target = 10_000 * min
-        assertEquals(target, ReminderSync.wakeAt(target, target - 20 * min))
-        assertEquals(target, ReminderSync.wakeAt(target, target - 5 * min))
-        // 멀리 있으면 80분 전 (창 최대 1시간)
-        assertEquals(target - 80 * min, ReminderSync.wakeAt(target, target - 13 * 60 * min))
-        // 20~160분 사이: T + 0.75(T - now) <= 목표 - 20분
-        listOf(21L, 40L, 80L, 120L, 159L).forEach { m ->
-            val now = target - m * min
-            val t = ReminderSync.wakeAt(target, now)
-            assertTrue("$m", t > now)
-            val windowEnd = t + minOf((0.75 * (t - now)).toLong(), 60 * min)
-            assertTrue("$m: $windowEnd", windowEnd <= target - 20 * min + min)
+        val target = 100_000 * min
+        assertEquals(target, ReminderSync.idleWakeAt(target, target - 7 * 24 * 60 * min, 31))
+        assertEquals(target, ReminderSync.idleWakeAt(target, target - 20 * min, 30))
+        listOf(13 * 60L, 7 * 24 * 60L, 45L, 31L).forEach { m ->
+            var now = target - m * min
+            var stages = 0
+            while (true) {
+                val t = ReminderSync.idleWakeAt(target, now, 26)
+                assertTrue("$m: 앞으로 간다", t > now)
+                if (t == target) break
+                // Android 11 이하의 창: 남은 시간의 75% (상한 없음). 가장 늦게 울려도 목표 전
+                val windowEnd = t + (0.75 * (t - now)).toLong()
+                assertTrue("$m: $windowEnd", windowEnd <= target)
+                now = windowEnd // 가장 늦게 울린 경우로 이어 간다
+                stages++
+            }
+            assertTrue("$m: stages=$stages", stages <= 14)
+            // 마지막 알람은 30분 안쪽에서 걸려 창이 22.5분 이하
+            assertTrue(target - now <= 30 * min)
         }
-        // 가장 일찍 울려도 몇 단계 안에 마지막 단계에 닿는다
-        var now = target - 13 * 60 * min
-        var stages = 0
-        while (target - now > 20 * min) {
-            now = ReminderSync.wakeAt(target, now)
-            stages++
-        }
-        assertTrue("stages=$stages", stages <= 12)
     }
 
     @Test

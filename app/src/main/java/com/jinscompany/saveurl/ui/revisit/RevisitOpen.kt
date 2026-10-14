@@ -14,6 +14,7 @@ import androidx.navigation.NavHostController
 import com.jinscompany.saveurl.R
 import com.jinscompany.saveurl.data.revisit.RevisitNotifier
 import com.jinscompany.saveurl.data.room.BaseSaveUrlDao
+import com.jinscompany.saveurl.domain.lock.CategoryLockSession
 import com.jinscompany.saveurl.domain.usecase.MarkAsReadUseCase
 import com.jinscompany.saveurl.ui.lock.LockAuthResult
 import com.jinscompany.saveurl.ui.lock.rememberLockAuthRequest
@@ -82,6 +83,7 @@ class RevisitOpenViewModel @Inject constructor(
     private val urlDao: BaseSaveUrlDao,
     private val markAsReadUseCase: MarkAsReadUseCase,
     private val notifier: RevisitNotifier,
+    private val lockSession: CategoryLockSession,
 ) : ViewModel() {
     val pending: StateFlow<RevisitOpenRequest?> = inbox.pending
 
@@ -111,7 +113,9 @@ class RevisitOpenViewModel @Inject constructor(
                     val url = link?.url
                     when {
                         link == null || url.isNullOrEmpty() -> _actions.send(Action.Deleted)
-                        urlDao.isLocked(request.linkId) > 0 -> _actions.send(Action.NeedAuth(request.linkId))
+                        // 세션이 이미 열려 있으면(제목이 보이는 상태) 다시 묻지 않는다 (§7.2)
+                        urlDao.isLocked(request.linkId) > 0 && !lockSession.isUnlocked.value ->
+                            _actions.send(Action.NeedAuth(request.linkId))
                         else -> open(url)
                     }
                 }

@@ -65,6 +65,14 @@
             </intent-filter>
         </activity>
         <!-- 링크 알림·주간 정리 알람과 알림의 [내일 다시] (앱이 만든 PendingIntent 로만 불림) -->
+        <!-- 알림 → 앱 입구. 내보내지 않아 우리 알림으로만 열린다 (42번 §2.7, 리뷰 R6·R7) -->
+        <activity
+            android:name=".ui.revisit.RevisitOpenActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <receiver
             android:name=".data.revisit.RevisitAlarmReceiver"
             android:exported="false" />

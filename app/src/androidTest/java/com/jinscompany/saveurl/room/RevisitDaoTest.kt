@@ -118,7 +118,9 @@ class RevisitDaoTest {
     fun weeklyCounts_excludeImportedAndLocked() = runBlocking {
         val dao = db.baseSaveUrlDao()
         // 이번 주 = 최근 3일: 4(직접), 6(가져옴) → 직접 1개
-        assertEquals(1, dao.countSavedSince(now - 3 * day))
+        assertEquals(1, dao.countSavedBetween(now - 3 * day, now + 1))
+        // 끝 시각(일요일 20:00) 이후 저장은 그 주에 세지 않는다
+        assertEquals(0, dao.countSavedBetween(now - 3 * day, now - 3 * day))
         // 안 읽음 직접 저장: 1, 4, 5, 7 (3 잠금, 6 가져옴 제외)
         assertEquals(4, dao.countUnreadDirect())
         assertEquals(5, dao.countDirect())
