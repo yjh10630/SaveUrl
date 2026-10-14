@@ -87,6 +87,7 @@ import com.jinscompany.saveurl.ui.composable.noRippleClickable
 import com.jinscompany.saveurl.ui.composable.singleClick
 import com.jinscompany.saveurl.ui.lock.LocalCategoryLockSession
 import com.jinscompany.saveurl.ui.lock.LockAuthResult
+import com.jinscompany.saveurl.ui.lock.LockIntroSheet
 import com.jinscompany.saveurl.ui.lock.NeedDeviceLockSheet
 import com.jinscompany.saveurl.ui.lock.hasDeviceCredential
 import com.jinscompany.saveurl.ui.lock.rememberLockAuthRequest
@@ -129,6 +130,8 @@ fun EditCategoryScreen(navController: NavHostController) {
         }
     }
     if (showNeedDeviceLock) NeedDeviceLockSheet(onDismiss = { showNeedDeviceLock = false })
+    val showLockIntro by viewModel.showLockIntro.collectAsState()
+    if (showLockIntro) LockIntroSheet(onDismiss = { viewModel.onIntent(EditCategoryIntent.DismissLockIntro) })
 
     // 삭제 확인: 잠금 카테고리(잠금이 풀린다는 안내)나 자동 분류 규칙이 있는 카테고리 (36번 §8)
     val pendingDelete by viewModel.pendingDelete.collectAsState()

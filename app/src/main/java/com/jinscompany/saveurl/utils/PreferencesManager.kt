@@ -55,6 +55,8 @@ class PreferencesManager @Inject constructor(
     private val AUTOCAT_LAST_SUGGEST_DAY = intPreferencesKey("autocat_last_suggest_day")
     /** 업데이트 후 첫 실행 제안 카드를 닫았거나 눌렀음 */
     private val AUTOCAT_LAUNCH_CARD_DONE = booleanPreferencesKey("autocat_launch_card_done")
+    /** 처음 카테고리를 잠근 뒤 "잠근 링크는 나만 볼 수 있어요" 안내를 닫았음 (37번 §19) */
+    private val LOCK_INTRO_SEEN = booleanPreferencesKey("lock_intro_seen")
 
     val autoDeleteEnabled: Flow<Boolean> = context.dataStore.data
         .map { it[TRASH_ENABLE] ?: true }
@@ -199,6 +201,12 @@ class PreferencesManager @Inject constructor(
             prefs[FLEXIBLE_UPDATE_DECLINED_VERSION] = decline.versionCode
             prefs[FLEXIBLE_UPDATE_DECLINED_AT] = decline.declinedAtMillis
         }
+    }
+
+    val lockIntroSeen: Flow<Boolean> = context.dataStore.data.map { it[LOCK_INTRO_SEEN] ?: false }
+
+    suspend fun setLockIntroSeen() {
+        context.dataStore.edit { it[LOCK_INTRO_SEEN] = true }
     }
 
     val autoCategoryEnabled: Flow<Boolean> = context.dataStore.data.map { it[AUTOCAT_ENABLED] ?: true }

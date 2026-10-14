@@ -1,5 +1,7 @@
 package com.jinscompany.saveurl.ui.main
 
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
@@ -88,7 +90,6 @@ import com.jinscompany.saveurl.ui.main.MainListIntent.ShowLinkInfoDialog
 import com.jinscompany.saveurl.ui.main.components.ActiveFilterRow
 import com.jinscompany.saveurl.ui.main.components.CategoryChipRow
 import com.jinscompany.saveurl.ui.main.components.DateHeader
-import com.jinscompany.saveurl.ui.main.components.LockedViewingBanner
 import com.jinscompany.saveurl.ui.main.components.LinkListItem
 import com.jinscompany.saveurl.ui.main.components.MainEmptyState
 import com.jinscompany.saveurl.ui.main.components.MainEmptyType
@@ -641,6 +642,7 @@ fun MainListScreen(
         )
         MainTabRow(selectedTab = selectedTab, onTabSelect = onTabSelect)
         val hasLocked = lockedCategoryNames.isNotEmpty()
+        var showRelockDialog by rememberSaveable { mutableStateOf(false) }
         CategoryChipRow(
             chips = chips,
             selected = selectedCategories,
@@ -648,14 +650,29 @@ fun MainListScreen(
             onCategoryClick = onCategoryClick,
             onFilterClick = onFilterOpen,
             lockedChips = if (isLockedUnlocked) lockedCategoryNames else emptyList(),
-            showLockedEntry = hasLocked && !isLockedUnlocked,
-            showRelock = hasLocked && isLockedUnlocked,
+            showLockToggle = hasLocked,
+            lockOpen = isLockedUnlocked,
             onLockedEntryClick = onLockedEntryClick,
             onRelockClick = onRelockClick,
+            onLockedChipLongClick = { showRelockDialog = true },
         )
-        if (isLockedUnlocked && selectedCategories.any { it in lockedCategoryNames }) {
-            LockedViewingBanner()
+        // 잠금 카테고리 칩 길게 누르기 → "다시 잠글까요?" (37번 §19). 그사이 자동으로 잠기면 닫는다
+        if (showRelockDialog) {
+            AlertDialog(
+                onDismissRequest = { showRelockDialog = false },
+                title = { Text(stringResource(R.string.relock_dialog_title)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showRelockDialog = false
+                        onRelockClick()
+                    }) { Text(stringResource(R.string.relock_dialog_confirm)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showRelockDialog = false }) { Text(stringResource(R.string.btn_cancel)) }
+                },
+            )
         }
+        LaunchedEffect(isLockedUnlocked) { if (!isLockedUnlocked) showRelockDialog = false }
         ActiveFilterRow(filters = detailFilters)
         if (metaFillProgress.isActive && !isEmpty) {
             MetaFillStatusCard(progress = metaFillProgress, cellularAllowed = metaFillCellular, onClick = onMetaFillCardClick)

@@ -14,6 +14,8 @@ import com.jinscompany.saveurl.domain.usecase.SetCategoryLockedUseCase
 import com.jinscompany.saveurl.domain.usecase.UpdateCategoryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.jinscompany.saveurl.domain.repository.AutoCategoryRepository
+import com.jinscompany.saveurl.utils.PreferencesManager
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,7 +34,12 @@ class EditCategoryViewModel @Inject constructor(
     private val setCategoryLockedUseCase: SetCategoryLockedUseCase,
     lockSession: CategoryLockSession,
     private val autoCategoryRepository: AutoCategoryRepository,
+    private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
+
+    /** 처음 카테고리를 잠갔을 때 한 번 보이는 "잠근 링크는 나만 볼 수 있어요" 시트. 닫을 때 본 것으로 적는다 (37번 §19) */
+    private val _showLockIntro = MutableStateFlow(false)
+    val showLockIntro: StateFlow<Boolean> = _showLockIntro.asStateFlow()
 
     private val _pendingDelete = MutableStateFlow<DeleteConfirm?>(null)
     val pendingDelete: StateFlow<DeleteConfirm?> = _pendingDelete.asStateFlow()
@@ -67,6 +74,10 @@ class EditCategoryViewModel @Inject constructor(
             EditCategoryIntent.CancelDelete -> _pendingDelete.value = null
             is EditCategoryIntent.Update -> updateCategoryName(intent.oldName, intent.newName)
             is EditCategoryIntent.SetLocked -> setLocked(intent.name, intent.locked)
+            EditCategoryIntent.DismissLockIntro -> {
+                _showLockIntro.value = false
+                viewModelScope.launch { preferencesManager.setLockIntroSeen() }
+            }
         }
     }
 
@@ -76,7 +87,12 @@ class EditCategoryViewModel @Inject constructor(
                 _categoryItemsState.value = _categoryItemsState.value.map {
                     if (it.name == name) it.copy(isLocked = locked) else it
                 }
-                _effect.emit(EditCategoryEffect.LockChanged(name, locked))
+                // 처음 잠그면 스낵바 대신 안내 시트 (누가 볼 수 있는지 한 번에 답한다)
+                if (locked && !preferencesManager.lockIntroSeen.first()) {
+                    _showLockIntro.value = true
+                } else {
+                    _effect.emit(EditCategoryEffect.LockChanged(name, locked))
+                }
             }
         }
     }

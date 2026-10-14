@@ -41,6 +41,7 @@ class EditCategoryViewModelRelockTest {
         setCategoryLockedUseCase = mockk(relaxed = true),
         lockSession = session,
         autoCategoryRepository = autoCategoryRepository,
+        preferencesManager = mockk(relaxed = true),
     )
 
     @Test

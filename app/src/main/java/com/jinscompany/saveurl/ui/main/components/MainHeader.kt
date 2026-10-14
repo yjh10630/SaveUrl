@@ -1,8 +1,12 @@
 package com.jinscompany.saveurl.ui.main.components
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +29,7 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Tune
@@ -49,6 +54,8 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -193,8 +200,9 @@ fun MainTabRow(selectedTab: MainTab, onTabSelect: (MainTab) -> Unit) {
 
 /**
  * 카테고리 칩 한 줄 + 끝의 필터(tune) 버튼.
- * 잠금 카테고리(37번 기획서 5.1): 세션이 닫혀 있으면 마지막에 🔒 칩 하나([showLockedEntry], 이름·개수 없음),
- * 열려 있으면 [lockedChips](자물쇠 붙은 칩) 뒤에 [다시 잠그기] 칩([showRelock]).
+ * 잠금 카테고리(37번 기획서 5.1, §19): 잠금 카테고리가 있으면([showLockToggle]) 줄 끝에 자물쇠 아이콘 칩 하나.
+ * 닫혀 있으면 🔒(이름·개수 없음, 누르면 인증 후 열기), 열려 있으면 [lockedChips](자물쇠 붙은 칩) 뒤에 🔓(누르면 바로 다시 잠금).
+ * 잠금 카테고리 칩을 길게 누르면 [onLockedChipLongClick] (다시 잠글까요?).
  */
 @Composable
 fun CategoryChipRow(
@@ -204,10 +212,11 @@ fun CategoryChipRow(
     onCategoryClick: (String) -> Unit,
     onFilterClick: () -> Unit,
     lockedChips: List<String> = emptyList(),
-    showLockedEntry: Boolean = false,
-    showRelock: Boolean = false,
+    showLockToggle: Boolean = false,
+    lockOpen: Boolean = false,
     onLockedEntryClick: () -> Unit = {},
     onRelockClick: () -> Unit = {},
+    onLockedChipLongClick: () -> Unit = {},
 ) {
     val colors = AppTheme.colors
     Row(
@@ -237,13 +246,14 @@ fun CategoryChipRow(
                         isSelected = name in selected,
                         onClick = { onCategoryClick(name) },
                         locked = true,
+                        onLongClick = onLockedChipLongClick,
                     )
                 }
-                if (showLockedEntry) {
-                    item(key = "locked_entry") { LockedEntryChip(onClick = onLockedEntryClick) }
-                }
-                if (showRelock) {
-                    item(key = "relock") { RelockChip(onClick = onRelockClick) }
+                if (showLockToggle) {
+                    // 같은 키라 열고 닫을 때 자리가 그대로이고 아이콘만 바뀐다
+                    item(key = "lock_toggle") {
+                        LockToggleChip(open = lockOpen, onClick = if (lockOpen) onRelockClick else onLockedEntryClick)
+                    }
                 }
             }
             Box(
@@ -276,15 +286,33 @@ fun CategoryChipRow(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun CategoryChip(name: String, isSelected: Boolean, onClick: () -> Unit, locked: Boolean = false) {
+private fun CategoryChip(
+    name: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    locked: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
+) {
     val colors = AppTheme.colors
+    val click = singleClick { onClick() }
     Row(
         modifier = Modifier
             .height(34.dp)
             .clip(CircleShape)
             .background(if (isSelected) colors.accent else colors.surface)
-            .clickable(onClick = singleClick { onClick() })
+            .then(
+                if (onLongClick != null) {
+                    Modifier.combinedClickable(
+                        onClick = click,
+                        onLongClick = onLongClick,
+                        onLongClickLabel = stringResource(R.string.chip_relock_cd),
+                    )
+                } else {
+                    Modifier.clickable(onClick = click)
+                }
+            )
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -316,70 +344,34 @@ private fun CategoryChip(name: String, isSelected: Boolean, onClick: () -> Unit,
     }
 }
 
-/** 잠금 카테고리가 닫혀 있을 때 칩 줄 끝의 🔒 칩 (이름·개수를 보이지 않는다) */
+/**
+ * 잠금 카테고리 칩 줄 끝의 자물쇠 아이콘 칩 (글자 없음).
+ * 닫힘: 🔒 (이름·개수를 보이지 않는다) → 누르면 인증 후 열기. 열림: 🔓 강조색 → 누르면 바로 다시 잠금.
+ */
 @Composable
-private fun LockedEntryChip(onClick: () -> Unit) {
+private fun LockToggleChip(open: Boolean, onClick: () -> Unit) {
     val colors = AppTheme.colors
-    val description = stringResource(R.string.chip_locked_cd)
+    val description = stringResource(if (open) R.string.chip_relock_cd else R.string.chip_locked_cd)
+    val background by animateColorAsState(if (open) colors.accentTint else colors.surface, label = "lockChipBg")
+    val tint by animateColorAsState(if (open) colors.accent else colors.textSecondary, label = "lockChipTint")
     Box(
         modifier = Modifier
             .height(34.dp)
             .width(44.dp)
             .clip(CircleShape)
-            .background(colors.surface)
-            .clickable(onClick = singleClick { onClick() }, onClickLabel = description),
+            .background(background)
+            .clickable(onClick = singleClick { onClick() }, onClickLabel = description)
+            .semantics { contentDescription = description },
         contentAlignment = Alignment.Center
     ) {
-        Icon(Icons.Outlined.Lock, contentDescription = description, tint = colors.textSecondary, modifier = Modifier.size(16.dp))
-    }
-}
-
-/** 잠금 카테고리가 열려 있을 때 칩 줄 끝의 [다시 잠그기] */
-@Composable
-private fun RelockChip(onClick: () -> Unit) {
-    val colors = AppTheme.colors
-    val description = stringResource(R.string.chip_relock_cd)
-    Row(
-        modifier = Modifier
-            .height(34.dp)
-            .clip(CircleShape)
-            .background(colors.background)
-            .border(1.dp, colors.outline, CircleShape)
-            .clickable(onClick = singleClick { onClick() }, onClickLabel = description)
-            .padding(horizontal = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(Icons.Outlined.Lock, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = stringResource(R.string.chip_relock),
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            color = colors.textSecondary,
-            maxLines = 1,
-        )
-    }
-}
-
-/** 잠금 카테고리 칩을 고른 동안 칩 줄 아래 안내 알약 */
-@Composable
-fun LockedViewingBanner() {
-    val colors = AppTheme.colors
-    Row(
-        modifier = Modifier
-            .padding(start = AppDimens.Gutter, end = AppDimens.Gutter, top = 6.dp)
-            .clip(CircleShape)
-            .background(colors.accentTint)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(Icons.Outlined.Lock, contentDescription = null, tint = colors.accent, modifier = Modifier.size(13.dp))
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = stringResource(R.string.locked_viewing_banner),
-            style = MaterialTheme.typography.labelMedium,
-            color = colors.accent,
-        )
+        Crossfade(targetState = open, label = "lockChipIcon") { isOpen ->
+            Icon(
+                imageVector = if (isOpen) Icons.Outlined.LockOpen else Icons.Outlined.Lock,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(16.dp),
+            )
+        }
     }
 }
 
