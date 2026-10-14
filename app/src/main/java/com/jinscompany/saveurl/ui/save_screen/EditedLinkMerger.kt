@@ -44,6 +44,8 @@ object EditedLinkMerger {
             metaState = state,
             // 수정 화면에서 바꾸지 않는 값: 그사이 목록에서 읽음 처리했을 수 있다
             isRead = fresh.isRead,
+            // 다시 볼 링크 카드에 보인 시각 (42번 §3.2)도 수정 화면이 다루지 않는다
+            revisitShownAt = fresh.revisitShownAt,
         )
     }
 }

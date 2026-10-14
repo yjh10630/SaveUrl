@@ -89,6 +89,9 @@ class LinkSaveViewModelAutoCategoryTest {
             observeLockedCategoriesUseCase = observeLocked,
             autoCategorySaveFlow = saveFlow,
             autoCategoryRepository = repository,
+            revisitRepository = io.mockk.mockk(relaxed = true),
+            savePrefillStore = com.jinscompany.saveurl.ui.share.SavePrefillStore(),
+            metaFillScheduler = io.mockk.mockk(relaxed = true),
         )
     }
 

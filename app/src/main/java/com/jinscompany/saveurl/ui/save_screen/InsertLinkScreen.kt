@@ -40,12 +40,18 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import android.widget.Toast
+import androidx.compose.ui.res.stringResource
+import com.jinscompany.saveurl.R
+import com.jinscompany.saveurl.domain.revisit.ReminderTimes
+import com.jinscompany.saveurl.ui.revisit.ReminderPickRequest
+import com.jinscompany.saveurl.ui.revisit.ReminderPicker
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -62,9 +68,6 @@ import com.jinscompany.saveurl.ui.composable.filterNotIsInstance
 import com.jinscompany.saveurl.ui.save_screen.components.AutoCategoryAssist
 import com.jinscompany.saveurl.ui.save_screen.components.HeaderUserInputSection
 import com.jinscompany.saveurl.ui.autocat.RuleSheetRequest
-import com.jinscompany.saveurl.R
-import android.widget.Toast
-import androidx.compose.ui.res.stringResource
 import com.jinscompany.saveurl.ui.save_screen.components.PreviewSection
 import com.jinscompany.saveurl.ui.save_screen.components.UserInputTagSection
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -88,6 +91,15 @@ fun InsertLinkScreen(
     // 화면 회전/다른 화면 이동 후 복귀 시에도 진행 중이던 WebView 크롤링이 이어지도록 saveable 로 유지
     var startCrawlerUrl by rememberSaveable { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
+    var reminderRequest by remember { mutableStateOf<ReminderPickRequest?>(null) }
+    // 시간을 고르는 순간 권한을 확인한다. 거절되면 알림 줄은 그대로 (예약하지 않음)
+    ReminderPicker(
+        request = reminderRequest,
+        onDismiss = { reminderRequest = null },
+        onPicked = { _, preset, at -> event.invoke(LinkSaveIntent.SetReminder(preset, at)) },
+        onTurnOff = { event.invoke(LinkSaveIntent.ClearReminder) },
+        onNotAllowed = { Toast.makeText(context, R.string.notif_off_snack, Toast.LENGTH_SHORT).show() },
+    )
     val scrollState = rememberScrollState()
 
     var openCategorySelector by remember { mutableStateOf<LinkSaveUiEffect.OpenCategorySelector?>(null) }
@@ -265,6 +277,18 @@ fun InsertLinkScreen(
                     onOnce = { event.invoke(LinkSaveIntent.OnceChip) },
                     onUndo = singleClick { event.invoke(LinkSaveIntent.UndoAutoCat) },
                 )
+                // 알림 · 없음 › (42번 §2.1). 기본 "없음"이고 강조하지 않는다. 저장을 눌러야 예약된다
+                ReminderRow(
+                    reminderAt = uiState.reminderAt,
+                    onClick = singleClick {
+                        val title = (uiState.linkUrlPreviewUiState as? LinkUrlPreviewUiState.LinkUrlData)?.urlData?.title
+                        reminderRequest = ReminderPickRequest(
+                            linkId = -1,
+                            linkTitle = title.orEmpty().ifBlank { uiState.userInputUrl },
+                            currentAt = uiState.reminderAt,
+                        )
+                    },
+                )
                 HorizontalDivider(color = colors.outline, thickness = 1.dp, modifier = Modifier.padding(horizontal = AppDimens.Gutter))
                 Spacer(modifier = Modifier.height(20.dp))
                 UserInputTagSection(
@@ -285,7 +309,7 @@ fun InsertLinkScreen(
 
 /** "카테고리 ........ 레시피 ›" (선택 안 함 = 전체) */
 @Composable
-private fun CategoryRow(categoryName: String, isLocked: Boolean, onClick: () -> Unit) {
+internal fun CategoryRow(categoryName: String, isLocked: Boolean, onClick: () -> Unit) {
     val colors = AppTheme.colors
     val isNone = categoryName.isEmpty() || categoryName == FilterDefaults.CATEGORY_ALL
     Row(
@@ -318,9 +342,35 @@ private fun CategoryRow(categoryName: String, isLocked: Boolean, onClick: () -> 
     }
 }
 
+/** "알림 ........ 없음 ›" / "… 10월 15일 (목) 오전 9:00 ›" */
+@Composable
+internal fun ReminderRow(reminderAt: Long?, onClick: () -> Unit) {
+    val colors = AppTheme.colors
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = AppDimens.Gutter, vertical = 18.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(stringResource(R.string.save_remind_row), style = MaterialTheme.typography.bodyLarge, color = colors.textPrimary)
+        Text(
+            text = reminderAt?.let { ReminderTimes.sheetLabel(it, System.currentTimeMillis(), java.time.ZoneId.systemDefault()) }
+                ?: stringResource(R.string.save_remind_none),
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (reminderAt != null) colors.accent else colors.textSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f).padding(start = 16.dp),
+        )
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.textSecondary)
+    }
+}
+
 /** ☆ 즐겨찾기에 추가 ............ [스위치] */
 @Composable
-private fun BookmarkRow(isBookMark: Boolean, onToggle: (Boolean) -> Unit) {
+internal fun BookmarkRow(isBookMark: Boolean, onToggle: (Boolean) -> Unit) {
     val colors = AppTheme.colors
     Row(
         modifier = Modifier

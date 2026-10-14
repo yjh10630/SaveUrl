@@ -37,6 +37,7 @@ import com.jinscompany.saveurl.ui.autocat.AutoCategoryScreen
 import com.jinscompany.saveurl.ui.autocat.RuleSheetEvent
 import com.jinscompany.saveurl.ui.autocat.RuleSheetHost
 import com.jinscompany.saveurl.ui.autocat.RuleSheetViewModel
+import com.jinscompany.saveurl.ui.revisit.RemindersScreen
 import com.jinscompany.saveurl.ui.save_screen.InsertLinkScreen
 import com.jinscompany.saveurl.ui.save_screen.LinkSaveIntent
 import com.jinscompany.saveurl.ui.save_screen.LinkSaveUiEffect
@@ -122,6 +123,7 @@ private fun AppNavHost(
                 HomePanel(
                     mainListViewModel = hiltViewModel(),
                     onOpenSave = { url -> navController.navigateToSaveLink(url = url, replaceRightPane = true) },
+                    onShowAllReminders = { navController.navigateToReminders(replaceRightPane = true) },
                 )
             } else {
                 MainListScreen(navController = navController, listState = mainListState)
@@ -259,6 +261,12 @@ private fun AppNavHost(
                 )
             }
         }
+        // 설정 → 링크 알림 (42번 §2.6). 2분할에서는 설정 위 오른쪽 패널, 홈 패널 "곧 올 알림 › 모두 보기"는 메인 위 오른쪽 패널
+        composable(route = Navigation.Routes.REMINDERS) {
+            PaneContent(isTwoPane) {
+                RemindersScreen(onBack = { navController.popBackStack() })
+            }
+        }
         composable(route = Navigation.Routes.IMPORT_HISTORY) {
             PaneContent(isTwoPane) {
                 ImportHistoryScreen(onBack = { navController.popBackStack() })
@@ -347,6 +355,8 @@ object Navigation {
         const val IMPORT_HISTORY = "importHistory"
         /** 설정 → 자동 분류 */
         const val AUTO_CATEGORY = "autoCategory"
+        /** 설정 → 링크 알림 목록 (42번 §2.6) */
+        const val REMINDERS = "reminders"
         /** TODO: 통신판매업 신고 후 billing 복원 시 다시 노출 (현재 NavHost 에 등록하지 않음) */
         const val SUPPORT = "supportScreen"
     }
@@ -472,6 +482,15 @@ fun NavController.navigateToAutoCategory(inSettingsPane: Boolean = false, fromMa
             navigate(Navigation.Routes.AUTO_CATEGORY)
         }
         else -> navigate(Navigation.Routes.AUTO_CATEGORY) { launchSingleTop = true }
+    }
+}
+
+/** 링크 알림 목록. [replaceRightPane] = 2분할 홈 패널 "모두 보기" (메인 위 오른쪽 패널) */
+fun NavController.navigateToReminders(replaceRightPane: Boolean = false) {
+    if (replaceRightPane) {
+        navigate(Navigation.Routes.REMINDERS) { popUpTo(Navigation.MAIN_ROUTE_PATTERN) { inclusive = false } }
+    } else {
+        navigate(Navigation.Routes.REMINDERS) { launchSingleTop = true }
     }
 }
 

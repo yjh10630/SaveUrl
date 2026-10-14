@@ -23,7 +23,8 @@ sealed class MainListIntent {
     data object GoToCategorySettingScreen: MainListIntent()
     data class GoToLinkInsertScreen(val url: String): MainListIntent()
     data class GoToLinkEditScreen(val url: String): MainListIntent()
-    data class GoToOutLinkWebSite(val url: String?): MainListIntent()
+    /** [linkId] 가 있으면 안 읽음 탭에서 연 링크를 목록에 남긴다 (42번 §1.2) */
+    data class GoToOutLinkWebSite(val url: String?, val linkId: Int? = null): MainListIntent()
     data class GotoOutShareUrl(val url: String?): MainListIntent()
     data class DeleteLinkItem(val urlData: UrlData): MainListIntent()
     data object ReadClipboard: MainListIntent()
@@ -52,7 +53,7 @@ sealed class MainListIntent {
 }
 
 /** 메인 리스트 상단 탭: 리스트 전체를 전환한다 */
-enum class MainTab { RECENT, FAVORITES }
+enum class MainTab { RECENT, FAVORITES, UNREAD }
 
 sealed class MainListUiEffect {
     data class NavigateToResult(val route: String, val url: String? = null): MainListUiEffect()
@@ -66,6 +67,8 @@ sealed class MainListUiEffect {
     data class ShowLinkInfoDialog(val model: SimpleMenuModel): MainListUiEffect()
     data object OpenImport: MainListUiEffect()
     data object OpenImportHistory: MainListUiEffect()
+    /** 링크 메뉴 "나중에 알림 받기 / 알림 바꾸기" → 시간 고르기 시트 */
+    data class OpenReminderSheet(val request: com.jinscompany.saveurl.ui.revisit.ReminderPickRequest): MainListUiEffect()
 }
 
 sealed class FilterState {

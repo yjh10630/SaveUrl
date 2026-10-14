@@ -1,6 +1,9 @@
 package com.jinscompany.saveurl.ui.importer
 
 import android.net.Uri
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,16 +26,22 @@ class ImportShareInbox @Inject constructor() {
     }
 
     fun take(): ImportShare? = pending.also { pending = null }
+
+    fun hasPending(): Boolean = pending != null
 }
 
-/** 가져오기 완료 → 메인 목록에서 보여 줄 카테고리 ([목록에서 보기]). "" = 전체 */
+/**
+ * 메인 목록에서 보여 줄 카테고리 (가져오기 완료·공유 시트의 [목록에서 보기]/[앱에서 보기]). "" = 전체.
+ * 메인 목록이 이미 떠 있으면 [pending] 을 구독해 바로 반영한다 (공유 시트는 앱이 떠 있는 채로 넘어올 수 있음, 44번 §6.3).
+ */
 @Singleton
 class MainListRequests @Inject constructor() {
-    private var category: String? = null
+    private val _pending = MutableStateFlow<String?>(null)
+    val pending: StateFlow<String?> = _pending.asStateFlow()
 
     fun showCategory(name: String?) {
-        category = name ?: ""
+        _pending.value = name ?: ""
     }
 
-    fun takeCategory(): String? = category.also { category = null }
+    fun takeCategory(): String? = _pending.value.also { _pending.value = null }
 }

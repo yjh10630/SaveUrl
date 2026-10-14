@@ -67,6 +67,24 @@ class LocalUrlDbSourceImpl @Inject constructor(
         }
     }
 
+    override fun getUnreadList(params: FilterParams?, keepIds: List<Int>, includeLocked: Boolean): PagingSource<Int, UrlData> {
+        val categories = params?.categories ?: listOf(FilterDefaults.CATEGORY_ALL)
+        val siteNames = params?.siteList.orEmpty()
+        val oldest = (params?.sort ?: FilterDefaults.SORT_LATEST) != FilterDefaults.SORT_LATEST
+        val all = categories.contains(FilterDefaults.CATEGORY_ALL)
+        val bookmark = !all && categories.contains(FilterDefaults.CATEGORY_BOOKMARK)
+        return baseSaveUrlDao.getUnread(
+            keepIds = keepIds,
+            allCategories = all,
+            onlyBookmark = bookmark,
+            categories = if (all || bookmark) emptyList() else categories,
+            allSites = siteNames.isEmpty(),
+            siteNames = siteNames,
+            oldest = oldest,
+            includeLocked = includeLocked,
+        )
+    }
+
     override suspend fun findByNormalizedUrl(normalizedUrl: String): UrlData? = withContext(Dispatchers.IO) {
         return@withContext baseSaveUrlDao.findByNormalizedUrl(normalizedUrl)
     }
@@ -100,8 +118,12 @@ class LocalUrlDbSourceImpl @Inject constructor(
 
     override suspend fun deleteLocalDBUrl(data: UrlData) = withContext(Dispatchers.IO) {
         return@withContext try {
-            // 링크 수는 조회 시 집계하므로 카테고리 contentCnt 는 갱신하지 않음
-            baseSaveUrlDao.delete(data)
+            // 링크 수는 조회 시 집계하므로 카테고리 contentCnt 는 갱신하지 않음.
+            // 링크 알림 예약도 함께 지운다 (휴지통에서 같은 id 로 복원돼도 알림이 되살아나지 않게. 42번 §3.1)
+            db.withTransaction {
+                baseSaveUrlDao.delete(data)
+                db.linkReminderDao().delete(data.id)
+            }
             true
         } catch (e: Exception) {
             e.printStackTrace()

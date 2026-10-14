@@ -37,6 +37,10 @@ interface TrashDao {
     @Query("DELETE FROM trash")
     suspend fun deleteAll()
 
+    /** 2.0.0 까지 첫 실행에 넣던 튜토리얼 링크 항목 정리용 (LegacyTutorialLinkCleanup) */
+    @Query("DELETE FROM trash WHERE url = :url")
+    suspend fun deleteByUrl(url: String): Int
+
     @Query("UPDATE trash SET category = :newName WHERE category = :oldName")
     suspend fun renameCategory(oldName: String, newName: String): Int
 }

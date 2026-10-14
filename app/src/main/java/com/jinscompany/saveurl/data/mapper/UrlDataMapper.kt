@@ -14,6 +14,8 @@ fun UrlData.toTrashItem(): TrashItem = TrashItem(
     addDate = addDate,
     category = category ?: "",
     isBookMark = isBookMark,
+    // 복원할 때 휴지통에 가기 전 읽음 값을 돌려주려고 함께 옮긴다 (42번 §3.2)
+    isRead = isRead,
 )
 
 fun TrashItem.toUrlData(): UrlData = UrlData(
@@ -26,5 +28,6 @@ fun TrashItem.toUrlData(): UrlData = UrlData(
     tagList = tagList,
     addDate = addDate,
     category = category,
-    isBookMark = isBookMark
+    isBookMark = isBookMark,
+    isRead = isRead,
 )

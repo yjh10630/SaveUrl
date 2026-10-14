@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface LocalUrlDBSource {
     fun getLocalSaveDBUrlList(params: FilterParams?, includeLocked: Boolean): PagingSource<Int, UrlData>
+    fun getUnreadList(params: FilterParams?, keepIds: List<Int>, includeLocked: Boolean): PagingSource<Int, UrlData>
     fun searchAll(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData>
     fun searchByTitle(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData>
     fun searchByDescription(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData>

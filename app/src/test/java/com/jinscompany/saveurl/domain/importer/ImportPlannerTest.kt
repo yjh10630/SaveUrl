@@ -148,6 +148,18 @@ class ImportPlannerTest {
     }
 
     @Test
+    fun `가져온 링크는 읽음으로 넣고 백업 복원만 파일의 읽음 값을 쓴다 (42번 §7_1)`() {
+        val kakao = preview("kakao_android_ko.txt")
+        assertTrue(ImportPlanner.buildRequest(kakao, ImportPlanner.defaultSelection(kakao), ImportFixtures.NOW).records.all { it.isRead })
+        val bookmarks = preview("chrome_bookmarks.html")
+        assertTrue(ImportPlanner.buildRequest(bookmarks, ImportPlanner.defaultSelection(bookmarks), ImportFixtures.NOW).records.all { it.isRead })
+        val backup = preview("savelink_backup.csv")
+        val records = ImportPlanner.buildRequest(backup, ImportPlanner.defaultSelection(backup), ImportFixtures.NOW).records
+        assertFalse(records.first { it.url.contains("blog.naver.com") }.isRead)
+        assertTrue(records.first { it.url.contains("shop.example.com") }.isRead)
+    }
+
+    @Test
     fun `대화 여러 개 - 대화마다 카테고리`() {
         val zip = ImportFixtures.zip(
             "a.txt" to ImportFixtures.bytes("kakao_android_ko.txt"),

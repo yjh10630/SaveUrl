@@ -10,8 +10,12 @@ import java.util.Locale
 
 @Entity(
     tableName = "BaseSaveUrl",
-    // 가져오기 기록(묶음별 개수)·되돌리기, 미리보기 채우기 대기열·상태 카드 (Room v6)
-    indices = [Index(value = ["importBatchId", "metaState"]), Index(value = ["metaState", "addDate"])],
+    // 가져오기 기록(묶음별 개수)·되돌리기, 미리보기 채우기 대기열·상태 카드 (Room v6), 안 읽음 탭·다시 볼 링크 후보 (v8)
+    indices = [
+        Index(value = ["importBatchId", "metaState"]),
+        Index(value = ["metaState", "addDate"]),
+        Index(value = ["isRead", "addDate"]),
+    ],
 )
 data class UrlData(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
@@ -30,6 +34,8 @@ data class UrlData(
     @ColumnInfo(name = "importBatchId") val importBatchId: Long? = null,
     /** 제목·썸네일 채우기 상태 ([MetaState]). 직접 저장한 링크는 0 (Room v6) */
     @ColumnInfo(name = "metaState", defaultValue = "0") val metaState: Int = MetaState.DONE,
+    /** "다시 볼 링크" 카드에 마지막으로 보인 시각. 30일 안에 같은 링크를 다시 보여 주지 않는다 (Room v8, 42번 §5.2) */
+    @ColumnInfo(name = "revisitShownAt") val revisitShownAt: Long? = null,
 ) {
     fun getDate(): String {
         val currentTime = Calendar.getInstance()

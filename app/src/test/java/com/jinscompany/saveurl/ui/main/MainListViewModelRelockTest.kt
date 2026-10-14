@@ -56,7 +56,7 @@ class MainListViewModelRelockTest {
             deleteWithTrashUseCase = mockk(relaxed = true),
             trashRepository = mockk(relaxed = true),
             preferencesManager = preferencesManager,
-            clipboardReader = mockk(relaxed = true),
+            clipboardSuggestions = mockk(relaxed = true),
             markAsReadUseCase = mockk(relaxed = true),
             getCategoriesUseCase = getCategoriesUseCase,
             getSiteNameListUseCase = getSiteNameListUseCase,
@@ -69,6 +69,13 @@ class MainListViewModelRelockTest {
             mainListRequests = mainListRequests,
             autoCategoryNotices = AutoCategoryNotices(),
             autoCategoryRepository = mockk(relaxed = true),
+            revisitRepository = mockk(relaxed = true),
+            revisitOpenInbox = com.jinscompany.saveurl.ui.revisit.RevisitOpenInbox(),
+            revisitClock = object : com.jinscompany.saveurl.data.revisit.RevisitClock {
+                override fun now() = 0L
+                override fun zone() = java.time.ZoneId.of("Asia/Seoul")
+            },
+            appContext = mockk(relaxed = true),
         )
     }
 

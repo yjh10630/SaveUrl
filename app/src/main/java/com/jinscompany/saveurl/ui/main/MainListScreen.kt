@@ -3,6 +3,7 @@ package com.jinscompany.saveurl.ui.main
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
 import android.content.Intent
+import com.jinscompany.saveurl.ui.share.excludeOwnShareTarget
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
@@ -142,6 +143,17 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.CompositionLocalProvider
+import com.jinscompany.saveurl.data.revisit.RevisitNotifier
+import com.jinscompany.saveurl.domain.revisit.ReminderTimes
+import com.jinscompany.saveurl.ui.main.components.LocalLinkReminders
+import com.jinscompany.saveurl.ui.revisit.NotifPermissionResult
+import com.jinscompany.saveurl.ui.revisit.ReminderPickRequest
+import com.jinscompany.saveurl.ui.revisit.ReminderPicker
+import com.jinscompany.saveurl.ui.revisit.RevisitCard
+import com.jinscompany.saveurl.ui.revisit.WeeklyPromptCard
+import com.jinscompany.saveurl.ui.revisit.openNotificationSettings
+import com.jinscompany.saveurl.ui.revisit.rememberNotifPermissionRequester
 
 /**
  * 2분할 왼쪽 목록으로 그릴 때의 상태 ([com.jinscompany.saveurl.ui.adaptive.TwoPaneLayout]).
@@ -203,6 +215,72 @@ fun MainListScreen(
     // 규칙을 고칠까요? 시트 (점검 스낵바 "고치기")
     val ruleSheetViewModel: RuleSheetViewModel = hiltViewModel()
     val autoCategoryNotice by viewModel.autoCategoryNotice.collectAsState()
+    // 다시 보게 만들기 (42번)
+    val unreadCount by viewModel.unreadCount.collectAsState()
+    val reminderTimes by viewModel.reminderTimes.collectAsState()
+    val revisitCard by viewModel.revisitCard.collectAsState()
+    val weeklyPrompt by viewModel.weeklyPrompt.collectAsState()
+    var reminderRequest by remember { mutableStateOf<ReminderPickRequest?>(null) }
+    var showRevisitStopDialog by rememberSaveable { mutableStateOf(false) }
+    val showNotAllowed: (NotifPermissionResult) -> Unit = { result ->
+        coroutineScope.launch {
+            val blocked = result as? NotifPermissionResult.Blocked
+            val action = snackBarHostState.showSnackbar(
+                message = resources.getString(R.string.notif_off_snack),
+                actionLabel = if (blocked != null) resources.getString(R.string.notif_open_settings) else null,
+                duration = SnackbarDuration.Short,
+            )
+            if (action == SnackbarResult.ActionPerformed && blocked != null) context.openNotificationSettings(blocked.reason)
+        }
+    }
+    val weeklyPermission = rememberNotifPermissionRequester { _, result ->
+        val granted = result == NotifPermissionResult.Granted
+        viewModel.acceptWeeklyPrompt(granted)
+        if (granted) coroutineScope.launch { snackBarHostState.showSnackbar(resources.getString(R.string.weekly_on_snack)) }
+        else showNotAllowed(result)
+    }
+    ReminderPicker(
+        request = reminderRequest,
+        onDismiss = { reminderRequest = null },
+        onPicked = { linkId, preset, at ->
+            coroutineScope.launch {
+                val previous = viewModel.setReminder(linkId, preset, at)
+                val label = ReminderTimes.sheetLabel(at, System.currentTimeMillis(), java.time.ZoneId.systemDefault())
+                val undo = snackBarHostState.showSnackbar(
+                    message = resources.getString(R.string.remind_set_snack, label),
+                    actionLabel = resources.getString(R.string.remind_undo),
+                    duration = SnackbarDuration.Short,
+                )
+                if (undo == SnackbarResult.ActionPerformed) viewModel.restoreReminder(linkId, previous)
+            }
+        },
+        onTurnOff = { linkId ->
+            coroutineScope.launch {
+                val previous = viewModel.cancelReminder(linkId)
+                val undo = snackBarHostState.showSnackbar(
+                    message = resources.getString(R.string.remind_off_snack),
+                    actionLabel = resources.getString(R.string.remind_undo),
+                    duration = SnackbarDuration.Short,
+                )
+                if (undo == SnackbarResult.ActionPerformed) viewModel.restoreReminder(linkId, previous)
+            }
+        },
+        onNotAllowed = showNotAllowed,
+    )
+    if (showRevisitStopDialog) {
+        AlertDialog(
+            onDismissRequest = { showRevisitStopDialog = false },
+            title = { Text(stringResource(R.string.revisit_stop_title)) },
+            text = { Text(stringResource(R.string.revisit_stop_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showRevisitStopDialog = false
+                    viewModel.stopRevisitCard()
+                }) { Text(stringResource(R.string.revisit_card_stop)) }
+            },
+            dismissButton = { TextButton(onClick = { showRevisitStopDialog = false }) { Text(stringResource(R.string.btn_cancel)) } },
+        )
+    }
 
     val mainListPagingData = when (val uiState = mainListUiState) {
         is MainListUiState.Success -> uiState.urlFlowState.collectAsLazyPagingItems()
@@ -331,6 +409,8 @@ fun MainListScreen(
                         type = "text/plain"
                     }
                     val shareIntent = Intent.createChooser(sendIntent, context.getString(R.string.share_app_chooser_title))
+                        // 자기 공유 시트는 빼다: 자기 링크가 "이미 저장한 링크" 로 돌고, 시트가 메인 위에 겹친다 (45번 독립 리뷰 R2)
+                        .excludeOwnShareTarget(context)
                     context.startActivity(shareIntent)
                 }
                 MainListUiEffect.ListRefresh -> mainListPagingData?.refresh()
@@ -352,6 +432,11 @@ fun MainListScreen(
                 }
 
                 is MainListUiEffect.ShowLinkInfoDialog -> { linkInfoDialog = effect.model }
+                is MainListUiEffect.OpenReminderSheet -> {
+                    linkInfoDialog = null
+                    menuTargetId = null
+                    reminderRequest = effect.request
+                }
                 MainListUiEffect.OpenTutorial -> navController.navigateToTutorial(replaceRightPane = isListPane)
                 MainListUiEffect.OpenImport -> navController.navigateToImport(ImportEntry.EMPTY_STATE, replaceRightPane = isListPane)
                 MainListUiEffect.OpenImportHistory -> navController.navigateToImportHistory(replaceRightPane = isListPane)
@@ -492,6 +577,28 @@ fun MainListScreen(
             onSearchClick = { viewModel.onIntent(GoToSearchScreen) },
             onAppSettingClick = { viewModel.onIntent(GoToAppSetting) },
             onLinkItemClick = { url -> viewModel.onIntent(GoToOutLinkWebSite(url)) },
+            onLinkItemOpen = { item -> viewModel.onIntent(GoToOutLinkWebSite(item.url, item.id)) },
+            unreadCount = unreadCount,
+            reminderTimes = reminderTimes,
+            revisitCard = revisitCard,
+            onRevisitOpen = { viewModel.openRevisitCard(it) },
+            onRevisitClose = {
+                viewModel.closeRevisitCardToday()
+                coroutineScope.launch {
+                    snackBarHostState.currentSnackbarData?.dismiss()
+                    val result = snackBarHostState.showSnackbar(
+                        message = resources.getString(R.string.revisit_card_closed_snack),
+                        actionLabel = resources.getString(R.string.revisit_card_stop),
+                        duration = SnackbarDuration.Short,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) showRevisitStopDialog = true
+                }
+            },
+            weeklyPrompt = weeklyPrompt,
+            onWeeklyAccept = {
+                weeklyPermission.request(RevisitNotifier.CHANNEL_WEEKLY, R.string.notif_perm_body_weekly)
+            },
+            onWeeklyDecline = { viewModel.declineWeeklyPrompt() },
             onLinkItemLongClick = { urlData: UrlData -> showLinkMenu(urlData) },
             onFilterOpen = { filterDialog = "" },
             onCategoryClick = { category ->
@@ -558,6 +665,8 @@ fun MainListScreen(
     onSearchClick: () -> Unit = {},
     onAppSettingClick: () -> Unit = {},
     onLinkItemClick: (String?) -> Unit = {},
+    /** 링크 열기 (안 읽음 탭이 연 링크를 남기도록 id 와 함께). 기본은 [onLinkItemClick] */
+    onLinkItemOpen: (UrlData) -> Unit = { onLinkItemClick(it.url) },
     onLinkItemLongClick: (UrlData) -> Unit = {},
     onFilterOpen: () -> Unit = {},
     onCategoryClick: (String) -> Unit = {},
@@ -583,6 +692,15 @@ fun MainListScreen(
     /** 미리보기를 기다리는 카드가 1초 넘게 보였거나 실패한 링크를 열었을 때 */
     onPrioritizeMeta: (id: Int, explicit: Boolean) -> Unit = { _, _ -> },
     onCancelPrioritizeMeta: (Int) -> Unit = {},
+    // ---- 다시 보게 만들기 (42번) ----
+    unreadCount: Int = 0,
+    reminderTimes: Map<Int, Long> = emptyMap(),
+    revisitCard: UrlData? = null,
+    onRevisitOpen: (UrlData) -> Unit = {},
+    onRevisitClose: () -> Unit = {},
+    weeklyPrompt: Boolean = false,
+    onWeeklyAccept: () -> Unit = {},
+    onWeeklyDecline: () -> Unit = {},
 ) {
     val colors = AppTheme.colors
     val tutorialCardVisible = tutorialCard != TutorialCardMode.Hidden
@@ -625,6 +743,7 @@ fun MainListScreen(
     val emptyType = when {
         hasFilter -> MainEmptyType.NO_FILTER_RESULT
         selectedTab == MainTab.FAVORITES -> MainEmptyType.NO_FAVORITES
+        selectedTab == MainTab.UNREAD -> MainEmptyType.NO_UNREAD
         else -> MainEmptyType.NO_LINKS
     }
 
@@ -640,7 +759,7 @@ fun MainListScreen(
             onSearchClick = onSearchClick,
             onSettingClick = onAppSettingClick,
         )
-        MainTabRow(selectedTab = selectedTab, onTabSelect = onTabSelect)
+        MainTabRow(selectedTab = selectedTab, onTabSelect = onTabSelect, unreadCount = unreadCount)
         val hasLocked = lockedCategoryNames.isNotEmpty()
         var showRelockDialog by rememberSaveable { mutableStateOf(false) }
         CategoryChipRow(
@@ -700,12 +819,30 @@ fun MainListScreen(
             return@Column
         }
 
+        // 메인 상단 카드 자리는 하나: 자동 분류 첫 실행 > 튜토리얼 > 주간 정리 제안 > 다시 볼 링크 (42번 §4.1·§5)
+        val topCardTaken = autoCategoryLaunchCard != null || tutorialCardVisible
+        CompositionLocalProvider(LocalLinkReminders provides reminderTimes) {
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
             // FAB 에 마지막 아이템이 가리지 않도록 하단 여백
             contentPadding = PaddingValues(bottom = 96.dp)
         ) {
+            if (!topCardTaken && weeklyPrompt) {
+                item(key = "weekly_prompt_card", contentType = "revisit_card") {
+                    WeeklyPromptCard(onAccept = onWeeklyAccept, onDecline = onWeeklyDecline, modifier = Modifier.animateItem())
+                }
+            } else if (!topCardTaken && revisitCard != null && selectedTab == MainTab.RECENT) {
+                item(key = "revisit_card", contentType = "revisit_card") {
+                    RevisitCard(
+                        link = revisitCard,
+                        onOpen = { onRevisitOpen(revisitCard) },
+                        onClose = onRevisitClose,
+                        onLongClick = { onLinkItemLongClick(revisitCard) },
+                        modifier = Modifier.animateItem(),
+                    )
+                }
+            }
             if (autoCategoryLaunchCard != null) {
                 item(key = "autocat_launch_card", contentType = "tutorial_entry_card") {
                     AutoCategoryLaunchCard(
@@ -762,7 +899,7 @@ fun MainListScreen(
                             onClick = {
                                 // 미리보기를 못 가져온 링크는 열 때 다시 시도
                                 if (item.metaState == MetaState.FAILED) onPrioritizeMeta(item.id, true)
-                                onLinkItemClick.invoke(item.url)
+                                onLinkItemOpen.invoke(item)
                             },
                             onLongClick = { onLinkItemLongClick.invoke(item) },
                             showDivider = index < snapshot.size - 1,
@@ -772,6 +909,7 @@ fun MainListScreen(
                     }
                 }
             }
+        }
         }
     }
 }

@@ -24,6 +24,7 @@ import com.jinscompany.saveurl.utils.extractUrlFromText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,8 +33,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import com.jinscompany.saveurl.utils.CrashReporter
+import com.jinscompany.saveurl.domain.importer.MetaFillScheduler
+import com.jinscompany.saveurl.domain.model.MetaState
+import com.jinscompany.saveurl.ui.share.SavePrefill
+import com.jinscompany.saveurl.ui.share.SavePrefillStore
 
 @HiltViewModel
 class LinkSaveViewModel @Inject constructor(
@@ -46,6 +53,9 @@ class LinkSaveViewModel @Inject constructor(
     private val observeLockedCategoriesUseCase: ObserveLockedCategoriesUseCase,
     private val autoCategorySaveFlow: AutoCategorySaveFlow,
     private val autoCategoryRepository: AutoCategoryRepository,
+    private val revisitRepository: com.jinscompany.saveurl.data.revisit.RevisitRepository,
+    private val savePrefillStore: SavePrefillStore,
+    private val metaFillScheduler: MetaFillScheduler,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LinkSaveUiState())
@@ -57,6 +67,10 @@ class LinkSaveViewModel @Inject constructor(
     private var parseJob: Job? = null
     /** 수정 모드로 열 때 읽은 저장된 행 (저장할 때 그사이 채워진 미리보기를 지키는 기준) */
     private var editOriginal: UrlData? = null
+        set(value) {
+            field = value
+            loadStoredReminder(value)
+        }
     private var isInitialUrlHandled = false
     /** 칩으로 규칙을 바꾸거나 껐음 → 이번 저장은 규칙 기록에 넣지 않는다 (36번 §2.5-2) */
     private var ruleActionTaken = false
@@ -86,6 +100,16 @@ class LinkSaveViewModel @Inject constructor(
     private suspend fun onRelocked() {
         val state = _uiState.value
         val lockedNames = observeLockedCategoriesUseCase().first()
+        // 빠른 저장 "이미 저장한 링크" 안내가 잠금 카테고리 링크를 보이던 중이면 가린다
+        // 미리보기 카드도 저장된 제목·썸네일 대신 URL 만 남긴다 (37번 §6.3, 45번 독립 리뷰 R3)
+        state.alreadySaved?.takeIf { !it.hiddenByLock && it.link.category in lockedNames }?.let { shown ->
+            _uiState.update {
+                it.copy(
+                    alreadySaved = shown.copy(hiddenByLock = true),
+                    linkUrlPreviewUiState = LinkUrlPreviewUiState.LinkUrlData(UrlData(url = it.userInputUrl.ifBlank { shown.link.url })),
+                )
+            }
+        }
         if (state.isEditScreen) {
             val savedCategory = findUrlDataUseCase(state.userInputUrl)?.category
             if (state.categoryName in lockedNames || savedCategory in lockedNames) {
@@ -109,7 +133,29 @@ class LinkSaveViewModel @Inject constructor(
     fun startInitialCrawling(url: String?) {
         if (isInitialUrlHandled) return
         isInitialUrlHandled = true
+        savePrefillStore.take(url)?.let(::applyPrefill)
         if (!url.isNullOrEmpty()) startCrawling(url)
+    }
+
+    /** 공유 빠른 저장 시트로 연다 (44번 §3). 이미 있는 링크는 수정 모드 대신 안내, 저장하면 완료 막대 */
+    fun startQuick(url: String) {
+        if (isInitialUrlHandled) return
+        _uiState.update { it.copy(isQuick = true) }
+        startInitialCrawling(url)
+    }
+
+    /** 시트 [자세히] 에서 고른 값 (사용자가 고른 카테고리만 USER 로 두고, 규칙이 고른 값은 다시 판정한다) */
+    private fun applyPrefill(prefill: SavePrefill) {
+        _uiState.update {
+            it.copy(
+                categoryName = if (prefill.categoryByUser) prefill.categoryName else it.categoryName,
+                categorySource = if (prefill.categoryByUser) CategorySource.USER else it.categorySource,
+                isBookMark = prefill.isBookMark,
+                reminderAt = prefill.remindAt ?: it.reminderAt,
+                reminderPreset = prefill.reminderPreset ?: it.reminderPreset,
+                reminderDirty = prefill.remindAt != null || it.reminderDirty,
+            )
+        }
     }
 
     fun onIntent(intent: LinkSaveIntent) {
@@ -137,6 +183,11 @@ class LinkSaveViewModel @Inject constructor(
                 s.copy(autoCatDone = AutoCatDone.Once(s.categoryName.takeIf { LinkSaveUiState.isRealCategory(it) }), autoCatCanUndo = false)
             }
             LinkSaveIntent.UndoAutoCat -> undoAutoCat()
+            is LinkSaveIntent.SetReminder -> _uiState.update {
+                it.copy(reminderAt = intent.at, reminderPreset = intent.preset, reminderDirty = true)
+            }
+            LinkSaveIntent.ClearReminder -> _uiState.update { it.copy(reminderAt = null, reminderPreset = null, reminderDirty = true) }
+            LinkSaveIntent.QuickSave -> saveQuick()
         }
     }
 
@@ -329,10 +380,11 @@ class LinkSaveViewModel @Inject constructor(
             } else {
                 when (val result = saveUrlUseCase(urlData)) {
                     is SaveResult.Duplicate -> {
-                        _uiEffect.emit(LinkSaveUiEffect.ShowDuplicateDialog(result.existing, hideTitle = result.existing.isHiddenByLock()))
+                        if (_uiState.value.isQuick) showAlreadySaved(result.existing)
+                        else _uiEffect.emit(LinkSaveUiEffect.ShowDuplicateDialog(result.existing, hideTitle = result.existing.isHiddenByLock()))
                         return@launch
                     }
-                    is SaveResult.Success -> afterSave(urlData, isNew = true)
+                    is SaveResult.Success -> afterSave(result.urlData, isNew = true)
                     SaveResult.Error -> return@launch
                 }
             }
@@ -343,8 +395,8 @@ class LinkSaveViewModel @Inject constructor(
         viewModelScope.launch {
             val urlData = _uiState.value.getSaveData() ?: return@launch
             ensureCategoryExists(urlData)
-            when (saveUrlUseCase(urlData, force = true)) {
-                is SaveResult.Success -> afterSave(urlData, isNew = true)
+            when (val result = saveUrlUseCase(urlData, force = true)) {
+                is SaveResult.Success -> afterSave(result.urlData, isNew = true)
                 else -> Unit
             }
         }
@@ -365,7 +417,34 @@ class LinkSaveViewModel @Inject constructor(
         }
     }
 
+    /** 수정 모드면 저장된 예약을 알림 줄에 보인다 (이 화면에서 이미 바꿨으면 그대로) */
+    private fun loadStoredReminder(link: UrlData?) {
+        if (_uiState.value.reminderDirty) return
+        viewModelScope.launch {
+            val at = link?.let { runCatching { revisitRepository.getReminder(it.id)?.remindAt }.getOrNull() }
+            _uiState.update { if (it.reminderDirty) it else it.copy(reminderAt = at, reminderPreset = null) }
+        }
+    }
+
+    /**
+     * 저장을 눌렀을 때 알림 줄 값대로 예약하거나 끈다 (화면을 닫기 전에 마친다: 닫히면 이 ViewModel 범위가 끝남).
+     * 새 링크는 방금 저장한 행의 id 를 주소로 찾는다. [urlData] 는 실제로 저장된 값(SaveResult.Success, 추적 파라미터를 뗀 URL)이어야 한다:
+     * 공유받은 원래 URL(유튜브 `?si=` 등)로 찾으면 행이 없어 알림이 조용히 빠진다 (45번 독립 리뷰 R1).
+     */
+    private suspend fun applyReminder(urlData: UrlData, isNew: Boolean) {
+        val state = _uiState.value
+        if (!state.reminderDirty) return
+        runCatching {
+            val linkId = if (isNew) urlData.url?.let { revisitRepository.latestLinkIdForUrl(it) } else urlData.id
+            if (linkId == null || linkId <= 0) return@runCatching
+            val at = state.reminderAt
+            if (at != null) revisitRepository.setReminder(linkId, at, state.reminderPreset ?: com.jinscompany.saveurl.domain.revisit.ReminderPreset.CUSTOM)
+            else revisitRepository.cancelReminder(linkId)
+        }.onFailure { if (it is CancellationException) throw it else CrashReporter.record(it) }
+    }
+
     private suspend fun afterSave(urlData: UrlData, isNew: Boolean) {
+        applyReminder(urlData, isNew)
         if (isNew) {
             val state = _uiState.value
             runCatching {
@@ -382,7 +461,85 @@ class LinkSaveViewModel @Inject constructor(
                 )
             }.onFailure { if (it is CancellationException) throw it else CrashReporter.record(it) }
         }
-        _uiEffect.emit(LinkSaveUiEffect.GotoNextScreen())
+        if (_uiState.value.isQuick) {
+            val name = urlData.category?.takeIf { LinkSaveUiState.isRealCategory(it) }
+            _uiState.update { it.copy(quickSaved = QuickSaved(name, isLocked = name != null && name in it.lockedCategoryNames)) }
+        } else {
+            _uiEffect.emit(LinkSaveUiEffect.GotoNextScreen())
+        }
+    }
+
+    /**
+     * 시트 [저장] (44번 §3.3·§3.5). 미리보기를 다 불러왔으면 지금 저장 화면과 같이 저장하고,
+     * 아직 불러오는 중이면 기다리지 않고 URL 만으로 저장한 뒤(metaState=PENDING) 백그라운드 채우기에 맡긴다.
+     */
+    private fun saveQuick() {
+        val current = _uiState.value
+        if (current.isSaving || current.quickSaved != null || current.alreadySaved != null) return
+        _uiState.update { it.copy(isSaving = true) }
+        viewModelScope.launch {
+            try {
+                val before = _uiState.value
+                val loaded = before.getSaveData()
+                val url = extractUrlFromText(before.userInputUrl) ?: before.userInputUrl
+                if (url.isBlank()) return@launch
+                if (loaded == null) {
+                    parseJob?.cancel()
+                    // 규칙 판정이 끝나기 전에 눌렀으면 한 번 기다린다: "선택 안 함"으로 저장되지 않게 (45번 독립 리뷰 R6)
+                    if (before.categorySource == CategorySource.NONE) withTimeoutOrNull(RULE_WAIT_MS) { evaluateRule(url) }
+                }
+                val state = _uiState.value
+                val urlData = loaded ?: UrlData(url = url, metaState = MetaState.PENDING).also {
+                    it.isBookMark = state.isBookMark
+                    it.tagList = state.tagList
+                    it.category = state.categoryName
+                }
+                ensureCategoryExists(urlData)
+                // 저장과 그 뒤 처리(알림 예약·채우기 요청)는 시트를 닫아도 끝까지 한다 (45번 독립 리뷰 R5).
+                // 결과의 저장된 값(추적 파라미터를 뗀 URL)으로 행을 찾는다 (R1)
+                withContext(NonCancellable) {
+                    when (val result = saveUrlUseCase(urlData)) {
+                        is SaveResult.Duplicate -> showAlreadySaved(result.existing)
+                        is SaveResult.Success -> {
+                            if (loaded == null) requestMetaFill(result.urlData.url ?: url)
+                            afterSave(result.urlData, isNew = true)
+                        }
+                        SaveResult.Error -> _uiEffect.emit(LinkSaveUiEffect.ShowToast(R.string.quick_save_failed))
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                CrashReporter.record(e)
+                _uiEffect.emit(LinkSaveUiEffect.ShowToast(R.string.quick_save_failed))
+            } finally {
+                _uiState.update { it.copy(isSaving = false) }
+            }
+        }
+    }
+
+    /** URL 만으로 저장한 링크: 바로 채우기를 시작한다 (사용자가 직접 저장한 링크라 모바일 데이터도 허용, 34번 우선 채우기) */
+    private suspend fun requestMetaFill(url: String) {
+        runCatching {
+            revisitRepository.latestLinkIdForUrl(url)?.let { metaFillScheduler.prioritize(it, explicit = true) }
+            metaFillScheduler.schedule()
+        }.onFailure { if (it is CancellationException) throw it else CrashReporter.record(it) }
+    }
+
+    /** 빠른 저장: 이미 저장한 링크 안내 (수정 모드로 열지 않음, 44번 §4) */
+    /** [fromParse] = 미리보기 수집(parseJob) 안에서 부름: 자기 자신을 취소하지 않는다 */
+    private suspend fun showAlreadySaved(existing: UrlData, fromParse: Boolean = false) {
+        if (!fromParse) parseJob?.cancel()
+        val hidden = existing.isHiddenByLock()
+        _uiState.update {
+            it.copy(
+                alreadySaved = AlreadySaved(existing, hiddenByLock = hidden),
+                // 닫힌 잠금 링크는 저장된 제목·썸네일 대신 공유로 받은 URL 만 (37번 §6.3)
+                linkUrlPreviewUiState = LinkUrlPreviewUiState.LinkUrlData(
+                    if (hidden) UrlData(url = it.userInputUrl.ifBlank { existing.url }) else existing
+                ),
+            )
+        }
     }
 
     private fun removeTag(tag: String) {
@@ -450,8 +607,14 @@ class LinkSaveViewModel @Inject constructor(
             try {
                 val realUrl = extractUrlFromText(url)
                 if (!realUrl.isNullOrEmpty()) {
+                    val existing = findUrlDataUseCase(realUrl)
+                    if (existing != null && _uiState.value.isQuick) {
+                        _uiState.update { it.copy(userInputUrl = realUrl) }
+                        showAlreadySaved(existing, fromParse = true)
+                        return@launch
+                    }
                     // 닫힌 잠금 카테고리의 링크는 수정 모드로 열지 않고 새 링크처럼 다룬다 (저장하면 중복 안내, 제목 없이)
-                    findUrlDataUseCase(realUrl)?.takeUnless { it.isHiddenByLock() }?.let {
+                    existing?.takeUnless { it.isHiddenByLock() }?.let {
                         editOriginal = it.copy()
                         _uiState.update { current ->
                             current.copy(
@@ -484,7 +647,13 @@ class LinkSaveViewModel @Inject constructor(
                             // 공유 텍스트 전체가 아닌 추출된 URL 로 WebView 폴백 (리다이렉트 해석된 URL 우선)
                             _uiEffect.emit(LinkSaveUiEffect.StartCrawling(data.url?.takeIf { it.startsWith("http") } ?: realUrl))
                         } else {
-                            val checkData = findUrlDataUseCase(data.url ?: "")?.takeUnless { it.isHiddenByLock() }
+                            val resolved = findUrlDataUseCase(data.url ?: "")
+                            if (resolved != null && _uiState.value.isQuick) {
+                                // 단축 링크를 푼 URL 이 이미 있음 → 같은 안내 (44번 §4 마지막 줄)
+                                showAlreadySaved(resolved, fromParse = true)
+                                return@launch
+                            }
+                            val checkData = resolved?.takeUnless { it.isHiddenByLock() }
                             editOriginal = checkData?.copy()
                             val isEdit = data.title == (checkData?.title ?: "")
                             _uiState.update { current ->
@@ -545,5 +714,10 @@ class LinkSaveViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    private companion object {
+        /** 불러오는 중에 저장할 때 규칙 판정을 기다리는 최대 시간 (기기 안 DB 조회라 보통 수십 ms) */
+        const val RULE_WAIT_MS = 1_500L
     }
 }

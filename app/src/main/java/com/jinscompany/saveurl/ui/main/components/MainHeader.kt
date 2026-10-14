@@ -168,9 +168,12 @@ private fun ViewModeMenuButton(viewMode: ListViewMode, onViewModeChange: (ListVi
     }
 }
 
-/** "최근 저장 | 즐겨찾기" 탭 (리스트 전체를 전환) */
+/**
+ * "최근 저장 | 즐겨찾기 | 안 읽음" 탭 (리스트 전체를 전환).
+ * 안 읽음 옆 숫자는 회색 작은 글씨 (빨간 배지·점 없음, 0 이면 숨김, 1,000 이상 "999+". 42번 §1.2)
+ */
 @Composable
-fun MainTabRow(selectedTab: MainTab, onTabSelect: (MainTab) -> Unit) {
+fun MainTabRow(selectedTab: MainTab, onTabSelect: (MainTab) -> Unit, unreadCount: Int = 0) {
     val colors = AppTheme.colors
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -185,13 +188,34 @@ fun MainTabRow(selectedTab: MainTab, onTabSelect: (MainTab) -> Unit) {
                         .clickable { onTabSelect(tab) },
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        text = stringResource(if (tab == MainTab.RECENT) R.string.main_tab_recent else R.string.main_tab_favorites),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                        color = if (selected) colors.accent else colors.textSecondary,
-                        modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
-                    )
+                    val countCd = if (tab == MainTab.UNREAD && unreadCount > 0) stringResource(R.string.main_tab_unread_count_cd, unreadCount) else null
+                    Row(
+                        modifier = Modifier
+                            .padding(top = 4.dp, bottom = 10.dp)
+                            .then(if (countCd != null) Modifier.semantics(mergeDescendants = true) { contentDescription = countCd } else Modifier),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(
+                                when (tab) {
+                                    MainTab.RECENT -> R.string.main_tab_recent
+                                    MainTab.FAVORITES -> R.string.main_tab_favorites
+                                    MainTab.UNREAD -> R.string.main_tab_unread
+                                }
+                            ),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                            color = if (selected) colors.accent else colors.textSecondary,
+                        )
+                        if (tab == MainTab.UNREAD && unreadCount > 0) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (unreadCount >= 1000) "999+" else unreadCount.toString(),
+                                style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                                color = colors.textSecondary,
+                            )
+                        }
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -524,7 +548,7 @@ private fun MainHeaderPreview() {
     SaveUrlTheme(darkTheme = false) {
         Column {
             MainTopBar(ListViewMode.DEFAULT, {}, {}, {})
-            MainTabRow(MainTab.RECENT) {}
+            MainTabRow(MainTab.RECENT, onTabSelect = {})
             CategoryChipRow(listOf("전체", "개발", "뉴스"), listOf("전체"), false, {}, {})
             SortRow("즐겨찾기 4개", "최신순") {}
             Spacer(Modifier.height(8.dp))

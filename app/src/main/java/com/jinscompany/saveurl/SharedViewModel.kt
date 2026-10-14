@@ -7,6 +7,7 @@ import com.jinscompany.saveurl.domain.model.ThemeMode
 import com.jinscompany.saveurl.utils.InAppUpdatePolicy.FlexibleDecline
 import com.jinscompany.saveurl.utils.InAppUpdatePolicy.ForceUpdateBlockReason
 import com.jinscompany.saveurl.utils.PreferencesManager
+import com.jinscompany.saveurl.utils.LegacyTutorialLinkCleanup
 import com.jinscompany.saveurl.utils.ThemeMigrationRunner
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
@@ -23,6 +24,7 @@ import javax.inject.Inject
 class SharedViewModel @Inject constructor(
     private val preferencesManager: PreferencesManager,
     themeMigrationRunner: ThemeMigrationRunner,
+    legacyTutorialLinkCleanup: LegacyTutorialLinkCleanup,
 ): ViewModel() {
 
     private val _isFlexibleUpdatable = MutableStateFlow(false)
@@ -53,6 +55,8 @@ class SharedViewModel @Inject constructor(
      */
     val themeMode: StateFlow<ThemeMode?> = flow {
         themeMigrationRunner.awaitDone()
+        // 2.0.0 튜토리얼 링크 항목 정리도 스플래시가 떠 있는 동안 끝낸다 (첫 목록에 잠깐 보였다 사라지지 않게, 45번 R8)
+        legacyTutorialLinkCleanup.awaitDone()
         emitAll(preferencesManager.themeMode)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 

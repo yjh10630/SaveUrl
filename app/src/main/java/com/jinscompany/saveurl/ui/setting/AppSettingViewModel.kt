@@ -28,6 +28,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.jinscompany.saveurl.data.revisit.NotifBlock
+import com.jinscompany.saveurl.data.revisit.RevisitNotifier
+import com.jinscompany.saveurl.data.revisit.RevisitRepository
 
 /** 설정 "자동 분류" 줄 배지 */
 sealed interface AutoCategoryBadge {
@@ -48,11 +51,53 @@ class AppSettingViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val savedStateHandle: SavedStateHandle,
     private val remoteFlags: RemoteFlags,
-    preferencesManager: PreferencesManager,
+    private val preferencesManager: PreferencesManager,
     private val sourceOpener: ImportSourceOpener,
     autoCategoryRepository: AutoCategoryRepository,
     lockSession: CategoryLockSession,
+    private val revisitRepository: RevisitRepository,
+    private val revisitNotifier: RevisitNotifier,
 ) : ViewModel() {
+
+    // ---- 설정 › 알림 (42번 §6) ----
+    /** 예정된 링크 알림 수 */
+    val reminderCount: StateFlow<Int> = revisitRepository.observeUpcoming().map { it.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    /** 다시 볼 링크 카드: 원격으로 꺼지면 행을 숨긴다 */
+    val revisitCardRemote: StateFlow<Boolean> = remoteFlags.revisitCardEnabled
+    val revisitCardEnabled: StateFlow<Boolean> = preferencesManager.revisitCardEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    /** 주간 정리: 원격으로 꺼지면 행을 숨긴다 (사용자 값은 보존) */
+    val weeklyRemote: StateFlow<Boolean> = remoteFlags.weeklyDigestEnabled
+    val weeklyEnabled: StateFlow<Boolean> = preferencesManager.weeklyDigestEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** 알림이 꺼진 이유 (예약이나 주간 정리가 켜져 있을 때만 경고 줄). 화면 복귀 때 [refreshNotifBlocked] */
+    private val _notifBlocked = kotlinx.coroutines.flow.MutableStateFlow<NotifBlock?>(null)
+    val notifBlocked: StateFlow<NotifBlock?> = _notifBlocked
+
+    /** 링크 알림 채널을 먼저 보고, 주간 정리가 켜져 있으면 그 채널도 본다 (주간 채널만 꺼도 경고) */
+    fun refreshNotifBlocked() {
+        _notifBlocked.value = revisitNotifier.blockedReason(RevisitNotifier.CHANNEL_REMINDER)
+            ?: if (weeklyEnabled.value) revisitNotifier.blockedReason(RevisitNotifier.CHANNEL_WEEKLY) else null
+    }
+
+    fun setRevisitCardEnabled(enabled: Boolean) {
+        viewModelScope.launch { preferencesManager.setRevisitCardEnabled(enabled) }
+    }
+
+    /** 켤 때는 화면이 권한 흐름을 먼저 거친다 ([granted] = 허용됨) */
+    fun setWeeklyEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesManager.setWeeklyDigestEnabled(enabled)
+            // 설정에서 직접 켜거나 끄면 제안 카드는 다시 보이지 않는다
+            preferencesManager.setWeeklyPromptState(com.jinscompany.saveurl.domain.revisit.WeeklyPromptState.ACCEPTED)
+            revisitRepository.syncWeekly()
+            refreshNotifBlocked()
+        }
+    }
 
     /**
      * 설정 "자동 분류" 줄의 배지 (36번 §5.1): 확인이 필요한 규칙이 있으면 "확인 n", 없고 제안이 있으면 "제안 n".

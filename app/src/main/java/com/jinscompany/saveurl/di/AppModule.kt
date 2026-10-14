@@ -7,6 +7,7 @@ import com.jinscompany.saveurl.data.room.BaseSaveUrlDao
 import com.jinscompany.saveurl.data.room.CategoryDao
 import com.jinscompany.saveurl.data.room.AutoCategoryRuleDao
 import com.jinscompany.saveurl.data.room.ImportDao
+import com.jinscompany.saveurl.data.room.LinkReminderDao
 import com.jinscompany.saveurl.data.room.TrashDao
 import com.jinscompany.saveurl.utils.ClipboardReader
 import com.jinscompany.saveurl.utils.ClipboardReaderImpl
@@ -45,6 +46,14 @@ class AppModule {
     fun provideClipboardReader(clipboardManager: ClipboardManager): ClipboardReader =
         ClipboardReaderImpl(clipboardManager)
 
+    @Provides
+    fun provideClipboardSeenStore(preferencesManager: com.jinscompany.saveurl.utils.PreferencesManager): com.jinscompany.saveurl.utils.ClipboardSeenStore =
+        object : com.jinscompany.saveurl.utils.ClipboardSeenStore {
+            override suspend fun lastShownKey(): String? = preferencesManager.clipboardLastShownKey()
+            override suspend fun setLastShownKey(key: String) = preferencesManager.setClipboardLastShownKey(key)
+            override suspend fun salt(): String = preferencesManager.clipboardSalt()
+        }
+
     @Singleton
     @Provides
     fun provideBaseSaveUrlDao(appDatabase: AppDatabase): BaseSaveUrlDao =
@@ -66,4 +75,8 @@ class AppModule {
     @Singleton
     @Provides
     fun provideImportDao(appDatabase: AppDatabase): ImportDao = appDatabase.importDao()
+
+    @Singleton
+    @Provides
+    fun provideLinkReminderDao(appDatabase: AppDatabase): LinkReminderDao = appDatabase.linkReminderDao()
 }

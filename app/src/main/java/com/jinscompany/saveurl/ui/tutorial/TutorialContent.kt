@@ -112,6 +112,7 @@ object TutorialTopics {
     const val FAVORITE = "favorite"
     const val VIEW_MODE = "view_mode"
     const val SEARCH = "search_filter"
+    const val REVISIT = "revisit"
     const val MANAGE = "manage"
     const val TRASH = "trash"
     const val SETTINGS = "display_backup"
@@ -218,6 +219,14 @@ object TutorialTopics {
                     TutorialImage(R.drawable.tut_filter_light, R.drawable.tut_filter_dark, R.string.tut_search_filter_cd),
                 )
             ),
+        ),
+        // 2.1 (versionCode 40): 안 읽음 탭·나중에 알림 (42번 §10.3). 스크린샷은 실제 화면 캡처 후 추가
+        TutorialTopic(
+            id = REVISIT, group = TutorialGroup.FIND,
+            titleRes = R.string.tut_revisit_title, subtitleRes = R.string.tut_revisit_subtitle, bodyRes = R.string.tut_revisit_body,
+            stepRes = listOf(R.string.tut_revisit_step1, R.string.tut_revisit_step2, R.string.tut_revisit_step3),
+            tipRes = R.string.tut_revisit_tip,
+            addedInVersionCode = 40,
         ),
         TutorialTopic(
             id = MANAGE, group = TutorialGroup.FIND,

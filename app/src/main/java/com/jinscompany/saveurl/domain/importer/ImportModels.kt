@@ -34,7 +34,11 @@ data class ImportCandidate(
     val categoryLocked: Boolean = false,
     val tags: List<String> = emptyList(),
     val isBookmark: Boolean = false,
-    val isRead: Boolean = false,
+    /**
+     * 가져온 링크는 읽음으로 넣는다 (카톡 대화 수백 개가 모두 "안 읽음"이 되지 않게. 42번 §7.1).
+     * SaveLink 백업만 파일의 값을 쓴다 (CsvImportParser).
+     */
+    val isRead: Boolean = true,
     val imageUrl: String? = null,
     val siteName: String? = null,
     val description: String? = null,

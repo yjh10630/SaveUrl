@@ -22,6 +22,9 @@ class UrlRepositoryImpl @Inject constructor(
 ): UrlRepository {
     override fun getUrlList(params: FilterParams?, includeLocked: Boolean): PagingSource<Int, UrlData> =
         localUrlDBSource.getLocalSaveDBUrlList(params, includeLocked)
+
+    override fun getUnreadList(params: FilterParams?, keepIds: List<Int>, includeLocked: Boolean): PagingSource<Int, UrlData> =
+        localUrlDBSource.getUnreadList(params, keepIds, includeLocked)
     override suspend fun saveUrl(data: UrlData): Boolean = localUrlDBSource.saveLocalDBUrl(data)
     override suspend fun removeUrl(data: UrlData): Boolean = withContext(Dispatchers.IO) {
         return@withContext localUrlDBSource.deleteLocalDBUrl(data)

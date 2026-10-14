@@ -73,6 +73,8 @@ fun CategorySelectorDialog(
     lockedCategoryList: List<String> = emptyList(),
     /** 헤더 설명 (기본 "하나만 선택할 수 있어요"). 규칙이 고른 상태면 "인스타그램 규칙이 '맛집'을 골랐어요" */
     description: String? = null,
+    /** 머리의 "편집" (카테고리 편집 화면으로). 공유 빠른 저장 시트에서는 앱 화면을 띄울 수 없어 숨긴다 (44번 §3.4) */
+    showEdit: Boolean = true,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -89,9 +91,9 @@ fun CategorySelectorDialog(
             onOpenLocked = { openLocked(R.string.prompt_save_to_locked) {} },
             selected = selectItem,
             onSelect = { selectItem = it },
-            onEdit = {
-                scope.launch { sheetState.hide() }.invokeOnCompletion { goToCateEdit.invoke() }
-            },
+            onEdit = if (showEdit) {
+                { scope.launch { sheetState.hide() }.invokeOnCompletion { goToCateEdit.invoke() } }
+            } else null,
             onConfirm = {
                 scope.launch { sheetState.hide() }.invokeOnCompletion { dismiss.invoke(selectItem) }
             }
@@ -108,7 +110,8 @@ private fun CategorySelectorContent(
     onOpenLocked: () -> Unit = {},
     selected: String,
     onSelect: (String) -> Unit,
-    onEdit: () -> Unit,
+    /** null = "편집" 숨김 */
+    onEdit: (() -> Unit)?,
     onConfirm: () -> Unit,
 ) {
     val colors = AppTheme.colors
@@ -116,7 +119,7 @@ private fun CategorySelectorContent(
         SheetHeader(
             title = "카테고리 선택",
             description = description ?: "하나만 선택할 수 있어요",
-            action = { TextAction("편집", onClick = onEdit) }
+            action = onEdit?.let { edit -> { TextAction("편집", onClick = edit) } }
         )
         Spacer(modifier = Modifier.height(12.dp))
         Column(

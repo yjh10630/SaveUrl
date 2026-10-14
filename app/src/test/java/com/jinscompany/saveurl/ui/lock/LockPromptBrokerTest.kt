@@ -53,6 +53,25 @@ class LockPromptBrokerTest {
     }
 
     @Test
+    fun `위에 뜬 공유 시트가 빠지면 아래 MainActivity 가 다시 프롬프트를 띄운다 (45번 R2)`() {
+        val main = mutableListOf<LockPromptBroker.Request>()
+        val mainPresenter: (LockPromptBroker.Request) -> Unit = { main += it }
+        val sheetPresenter: (LockPromptBroker.Request) -> Unit = { shown += it }
+        broker.attach(mainPresenter)
+        // MainActivity 위에 반투명 시트: 시트가 맨 위
+        broker.attach(sheetPresenter)
+        broker.request(request(key = "sheet"))
+        assertEquals("sheet", shown.single().key)
+        broker.onPromptSucceeded()
+        // 시트 onStop (아래 MainActivity 는 stop 되지 않았으므로 다시 attach 하지 않는다)
+        broker.detach(sheetPresenter)
+        broker.request(request(key = "main"))
+
+        assertEquals("main", main.single().key)
+        assertTrue(broker.deliveries.value.none { it.key == "main" && it.result == LockAuthResult.Error })
+    }
+
+    @Test
     fun `presenter 가 없으면 오류로 끝난다`() {
         broker.request(request())
         assertEquals(LockAuthResult.Error, broker.deliveries.value.single().result)

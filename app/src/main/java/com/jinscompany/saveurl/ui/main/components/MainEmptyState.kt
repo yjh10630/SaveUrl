@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.DoneAll
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Button
@@ -39,7 +40,7 @@ import com.jinscompany.saveurl.ui.composable.singleClick
 import com.jinscompany.saveurl.ui.theme.AppTheme
 import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
 
-enum class MainEmptyType { NO_LINKS, NO_FAVORITES, NO_FILTER_RESULT }
+enum class MainEmptyType { NO_LINKS, NO_FAVORITES, NO_FILTER_RESULT, NO_UNREAD }
 
 @Composable
 fun MainEmptyState(
@@ -55,6 +56,8 @@ fun MainEmptyState(
         MainEmptyType.NO_LINKS -> Triple(Icons.Outlined.Link, R.string.main_empty_title, R.string.main_empty_description)
         MainEmptyType.NO_FAVORITES -> Triple(Icons.Outlined.StarOutline, R.string.main_empty_favorites_title, R.string.main_empty_favorites_description)
         MainEmptyType.NO_FILTER_RESULT -> Triple(Icons.Outlined.Tune, R.string.main_empty_filtered_title, R.string.main_empty_filtered_description)
+        // 축하 애니메이션 없이 담담하게 (42번 §1.3)
+        MainEmptyType.NO_UNREAD -> Triple(Icons.Outlined.DoneAll, R.string.unread_empty_title, R.string.unread_empty_body)
     }
     Column(
         modifier = modifier
