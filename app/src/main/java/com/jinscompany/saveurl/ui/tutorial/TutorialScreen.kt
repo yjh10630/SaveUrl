@@ -33,6 +33,7 @@ import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material.icons.outlined.Delete
@@ -384,6 +385,7 @@ private fun topicIcon(id: String): ImageVector = when (id) {
     TutorialTopics.FAVORITE -> Icons.Outlined.StarOutline
     TutorialTopics.VIEW_MODE -> Icons.Outlined.ViewAgenda
     TutorialTopics.SEARCH -> Icons.Outlined.Search
+    TutorialTopics.REVISIT -> Icons.Outlined.Alarm
     TutorialTopics.MANAGE -> Icons.Outlined.TouchApp
     TutorialTopics.TRASH -> Icons.Outlined.Delete
     TutorialTopics.SETTINGS -> Icons.Outlined.Palette
