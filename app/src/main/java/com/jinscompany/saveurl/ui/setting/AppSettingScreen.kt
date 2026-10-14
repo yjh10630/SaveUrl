@@ -154,6 +154,8 @@ fun AppSettingScreen(
     val reminderCount by settingViewModel.reminderCount.collectAsState()
     val revisitCardRemote by settingViewModel.revisitCardRemote.collectAsState()
     val revisitCardEnabled by settingViewModel.revisitCardEnabled.collectAsState()
+    val quickSaveRemote by settingViewModel.quickSaveRemote.collectAsState()
+    val quickSaveEnabled by settingViewModel.quickSaveEnabled.collectAsState()
     val weeklyRemote by settingViewModel.weeklyRemote.collectAsState()
     val weeklyEnabled by settingViewModel.weeklyEnabled.collectAsState()
     val notifBlocked by settingViewModel.notifBlocked.collectAsState()
@@ -253,6 +255,9 @@ fun AppSettingScreen(
                 if (isListPane) navController.navigateInSettingsPane(Navigation.Routes.REMINDERS)
                 else navController.navigateToReminders()
             },
+            quickSaveVisible = quickSaveRemote,
+            quickSaveEnabled = quickSaveEnabled,
+            onQuickSaveChange = settingViewModel::setQuickSaveEnabled,
             revisitCardVisible = revisitCardRemote,
             revisitCardEnabled = revisitCardEnabled,
             onRevisitCardChange = settingViewModel::setRevisitCardEnabled,
@@ -382,6 +387,10 @@ fun AppSettingScreen(
     /** 설정 › 알림 (42번 §6) */
     reminderCount: Int = 0,
     remindersClick: () -> Unit = {},
+    /** 공유 빠른 저장 (44번 §20, 기본 끔) */
+    quickSaveVisible: Boolean = true,
+    quickSaveEnabled: Boolean = false,
+    onQuickSaveChange: (Boolean) -> Unit = {},
     revisitCardVisible: Boolean = true,
     revisitCardEnabled: Boolean = true,
     onRevisitCardChange: (Boolean) -> Unit = {},
@@ -536,6 +545,17 @@ fun AppSettingScreen(
                 selected = selectedRow == SettingPaneRow.AUTO_CATEGORY,
                 badge = autoCategoryBadge,
             )
+        }
+        if (quickSaveVisible) {
+            item {
+                SettingSwitchRow(
+                    icon = Icons.Outlined.Share,
+                    label = stringResource(R.string.setting_quick_save),
+                    subtitle = stringResource(R.string.setting_quick_save_sub),
+                    checked = quickSaveEnabled,
+                    onCheckedChange = onQuickSaveChange,
+                )
+            }
         }
         item { SettingRow(icon = Icons.Outlined.Delete, label = "휴지통", onClick = trashClick, selected = selectedRow == SettingPaneRow.TRASH) }
         // 클라우드 백업을 껐으므로(링크는 이 폰에만) 폰을 바꿀 땐 이 파일로 옮겨야 한다는 걸 행에서 바로 알린다

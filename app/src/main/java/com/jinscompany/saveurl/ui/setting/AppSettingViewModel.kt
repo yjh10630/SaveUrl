@@ -84,6 +84,15 @@ class AppSettingViewModel @Inject constructor(
             ?: if (weeklyEnabled.value) revisitNotifier.blockedReason(RevisitNotifier.CHANNEL_WEEKLY) else null
     }
 
+    /** 공유 빠른 저장: 원격으로 꺼지면 행을 숨긴다 (사용자 값은 보존) */
+    val quickSaveRemote: StateFlow<Boolean> = remoteFlags.quickSaveEnabled
+    val quickSaveEnabled: StateFlow<Boolean> = preferencesManager.quickSaveSheetEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setQuickSaveEnabled(enabled: Boolean) {
+        viewModelScope.launch { preferencesManager.setQuickSaveSheetEnabled(enabled) }
+    }
+
     fun setRevisitCardEnabled(enabled: Boolean) {
         viewModelScope.launch { preferencesManager.setRevisitCardEnabled(enabled) }
     }

@@ -1,12 +1,5 @@
 package com.jinscompany.saveurl.ui.share
 
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import android.os.Bundle
-import android.os.SystemClock
-import android.widget.Toast
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -21,6 +14,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.content.IntentCompat
 import androidx.fragment.app.FragmentActivity
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import android.os.SystemClock
+import android.widget.Toast
 import com.jinscompany.saveurl.R
 import com.jinscompany.saveurl.SharedViewModel
 import com.jinscompany.saveurl.domain.lock.CategoryLockSession
@@ -34,9 +34,12 @@ import com.jinscompany.saveurl.ui.lock.LockPromptHost
 import com.jinscompany.saveurl.ui.lock.hideFromRecentsWhileLockedCategoriesOpen
 import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
 import com.jinscompany.saveurl.ui.theme.isDarkTheme
+import com.jinscompany.saveurl.utils.PreferencesManager
 import com.jinscompany.saveurl.utils.RemoteFlags
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 /**
@@ -53,6 +56,7 @@ class ShareActivity : FragmentActivity() {
     @Inject lateinit var categoryLockSession: CategoryLockSession
     @Inject lateinit var lockPromptBroker: LockPromptBroker
     @Inject lateinit var remoteFlags: RemoteFlags
+    @Inject lateinit var preferencesManager: PreferencesManager
     @Inject lateinit var importShareInbox: ImportShareInbox
     @Inject lateinit var appHandoffInbox: AppHandoffInbox
 
@@ -132,7 +136,8 @@ class ShareActivity : FragmentActivity() {
             streamCount = streams.size,
             text = text,
             importEnabled = remoteFlags.importEnabled.value,
-            quickSaveEnabled = remoteFlags.quickSaveEnabled.value,
+            // 원격 스위치와 사용자 설정(기본 끔)이 모두 켜져야 시트. 꺼져 있으면 앱 저장 화면(광고 있음)으로 넘긴다 (44번 §20)
+            quickSaveEnabled = remoteFlags.quickSaveEnabled.value && quickSaveSheetEnabled(),
         )
         when (route) {
             is ShareRouter.Route.QuickSave -> return route.url
@@ -157,6 +162,10 @@ class ShareActivity : FragmentActivity() {
         }
         return null
     }
+
+    /** 사용자 설정은 작은 DataStore 파일이라 공유 한 번에 한 번 읽는다 (시트를 그릴지 정해야 해서 기다린다) */
+    private fun quickSaveSheetEnabled(): Boolean =
+        runCatching { runBlocking { preferencesManager.quickSaveSheetEnabled.first() } }.getOrDefault(false)
 
     /** 앱(MainActivity 자기 작업)으로 넘기고 시트를 닫는다 */
     private fun handoff(target: AppHandoff, files: List<Uri> = emptyList()) {

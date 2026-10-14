@@ -133,10 +133,10 @@
     <!-- 1. 다른 앱에서 바로 저장 -->
     <string name="tut_share_title">다른 앱에서 바로 저장</string>
     <string name="tut_share_subtitle">공유 → SaveLink</string>
-    <string name="tut_share_body">브라우저나 유튜브에서 **공유 → SaveLink**를 누르면 작은 창이 떠요. **저장**을 누르면 보던 화면으로 바로 돌아가요.</string>
+    <string name="tut_share_body">브라우저나 유튜브에서 **공유 → SaveLink**를 누르면 저장 화면이 열려요. 설정에서 **공유 빠른 저장**을 켜면 앱을 열지 않고 작은 창에서 바로 저장하고 보던 화면으로 돌아가요.</string>
     <string name="tut_share_step1">저장할 페이지에서 공유 버튼을 눌러요.</string>
     <string name="tut_share_step2">앱 목록에서 SaveLink를 골라요.</string>
-    <string name="tut_share_step3">카테고리를 확인하고 **저장**을 눌러요. 태그를 붙이려면 **자세히**를 눌러요.</string>
+    <string name="tut_share_step3">카테고리를 확인하고 **저장**을 눌러요.</string>
     <string name="tut_share_tip">목록에 SaveLink가 안 보이면 공유 화면의 더보기에서 찾아보세요.</string>
     <string name="tut_share_image_cd">공유 화면에서 SaveLink를 고르는 모습</string>
 
@@ -774,6 +774,8 @@
     <string name="setting_reminders">링크 알림</string>
     <string name="setting_reminders_count">예정 %d개</string>
     <string name="setting_reminders_none">없음</string>
+    <string name="setting_quick_save">공유 빠른 저장</string>
+    <string name="setting_quick_save_sub">다른 앱에서 공유하면 앱을 열지 않고 작은 창에서 바로 저장해요</string>
     <string name="setting_revisit_card">다시 볼 링크 카드</string>
     <string name="setting_revisit_card_sub">앱을 열면 오래된 안 읽은 링크 하나를 보여 줘요</string>
     <string name="setting_weekly">주간 정리 알림</string>

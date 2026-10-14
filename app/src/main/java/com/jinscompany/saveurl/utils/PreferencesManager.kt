@@ -68,6 +68,8 @@ class PreferencesManager @Inject constructor(
     private val NOTIF_PERMISSION_ASKED = booleanPreferencesKey("notif_permission_asked")
     /** 다시 볼 링크 카드 사용자 스위치 (기본 켬) */
     private val REVISIT_CARD_ENABLED = booleanPreferencesKey("revisit_card_enabled")
+    /** 공유 빠른 저장 시트 사용자 스위치 (기본 끔: 앱 저장 화면을 열어 광고 노출을 유지, 44번 §20) */
+    private val QUICK_SAVE_SHEET_ENABLED = booleanPreferencesKey("quick_save_sheet_enabled")
     /** ✕ 로 오늘 닫은 날 (epochDay) */
     private val REVISIT_CARD_CLOSED_DAY = longPreferencesKey("revisit_card_closed_day")
     /** 오늘 고른 링크 "epochDay:linkId" (하루 동안 같은 링크) */
@@ -291,6 +293,12 @@ class PreferencesManager @Inject constructor(
     }
 
     val revisitCardEnabled: Flow<Boolean> = context.dataStore.data.map { it[REVISIT_CARD_ENABLED] ?: true }
+
+    val quickSaveSheetEnabled: Flow<Boolean> = context.dataStore.data.map { it[QUICK_SAVE_SHEET_ENABLED] ?: false }
+
+    suspend fun setQuickSaveSheetEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[QUICK_SAVE_SHEET_ENABLED] = enabled }
+    }
 
     suspend fun setRevisitCardEnabled(enabled: Boolean) {
         context.dataStore.edit { it[REVISIT_CARD_ENABLED] = enabled }
