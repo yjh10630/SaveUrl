@@ -126,12 +126,12 @@ internal fun ImportPreviewScreen(viewModel: ImportViewModel, step: ImportStep.Pr
     Scaffold(
         containerColor = colors.background,
         topBar = {
-            AppTopBar(
+            StatusBarSpaced { AppTopBar(
                 title = stringResource(R.string.import_preview_title),
                 onNavigationClick = close,
                 navigationIcon = Icons.Filled.Close,
                 navigationContentDescription = stringResource(R.string.import_close),
-            )
+            ) }
         },
         bottomBar = {
             ImportBottomArea {

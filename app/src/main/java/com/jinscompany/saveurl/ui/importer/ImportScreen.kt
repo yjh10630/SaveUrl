@@ -193,7 +193,7 @@ private fun ImportHomeScreen(onBack: () -> Unit, onPickFile: () -> Unit, hasHist
     var expanded by rememberSaveable { mutableStateOf<ImportSourceRow?>(ImportSourceRow.KAKAO) }
     Scaffold(
         containerColor = colors.background,
-        topBar = { AppTopBar(title = stringResource(R.string.import_home_title), onNavigationClick = onBack) },
+        topBar = { StatusBarSpaced { AppTopBar(title = stringResource(R.string.import_home_title), onNavigationClick = onBack) } },
         bottomBar = {
             ImportBottomArea {
                 PrimaryButton(text = stringResource(R.string.import_pick_file), onClick = onPickFile)
@@ -396,7 +396,7 @@ private fun ReadingScreen(step: ImportStep.Reading, onCancel: () -> Unit) {
     Scaffold(
         containerColor = colors.background,
         topBar = {
-            AppTopBar(title = stringResource(R.string.import_home_title), onNavigationClick = onCancel, navigationIcon = Icons.Filled.Close, navigationContentDescription = stringResource(R.string.import_close))
+            StatusBarSpaced { AppTopBar(title = stringResource(R.string.import_home_title), onNavigationClick = onCancel, navigationIcon = Icons.Filled.Close, navigationContentDescription = stringResource(R.string.import_close)) }
         },
         bottomBar = { ImportBottomArea {} },
     ) { padding ->
@@ -452,7 +452,7 @@ private fun PickSourcesScreen(
     Scaffold(
         containerColor = colors.background,
         topBar = {
-            AppTopBar(title = stringResource(R.string.import_home_title), onNavigationClick = onClose, navigationIcon = Icons.Filled.Close, navigationContentDescription = stringResource(R.string.import_close))
+            StatusBarSpaced { AppTopBar(title = stringResource(R.string.import_home_title), onNavigationClick = onClose, navigationIcon = Icons.Filled.Close, navigationContentDescription = stringResource(R.string.import_close)) }
         },
         bottomBar = {
             ImportBottomArea {
@@ -551,9 +551,9 @@ private fun ProgressScreen(step: ImportStep.Progress, onCancel: () -> Unit) {
     Scaffold(
         containerColor = colors.background,
         topBar = {
-            Row(modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = AppDimens.Gutter), verticalAlignment = Alignment.CenterVertically) {
+            StatusBarSpaced { Row(modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = AppDimens.Gutter), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.import_home_title), style = MaterialTheme.typography.titleLarge, color = colors.textPrimary)
-            }
+            } }
         },
         bottomBar = { ImportBottomArea {} },
     ) { padding ->
@@ -615,29 +615,30 @@ private fun DoneScreen(
     val colors = AppTheme.colors
     val context = LocalContext.current
     var showUndo by rememberSaveable { mutableStateOf(false) }
+    // 가로로 눕힌 폰처럼 높이가 낮으면 버튼 세 줄이 내용을 가리므로 스크롤 안 맨 아래로 옮긴다
+    val shortScreen = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp < SHORT_SCREEN_DP
+    val actions: @Composable () -> Unit = {
+        PrimaryButton(text = stringResource(R.string.import_done_view), onClick = onView)
+        VSpace(10)
+        OutlineActionButton(
+            text = stringResource(R.string.import_done_undo),
+            icon = Icons.AutoMirrored.Outlined.Undo,
+            onClick = { showUndo = true },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        VSpace(8)
+        Text(
+            stringResource(R.string.import_done_undo_note),
+            style = MaterialTheme.typography.bodySmall, color = colors.textSecondary, textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
     Scaffold(
         containerColor = colors.background,
         topBar = {
-            AppTopBar(title = stringResource(R.string.import_home_title), onNavigationClick = onClose, navigationIcon = Icons.Filled.Close, navigationContentDescription = stringResource(R.string.import_close))
+            StatusBarSpaced { AppTopBar(title = stringResource(R.string.import_home_title), onNavigationClick = onClose, navigationIcon = Icons.Filled.Close, navigationContentDescription = stringResource(R.string.import_close)) }
         },
-        bottomBar = {
-            ImportBottomArea {
-                PrimaryButton(text = stringResource(R.string.import_done_view), onClick = onView)
-                VSpace(10)
-                OutlineActionButton(
-                    text = stringResource(R.string.import_done_undo),
-                    icon = Icons.AutoMirrored.Outlined.Undo,
-                    onClick = { showUndo = true },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                VSpace(8)
-                Text(
-                    stringResource(R.string.import_done_undo_note),
-                    style = MaterialTheme.typography.bodySmall, color = colors.textSecondary, textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        },
+        bottomBar = { ImportBottomArea { if (!shortScreen) actions() } },
     ) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = AppDimens.Gutter),
@@ -689,6 +690,10 @@ private fun DoneScreen(
                         total = fill?.second ?: summary.inserted,
                         waiting = isMeteredNow(context),
                     )
+                }
+                if (shortScreen) {
+                    VSpace(20)
+                    actions()
                 }
                 VSpace(24)
             }
@@ -786,7 +791,7 @@ private fun ErrorScreen(
     Scaffold(
         containerColor = colors.background,
         topBar = {
-            AppTopBar(title = stringResource(R.string.import_home_title), onNavigationClick = onClose, navigationIcon = Icons.Filled.Close, navigationContentDescription = stringResource(R.string.import_close))
+            StatusBarSpaced { AppTopBar(title = stringResource(R.string.import_home_title), onNavigationClick = onClose, navigationIcon = Icons.Filled.Close, navigationContentDescription = stringResource(R.string.import_close)) }
         },
         bottomBar = {
             ImportBottomArea {
@@ -843,6 +848,9 @@ private fun ErrorScreen(
         }
     }
 }
+
+/** 이보다 낮으면 완료 화면 버튼을 스크롤 안으로 */
+private const val SHORT_SCREEN_DP = 480
 
 private const val KAKAO_PACKAGE = "com.kakao.talk"
 private const val TAKEOUT_URL = "https://takeout.google.com"

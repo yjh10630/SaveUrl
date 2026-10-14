@@ -168,10 +168,19 @@ class MainListViewModel @Inject constructor(
 
     private fun loadCategories() {
         viewModelScope.launch {
-            _categoryNames.value = runCatching { getCategoriesUseCase(includeLocked = false) }.getOrDefault(emptyList())
+            val loaded = runCatching { getCategoriesUseCase(includeLocked = false) }.getOrNull() ?: return@launch
+            _categoryNames.value = loaded
                 .map { it.name }
                 .filter { it != FilterDefaults.CATEGORY_ALL && it != FilterDefaults.CATEGORY_BOOKMARK }
                 .distinct()
+            // 보고 있던 카테고리가 사라졌으면(가져오기 되돌리기·카테고리 삭제) 전체로 돌아간다
+            val known = _categoryNames.value.toSet() + lockedCategoryNames.value + FilterDefaults.CATEGORY_ALL + FilterDefaults.CATEGORY_BOOKMARK
+            val current = _filterSelectedItems.value
+            val kept = current.categories.filter { it in known }
+            if (kept.size != current.categories.size) {
+                _filterSelectedItems.value = current.copy(categories = kept.ifEmpty { listOf(FilterDefaults.CATEGORY_ALL) })
+                getLinkList()
+            }
         }
     }
 

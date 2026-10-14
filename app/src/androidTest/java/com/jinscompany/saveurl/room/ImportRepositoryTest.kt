@@ -55,8 +55,9 @@ class ImportRepositoryTest {
     private fun request(records: List<ImportRecord>, lock: Set<String> = emptySet()) =
         ImportCommitRequest(ImportFormat.BOOKMARK, "bookmarks.html", records, lock, skippedBefore = 0)
 
+    /** 넣기 - 새 카테고리만 만들고 기존 카테고리에 합치며 미분류 행을 만든다 */
     @Test
-    fun `넣기 - 새 카테고리만 만들고 기존 카테고리에 합치며 미분류 행을 만든다`() = runBlocking {
+    fun commitCreatesOnlyNewCategoriesAndUncategorized() = runBlocking {
         val result = repo.commit(request(listOf(record(1, "맛집"), record(2, "개발"), record(3, null))), {}, { _, _ -> })
         assertEquals(3, result.inserted)
         assertEquals(listOf("개발", CategoryModel.UNCATEGORIZED), result.createdCategories)
@@ -69,8 +70,9 @@ class ImportRepositoryTest {
         assertEquals(ImportBatchState.DONE, db.importDao().getBatch(result.batchId)!!.state)
     }
 
+    /** 저장 직전 중복 재확인 - 이미 있는 링크는 건너뛴다 */
     @Test
-    fun `저장 직전 중복 재확인 - 이미 있는 링크는 건너뛴다`() = runBlocking {
+    fun commitSkipsLinksSavedMeanwhile() = runBlocking {
         db.baseSaveUrlDao().insertAll(UrlData(url = "https://a.com/2", normalizedUrl = "https://a.com/2"))
         val result = repo.commit(request(listOf(record(1, null), record(2, null))), {}, { _, _ -> })
         assertEquals(1, result.inserted)
@@ -78,8 +80,9 @@ class ImportRepositoryTest {
         assertEquals(1, db.baseSaveUrlDao().get().count { it.url == "https://a.com/2" })
     }
 
+    /** 되돌리기 - 묶음 링크와 비게 된 새 카테고리만 지우고 원래 것은 그대로, 휴지통 거치지 않음 */
     @Test
-    fun `되돌리기 - 묶음 링크와 비게 된 새 카테고리만 지우고 원래 것은 그대로, 휴지통 거치지 않음`() = runBlocking {
+    fun undoDeletesOnlyBatchAndEmptiedNewCategories() = runBlocking {
         val result = repo.commit(request(listOf(record(1, "맛집"), record(2, "개발"))), {}, { _, _ -> })
         val undo = repo.undo(result.batchId)
         assertEquals(2, undo.deletedLinks)
@@ -91,8 +94,9 @@ class ImportRepositoryTest {
         assertEquals(ImportBatchState.UNDONE, db.importDao().getBatch(result.batchId)!!.state)
     }
 
+    /** 되돌리기 - 새 카테고리에 사용자가 직접 넣은 링크가 있으면 카테고리는 남긴다 */
     @Test
-    fun `되돌리기 - 새 카테고리에 사용자가 직접 넣은 링크가 있으면 카테고리는 남긴다`() = runBlocking {
+    fun undoKeepsNewCategoryWithUserLink() = runBlocking {
         val result = repo.commit(request(listOf(record(1, "개발"))), {}, { _, _ -> })
         db.baseSaveUrlDao().insertAll(UrlData(url = "https://mine.example.com", normalizedUrl = "https://mine.example.com", category = "개발"))
         repo.undo(result.batchId)
@@ -100,8 +104,9 @@ class ImportRepositoryTest {
         assertEquals(1, db.baseSaveUrlDao().get().count { it.category == "개발" })
     }
 
+    /** 취소 롤백 - 가져오기 전과 같다 (링크 수·카테고리 수·기록 없음) */
     @Test
-    fun `취소 롤백 - 가져오기 전과 같다 (링크 수·카테고리 수·기록 없음)`() = runBlocking {
+    fun rollbackRestoresPreviousState() = runBlocking {
         var batchId = 0L
         repo.commit(request(listOf(record(1, "개발"), record(2, null))), { batchId = it }, { _, _ -> })
         repo.rollback(batchId)
@@ -111,8 +116,9 @@ class ImportRepositoryTest {
         assertNull(db.importDao().getBatch(batchId))
     }
 
+    /** 백업의 잠금 카테고리는 잠근 채로 만들고, 닫힌 상태의 상태 카드 숫자에서 빠진다 */
     @Test
-    fun `백업의 잠금 카테고리는 잠근 채로 만들고, 닫힌 상태의 상태 카드 숫자에서 빠진다`() = runBlocking {
+    fun backupLockedCategoryIsLockedAndHidden() = runBlocking {
         val result = repo.commit(
             request(listOf(record(1, "쇼핑"), record(2, "개발")), lock = setOf("쇼핑")),
             {}, { _, _ -> },
@@ -131,8 +137,9 @@ class ImportRepositoryTest {
         assertNull(db.categoryDao().get("쇼핑"))
     }
 
+    /** 기록 - 일부만 가져옴(진행 중 종료)은 되돌릴 수 있고, 채우기 진행을 센다 */
     @Test
-    fun `기록 - 일부만 가져옴(진행 중 종료)은 되돌릴 수 있고, 채우기 진행을 센다`() = runBlocking {
+    fun partialBatchCanBeUndone() = runBlocking {
         val result = repo.commit(request(listOf(record(1, null), record(2, null, title = "제목"))), {}, { _, _ -> })
         // 앱이 넣는 중에 죽은 것처럼 상태를 되돌려 둔다
         val batch = db.importDao().getBatch(result.batchId)!!
@@ -145,8 +152,9 @@ class ImportRepositoryTest {
         assertEquals(2, repo.undo(result.batchId).deletedLinks)
     }
 
+    /** 채우기 결과 반영 - 사용자가 고친 뒤(상태 바뀜)에는 덮어쓰지 않는다 */
     @Test
-    fun `채우기 결과 반영 - 사용자가 고친 뒤(상태 바뀜)에는 덮어쓰지 않는다`() = runBlocking {
+    fun applyMetaDoesNotOverwriteUserEdit() = runBlocking {
         val result = repo.commit(request(listOf(record(1, null))), {}, { _, _ -> })
         val id = db.baseSaveUrlDao().get().first { it.importBatchId == result.batchId }.id
         // 사용자가 수정 저장 (DONE)
@@ -157,8 +165,9 @@ class ImportRepositoryTest {
         assertEquals("내가 쓴 제목", db.baseSaveUrlDao().get().first { it.id == id }.title)
     }
 
+    /** 휴지통에 있는 항목이 새 카테고리를 쓰면 되돌려도 카테고리는 남는다 */
     @Test
-    fun `휴지통에 있는 항목이 새 카테고리를 쓰면 되돌려도 카테고리는 남는다`() = runBlocking {
+    fun undoKeepsCategoryUsedByTrash() = runBlocking {
         val result = repo.commit(request(listOf(record(1, "개발"))), {}, { _, _ -> })
         db.trashDao().insert(TrashItem(id = 99, url = "u", imgUrl = "", siteName = "", title = "", description = "", tagList = emptyList(), addDate = 0, category = "개발", isBookMark = false))
         repo.undo(result.batchId)

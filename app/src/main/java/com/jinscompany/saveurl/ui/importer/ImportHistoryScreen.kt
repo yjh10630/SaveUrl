@@ -74,7 +74,7 @@ fun ImportHistoryScreen(
 
     Scaffold(
         containerColor = colors.background,
-        topBar = { AppTopBar(title = stringResource(R.string.import_history_title), onNavigationClick = onBack) },
+        topBar = { StatusBarSpaced { AppTopBar(title = stringResource(R.string.import_history_title), onNavigationClick = onBack) } },
         bottomBar = { ImportBottomArea {} },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {

@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -237,3 +239,12 @@ internal fun AccentNote(text: String) {
 
 @Composable
 internal fun VSpace(dp: Int) = Spacer(modifier = Modifier.height(dp.dp))
+
+/**
+ * Scaffold topBar 칸은 상태바 여백을 받지 않으므로 직접 띄운다
+ * (다른 화면은 앱바를 본문 Column 안에 두어 Scaffold 본문 여백을 받는다)
+ */
+@Composable
+internal fun StatusBarSpaced(content: @Composable () -> Unit) {
+    Box(modifier = Modifier.windowInsetsPadding(androidx.compose.foundation.layout.WindowInsets.statusBars)) { content() }
+}
