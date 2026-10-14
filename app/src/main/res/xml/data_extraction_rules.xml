@@ -1,19 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   링크는 서버로 보내지 않는다: 구글 계정 클라우드 백업에서 앱 데이터를 모두 뺀다.
+   폰끼리 직접 옮기는 기기 간 이전(케이블·근거리 무선)은 서버를 거치지 않으므로 그대로 둔다.
+   API 30 이하는 이 파일을 쓰지 않고 allowBackup="false" 로 백업과 기기 간 이전이 모두 꺼진다.
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
     </cloud-backup>
-    <!--
-    <device-transfer>
-        <include .../>
-        <exclude .../>
-    </device-transfer>
-    -->
 </data-extraction-rules>
