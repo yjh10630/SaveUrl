@@ -52,6 +52,8 @@ data class ParsedSource(
     val nonHttpCount: Int = 0,
     /** 이 형식에 날짜 정보가 있는지 (일반 글은 없음 → 오늘 날짜) */
     val hasDates: Boolean = false,
+    /** CSV 에서 따옴표가 깨져 읽지 못한 줄 수 */
+    val skippedRecords: Int = 0,
     /** 대화 기간 (대화 고르기 화면 부제) */
     val firstDate: Long? = null,
     val lastDate: Long? = null,
@@ -73,6 +75,8 @@ data class ReadOutcome(
     val sources: List<ParsedSource>,
     /** 후보가 [ImportLimits.maxCandidates] 를 넘어 잘렸는지 */
     val truncated: Boolean,
+    /** 여러 파일을 공유했을 때 읽지 못한 파일 수 */
+    val unreadFiles: Int = 0,
 )
 
 /** 안전 상한 (34번 §S11) */

@@ -38,8 +38,10 @@ object UrlExtractor {
                 }
             }
             val end = scanEnd(text, start, match.value.length)
-            val raw = trimTrailing(text.substring(start, end))
             searchFrom = maxOf(end, match.range.last + 1)
+            // 비정상적으로 긴 것은 링크로 보지 않는다 (만든 파일로 읽기를 오래 붙잡지 않게)
+            if (end - start > MAX_URL_LENGTH) continue
+            val raw = trimTrailing(text.substring(start, end))
             val url = if (raw.startsWith("www.", ignoreCase = true)) "https://$raw" else raw
             if (isAcceptable(url)) result.add(url)
         }
@@ -74,15 +76,30 @@ object UrlExtractor {
         return i
     }
 
-    /** 문장 끝 구두점, 짝 없는 닫는 괄호 제거 (기존 extractUrlFromText 와 같은 규칙) */
-    private fun trimTrailing(url: String): String {
+    /**
+     * 문장 끝 구두점, 짝 없는 닫는 괄호 제거 (기존 extractUrlFromText 와 같은 규칙).
+     * 괄호 수는 한 번만 세고 뗄 때마다 줄인다 (39번 독립 리뷰 R12: 예전엔 뗄 때마다 다시 세서 O(n²))
+     */
+    internal fun trimTrailing(url: String): String {
+        var openParen = 0
+        var closeParen = 0
+        var openBracket = 0
+        var closeBracket = 0
+        for (c in url) {
+            when (c) {
+                '(' -> openParen++
+                ')' -> closeParen++
+                '[' -> openBracket++
+                ']' -> closeBracket++
+            }
+        }
         var end = url.length
         while (end > 0) {
             val c = url[end - 1]
             val trim = when (c) {
                 '.', ',', ';', ':', '!', '?', '\'', '"', '|' -> true
-                ')' -> url.substring(0, end).count { it == '(' } < url.substring(0, end).count { it == ')' }
-                ']' -> url.substring(0, end).count { it == '[' } < url.substring(0, end).count { it == ']' }
+                ')' -> (openParen < closeParen).also { if (it) closeParen-- }
+                ']' -> (openBracket < closeBracket).also { if (it) closeBracket-- }
                 else -> false
             }
             if (!trim) break
@@ -90,6 +107,9 @@ object UrlExtractor {
         }
         return url.substring(0, end)
     }
+
+    /** 이보다 긴 것은 링크로 보지 않는다 (브라우저 주소창 상한 수준) */
+    const val MAX_URL_LENGTH = 8 * 1024
 
     private fun isAcceptable(url: String): Boolean {
         val afterScheme = url.substringAfter("://", "")

@@ -2,6 +2,7 @@ package com.jinscompany.saveurl.domain.importer
 
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.MetaState
+import com.jinscompany.saveurl.ui.FilterDefaults
 import com.jinscompany.saveurl.utils.TrackingParamStripper
 import com.jinscompany.saveurl.utils.UrlNormalizer
 
@@ -50,6 +51,8 @@ data class PreviewCounts(
     val inFileDuplicates: Int,
     /** http(s) 가 아니라 건너뛴 링크 */
     val nonHttp: Int,
+    /** CSV 에서 따옴표가 깨져 읽지 못한 줄 */
+    val unreadableRows: Int = 0,
 )
 
 /** 카테고리를 정하는 방식 */
@@ -84,6 +87,8 @@ data class ImportPreview(
     val truncated: Boolean,
     /** 목록에 제목이 있는지 (북마크·백업) */
     val hasTitles: Boolean,
+    /** 여러 파일을 공유했을 때 읽지 못한 파일 수 */
+    val unreadFiles: Int = 0,
 ) {
     val firstDate: Long? get() = items.mapNotNull { it.date }.minOrNull()
     val lastDate: Long? get() = items.mapNotNull { it.date }.maxOrNull()
@@ -139,6 +144,7 @@ object ImportPlanner {
         existingKeys: Set<String>,
         label: String,
         truncated: Boolean,
+        unreadFiles: Int = 0,
     ): ImportPreview {
         val multi = sources.size > 1
         val format = when {
@@ -200,11 +206,13 @@ object ImportPlanner {
                 existing = items.count { it.exists },
                 inFileDuplicates = raw - items.size,
                 nonHttp = nonHttp,
+                unreadableRows = sources.sumOf { it.skippedRecords },
             ),
             senders = if (senderCounts.size >= 2) senderCounts else emptyList(),
             hasDates = sources.any { it.hasDates },
             truncated = truncated,
             hasTitles = items.any { !it.title.isNullOrBlank() },
+            unreadFiles = unreadFiles,
         )
     }
 
@@ -226,7 +234,7 @@ object ImportPlanner {
             items.mapNotNull { it.groupKey }.distinct().forEach { key ->
                 val name = key.substringAfter(':')
                 val pathLabel = paths[name]?.takeIf { it.size > 1 }?.joinToString(", ")
-                result.add(ImportGroup(key, name.ifBlank { null }, pathLabel, counts[key] ?: 0))
+                result.add(ImportGroup(key, normalizeName(name), pathLabel, counts[key] ?: 0))
             }
             if (items.any { it.groupKey == null } && result.isNotEmpty()) {
                 result.add(ImportGroup(NO_GROUP_KEY, null, null, counts[null] ?: 0))
@@ -296,11 +304,23 @@ object ImportPlanner {
         }
     }
 
-    /** 빈 이름·"미분류" → 미분류(null) */
+    /**
+     * 카테고리 이름 정리 (39번 독립 리뷰 R10). 카테고리 추가 화면과 같은 규칙:
+     * - 빈 이름·"미분류" → 미분류(null)
+     * - 20자에서 자름 (북마크 폴더·CSV folder 열·백업 카테고리)
+     * - 메인 칩 줄의 고정 칩 이름("전체", "북마크")과 같으면 "{이름} (가져옴)" (그 이름의 카테고리는 칩 줄에서 고를 수 없음)
+     */
     fun normalizeName(name: String?): String? {
-        val n = name?.trim().orEmpty()
-        return if (n.isEmpty() || n == CategoryModel.UNCATEGORIZED) null else n
+        val n = clip(name.orEmpty())
+        return when {
+            n.isEmpty() || n == CategoryModel.UNCATEGORIZED -> null
+            n in RESERVED_NAMES -> "$n$IMPORTED_SUFFIX"
+            else -> n
+        }
     }
+
+    private val RESERVED_NAMES = setOf(FilterDefaults.CATEGORY_ALL, FilterDefaults.CATEGORY_BOOKMARK)
+    private const val IMPORTED_SUFFIX = " (가져옴)"
 
     /** 이번에 쓰일 카테고리 이름 (미분류 제외, 처음 나온 순서) */
     fun targetCategories(preview: ImportPreview, selection: ImportSelection): List<String> =
@@ -334,7 +354,7 @@ object ImportPlanner {
         }
         // 백업에서 잠금이었던 카테고리: 그 카테고리 그대로 넣을 때만 잠근다 (다른 이름으로 바꿨으면 잠그지 않음)
         val lock = items.filter { it.candidate.categoryLocked }
-            .mapNotNull { item -> targetCategory(item, selection)?.takeIf { it == item.candidate.category } }
+            .mapNotNull { item -> targetCategory(item, selection)?.takeIf { it == normalizeName(item.candidate.category) } }
             .toSet()
         return ImportCommitRequest(
             format = preview.format,

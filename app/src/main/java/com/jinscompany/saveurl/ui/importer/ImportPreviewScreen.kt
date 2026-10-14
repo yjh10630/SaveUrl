@@ -165,7 +165,7 @@ internal fun ImportPreviewScreen(viewModel: ImportViewModel, step: ImportStep.Pr
                             style = MaterialTheme.typography.headlineSmall.copy(fontSize = 22.sp, fontWeight = FontWeight.Bold),
                             color = colors.textPrimary,
                         )
-                        duplicateLine(preview.counts.existing, preview.counts.inFileDuplicates, preview.counts.nonHttp)?.let {
+                        duplicateLine(preview.counts.existing, preview.counts.inFileDuplicates, preview.counts.nonHttp, preview.counts.unreadableRows)?.let {
                             VSpace(4)
                             Text(it, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textSecondary)
                         }
@@ -176,6 +176,10 @@ internal fun ImportPreviewScreen(viewModel: ImportViewModel, step: ImportStep.Pr
                         if (preview.truncated) {
                             VSpace(10)
                             AccentNote(stringResource(R.string.import_limit_banner))
+                        }
+                        if (preview.unreadFiles > 0) {
+                            VSpace(10)
+                            AccentNote(stringResource(R.string.import_unread_files, preview.unreadFiles))
                         }
                         if (allExist) {
                             VSpace(12)
@@ -313,13 +317,14 @@ private fun badgeText(format: ImportFormat, sourceCount: Int): String = when (fo
     ImportFormat.TEXT -> stringResource(R.string.import_badge_text)
 }
 
-/** "이미 저장된 링크 a개 · 이 파일 안에서 겹친 링크 b개는 뺐어요 · 열 수 없는 링크 c개는 건너뛰었어요" (0인 부분 생략) */
+/** "이미 저장된 링크 a개 · 이 파일 안에서 겹친 링크 b개는 뺐어요 · 열 수 없는 링크 c개는 건너뛰었어요 · 읽지 못한 줄 d개는 건너뛰었어요" (0인 부분 생략) */
 @Composable
-private fun duplicateLine(existing: Int, inFile: Int, nonHttp: Int): String? {
+private fun duplicateLine(existing: Int, inFile: Int, nonHttp: Int, unreadableRows: Int): String? {
     val parts = buildList {
         if (existing > 0) add(stringResource(R.string.import_dup_existing, fmtCount(existing)))
         if (inFile > 0) add(stringResource(R.string.import_dup_infile, fmtCount(inFile)))
         if (nonHttp > 0) add(stringResource(R.string.import_skipped_scheme, fmtCount(nonHttp)))
+        if (unreadableRows > 0) add(stringResource(R.string.import_skipped_rows, fmtCount(unreadableRows)))
     }
     return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }

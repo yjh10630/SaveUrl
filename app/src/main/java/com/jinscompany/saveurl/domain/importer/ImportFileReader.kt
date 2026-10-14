@@ -28,6 +28,8 @@ import java.util.zip.ZipInputStream
  * 5. 나머지 글·HTML·JSON → 링크만 찾음
  *
  * 인코딩: 앞 64 KB 를 UTF-8 엄격 모드로 읽어 보고, 실패하면 CP949(MS949)로 읽는다. BOM 은 뗀다.
+ * UTF-8 로 정했는데 뒤에서 잘못된 바이트가 나오면 그 자리부터 CP949 로 바꿔 읽는다 ([Utf8OrFallbackReader]).
+ * 한 줄은 64 K 글자까지만 메모리에 올린다 ([BoundedLineReader]). 줄바꿈 없는 큰 파일도 조각으로 읽는다.
  * Android 의존성 없음 (JVM 테스트).
  */
 class ImportFileReader(
@@ -93,9 +95,9 @@ class ImportFileReader(
         truncated = false
         val head = text.lineSequence().take(8).toList()
         return if (KakaoChatParser.looksLikeKakao(head)) {
-            parseKakao(label, BufferedReader(StringReader(text)), { false }, {})
+            parseKakao(label, BoundedLineReader(StringReader(text)), { false }, {})
         } else {
-            parseText(label, BufferedReader(StringReader(text)), isHtml = false, { false }, {})
+            parseText(label, BoundedLineReader(StringReader(text)), isHtml = false, { false }, {})
         }
     }
 
@@ -152,24 +154,25 @@ class ImportFileReader(
         if (isBinary(head, headLen)) return null
         val charset = detectCharset(head, headLen) ?: return null
         val headText = String(head, 0, headLen, charset).removePrefix("\uFEFF")
-        val reader = BufferedReader(InputStreamReader(stream, charset), 64 * 1024)
+        val decoded = if (charset == Charsets.UTF_8) Utf8OrFallbackReader(stream, koreanCharset()) else InputStreamReader(stream, charset)
+        val reader = BufferedReader(decoded, 64 * 1024)
         skipBom(reader)
         val lower = name.lowercase()
         val firstLine = headText.lineSequence().firstOrNull().orEmpty()
         return when {
             NetscapeBookmarkParser.looksLikeBookmarkFile(headText) -> parseBookmarks(name, reader, isCancelled, onFound)
             lower.endsWith(".csv") || CsvImportParser.isSaveLinkBackup(firstLine) || CsvImportParser.looksLikeCsvHeader(firstLine) ->
-                parseCsv(name, reader, isCancelled, onFound)
-            KakaoChatParser.looksLikeKakao(headText.lineSequence().take(8).toList()) -> parseKakao(name, reader, isCancelled, onFound)
+                parseCsv(name, BoundedLineReader(reader), isCancelled, onFound)
+            KakaoChatParser.looksLikeKakao(headText.lineSequence().take(8).toList()) -> parseKakao(name, BoundedLineReader(reader), isCancelled, onFound)
             else -> parseText(
-                name, reader,
+                name, BoundedLineReader(reader),
                 isHtml = headText.contains("<html", ignoreCase = true) || headText.contains("<a ", ignoreCase = true) || lower.endsWith(".html") || lower.endsWith(".htm"),
                 isCancelled, onFound,
             )
         }
     }
 
-    private fun parseKakao(name: String, reader: BufferedReader, isCancelled: () -> Boolean, onFound: (Int) -> Unit): ParsedSource {
+    private fun parseKakao(name: String, reader: BoundedLineReader, isCancelled: () -> Boolean, onFound: (Int) -> Unit): ParsedSource {
         val parser = KakaoChatParser(timeZone, nowMillis)
         val out = ArrayList<ImportCandidate>()
         var lines = 0
@@ -195,7 +198,7 @@ class ImportFileReader(
         )
     }
 
-    private fun parseCsv(name: String, reader: BufferedReader, isCancelled: () -> Boolean, onFound: (Int) -> Unit): ParsedSource {
+    private fun parseCsv(name: String, reader: BoundedLineReader, isCancelled: () -> Boolean, onFound: (Int) -> Unit): ParsedSource {
         val result = CsvImportParser.parse(reader, maxCandidates = remaining(), nowMillis = nowMillis(), isCancelled = isCancelled) {
             onFound(found + it)
         }
@@ -207,11 +210,12 @@ class ImportFileReader(
         return ParsedSource(
             format = if (result.isBackup) ImportFormat.BACKUP else ImportFormat.TEXT,
             fileName = name, candidates = list, nonHttpCount = result.nonHttpCount, hasDates = result.hasDates,
+            skippedRecords = result.skippedRecords,
             firstDate = dates.minOrNull(), lastDate = dates.maxOrNull(),
         )
     }
 
-    private fun parseText(name: String, reader: BufferedReader, isHtml: Boolean, isCancelled: () -> Boolean, onFound: (Int) -> Unit): ParsedSource {
+    private fun parseText(name: String, reader: BoundedLineReader, isHtml: Boolean, isCancelled: () -> Boolean, onFound: (Int) -> Unit): ParsedSource {
         val out = ArrayList<ImportCandidate>()
         var lines = 0
         while (true) {
@@ -326,7 +330,7 @@ class ImportFileReader(
             return false
         }
 
-        private fun koreanCharset(): Charset? =
+        internal fun koreanCharset(): Charset? =
             listOf("MS949", "x-windows-949", "windows-949", "EUC-KR")
                 .firstNotNullOfOrNull { runCatching { Charset.forName(it) }.getOrNull() }
     }

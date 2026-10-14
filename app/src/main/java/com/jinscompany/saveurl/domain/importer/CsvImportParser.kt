@@ -2,7 +2,6 @@ package com.jinscompany.saveurl.domain.importer
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import java.io.BufferedReader
 
 /**
  * CSV 가져오기.
@@ -32,10 +31,17 @@ object CsvImportParser {
     private val TAG_COLUMNS = setOf("tags", "tag")
     private val DATE_COLUMNS = setOf("time_added", "created", "timestamp", "date", "added", "saved", "created_at")
 
-    class Result(val candidates: List<ImportCandidate>, val nonHttpCount: Int, val hasDates: Boolean, val isBackup: Boolean)
+    /** @param skippedRecords 따옴표가 짝이 안 맞아 읽지 못하고 건너뛴 줄 수 (미리보기에 표시) */
+    class Result(
+        val candidates: List<ImportCandidate>,
+        val nonHttpCount: Int,
+        val hasDates: Boolean,
+        val isBackup: Boolean,
+        val skippedRecords: Int = 0,
+    )
 
-    fun parse(
-        reader: BufferedReader,
+    internal fun parse(
+        reader: BoundedLineReader,
         maxCandidates: Int,
         nowMillis: Long = System.currentTimeMillis(),
         isCancelled: () -> Boolean = { false },
@@ -43,8 +49,9 @@ object CsvImportParser {
     ): Result {
         val records = RecordReader(reader)
         val header = records.next()?.removePrefix("\uFEFF") ?: return Result(emptyList(), 0, false, false)
-        return if (isSaveLinkBackup(header)) parseBackup(records, maxCandidates, isCancelled, onFound)
+        val result = if (isSaveLinkBackup(header)) parseBackup(records, maxCandidates, isCancelled, onFound)
         else parseGeneric(header, records, maxCandidates, nowMillis, isCancelled, onFound)
+        return Result(result.candidates, result.nonHttpCount, result.hasDates, result.isBackup, skippedRecords = records.skipped)
     }
 
     private fun parseBackup(records: RecordReader, max: Int, isCancelled: () -> Boolean, onFound: (Int) -> Unit): Result {
@@ -140,44 +147,94 @@ object CsvImportParser {
     /**
      * 레코드 하나씩 읽는다. 따옴표 안의 줄바꿈은 한 레코드로 합친다 (CsvBackupManager.readRecords 와 같은 규칙).
      * 파일 전체를 목록으로 올리지 않는다.
+     *
+     * 따옴표는 칸의 맨 앞에 올 때만 감싸기로 본다 (`6" ruler` 처럼 칸 중간의 따옴표는 글자). 그래도 감싸기가 끝나지 않으면
+     * (열린 따옴표가 [maxLines] 줄·[maxChars] 글자를 넘거나 파일 끝까지 안 닫힘) 첫 줄만 버리고 다음 줄부터 다시 읽는다.
+     * 나머지 파일이 한 레코드로 합쳐져 조용히 사라지거나 메모리가 넘치지 않게 (39번 독립 리뷰 R3).
      */
-    internal class RecordReader(private val reader: BufferedReader) {
+    internal class RecordReader(
+        private val lines: BoundedLineReader,
+        private val maxLines: Int = 200,
+        private val maxChars: Int = 256 * 1024,
+    ) {
         var count = 0
             private set
+        /** 따옴표가 깨져 건너뛴 줄 */
+        var skipped = 0
+            private set
+        private val pushback = ArrayDeque<String>()
+
+        private fun nextLine(): String? = pushback.removeFirstOrNull() ?: lines.readLine()
 
         fun next(): String? {
-            val current = StringBuilder()
-            var quoteCount = 0
             while (true) {
-                val line = reader.readLine() ?: break
-                if (current.isNotEmpty() || quoteCount % 2 == 1) current.append('\n')
-                current.append(line)
-                quoteCount += line.count { it == '"' }
-                if (quoteCount % 2 == 0) {
-                    if (current.isBlank()) { current.clear(); continue }
+                val first = nextLine() ?: return null
+                var inQuotes = endsInQuotes(first, startInQuotes = false)
+                if (!inQuotes) {
+                    if (first.isBlank()) continue
                     count++
-                    return current.toString()
+                    return first
+                }
+                val parts = arrayListOf(first)
+                var chars = first.length
+                var broken = false
+                while (inQuotes) {
+                    val line = nextLine()
+                    if (line == null) { broken = true; break }
+                    parts.add(line)
+                    chars += line.length + 1
+                    inQuotes = endsInQuotes(line, startInQuotes = true)
+                    if (inQuotes && (parts.size > maxLines || chars > maxChars)) { broken = true; break }
+                }
+                if (broken) {
+                    skipped++
+                    for (i in parts.size - 1 downTo 1) pushback.addFirst(parts[i])
+                    continue
+                }
+                count++
+                return parts.joinToString("\n")
+            }
+        }
+    }
+
+    /** 이 줄이 끝날 때 따옴표 안인지 ([splitLine] 과 같은 규칙) */
+    internal fun endsInQuotes(line: String, startInQuotes: Boolean): Boolean {
+        var inQuotes = startInQuotes
+        var fieldStart = !startInQuotes
+        var i = 0
+        while (i < line.length) {
+            val c = line[i]
+            if (inQuotes) {
+                if (c == '"') {
+                    if (i + 1 < line.length && line[i + 1] == '"') i++ else inQuotes = false
+                }
+            } else {
+                when {
+                    c == '"' && fieldStart -> { inQuotes = true; fieldStart = false }
+                    c == ',' -> fieldStart = true
+                    else -> fieldStart = false
                 }
             }
-            if (current.isBlank()) return null
-            count++
-            return current.toString()
+            i++
         }
+        return inQuotes
     }
 
     internal fun splitLine(line: String): List<String> {
         val result = ArrayList<String>()
         val current = StringBuilder()
         var inQuotes = false
+        var fieldStart = true
         var i = 0
         while (i < line.length) {
             val c = line[i]
             when {
-                c == '"' && !inQuotes -> inQuotes = true
+                // 칸 맨 앞의 따옴표만 감싸기. 칸 중간의 따옴표(6" ruler)는 글자
+                c == '"' && !inQuotes && fieldStart -> { inQuotes = true; fieldStart = false }
                 c == '"' && inQuotes && i + 1 < line.length && line[i + 1] == '"' -> { current.append('"'); i++ }
                 c == '"' && inQuotes -> inQuotes = false
-                c == ',' && !inQuotes -> { result.add(current.toString()); current.clear() }
-                else -> current.append(c)
+                c == ',' && !inQuotes -> { result.add(current.toString()); current.clear(); fieldStart = true }
+                else -> { current.append(c); fieldStart = false }
             }
             i++
         }
