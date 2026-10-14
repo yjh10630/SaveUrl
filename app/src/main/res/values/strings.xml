@@ -497,6 +497,7 @@
     <string name="import_history_undone">되돌림</string>
     <string name="import_history_empty">아직 가져온 기록이 없어요.</string>
     <string name="import_label_shared_text">공유한 글</string>
+    <string name="import_busy">앞서 고른 링크를 아직 넣고 있어요. 잠시 뒤에 다시 눌러 주세요.</string>
 
     <string name="import_main_status">미리보기 채우는 중 %1$s / %2$s</string>
     <string name="import_main_status_wifi_only">Wi-Fi에서만</string>

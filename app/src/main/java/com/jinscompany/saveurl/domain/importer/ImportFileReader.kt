@@ -55,8 +55,8 @@ class ImportFileReader(
         if (fileSize != null && fileSize > limits.maxFileBytes && !fileName.endsWith(".zip", ignoreCase = true)) {
             throw ImportFailure(ImportError.TOO_BIG)
         }
-        found = 0
-        truncated = false
+        // 같은 reader 로 여러 파일을 읽으면(공유로 파일 여러 개) 후보 상한은 합계로 센다
+        if (truncated) throw ImportFailure(ImportError.NO_LINKS)
         val stream = BufferedInputStream(input, 64 * 1024)
         stream.mark(8)
         val magic = ByteArray(4)
@@ -151,7 +151,7 @@ class ImportFileReader(
         if (headLen == 0) return ParsedSource(ImportFormat.TEXT, name, candidates = emptyList())
         if (isBinary(head, headLen)) return null
         val charset = detectCharset(head, headLen) ?: return null
-        val headText = String(head, 0, headLen, charset).removePrefix("﻿")
+        val headText = String(head, 0, headLen, charset).removePrefix("\uFEFF")
         val reader = BufferedReader(InputStreamReader(stream, charset), 64 * 1024)
         skipBom(reader)
         val lower = name.lowercase()

@@ -288,6 +288,11 @@ class ImportViewModel @Inject constructor(
         val p = _step.value as? ImportStep.Preview ?: return
         val request = ImportPlanner.buildRequest(p.preview, p.selection, now = System.currentTimeMillis())
         if (request.records.isEmpty()) return
+        // 앞선 가져오기가 아직 넣는 중이면(화면을 나갔다 다시 들어옴) 기다리게 한다
+        if (runner.state.value is CommitState.Running) {
+            _effect.tryEmit(ImportEffect.Toast(context.getString(R.string.import_busy)))
+            return
+        }
         val names = request.records.map { it.category }.distinct()
         val label = when {
             names.size > 1 -> ProgressCategory.Many(names.size)

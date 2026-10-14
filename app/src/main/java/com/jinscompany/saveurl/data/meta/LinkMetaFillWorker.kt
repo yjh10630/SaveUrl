@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.jinscompany.saveurl.data.room.ImportDao
+import com.jinscompany.saveurl.domain.model.MetaState
 import com.jinscompany.saveurl.utils.PreferencesManager
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -47,7 +48,16 @@ class LinkMetaFillWorker(
             coroutineScope {
                 rows.map { row ->
                     attempted.add(row.id)
-                    async { semaphore.withPermit { if (!isStopped) runCatching { filler.fill(row) } } }
+                    async {
+                        semaphore.withPermit {
+                            if (!isStopped) {
+                                runCatching { filler.fill(row) }.onFailure {
+                                    // 처리하다 실패한 행이 대기열 맨 앞에 남아 뒤의 링크를 막지 않게 실패로 둔다 (열면 다시 시도)
+                                    runCatching { dao.applyMeta(row.id, row.metaState, MetaState.FAILED, null, null, null, null) }
+                                }
+                            }
+                        }
+                    }
                 }.awaitAll()
             }
         }

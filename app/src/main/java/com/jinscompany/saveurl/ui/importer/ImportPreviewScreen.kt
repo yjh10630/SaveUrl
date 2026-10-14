@@ -283,7 +283,11 @@ internal fun ImportPreviewScreen(viewModel: ImportViewModel, step: ImportStep.Pr
             FolderEditSheet(
                 group = group,
                 rule = selection.groupRules[key] ?: GroupRule(true, group.defaultName),
-                onRename = { name -> viewModel.setGroupRule(key, GroupRule(included = true, targetName = name)) },
+                // 이름만 바꾼다 (시트를 내려 닫아도 불린다: 제외해 둔 폴더를 다시 넣지 않음)
+                onRename = { name ->
+                    val current = selection.groupRules[key] ?: GroupRule(true, group.defaultName)
+                    if (current.targetName.orEmpty() != name) viewModel.setGroupRule(key, current.copy(targetName = name))
+                },
                 onMerge = { editGroupKey = null; pickCategoryFor = key },
                 onUncategorized = { viewModel.setGroupRule(key, GroupRule(included = true, targetName = null)); editGroupKey = null },
                 onDismiss = { editGroupKey = null },

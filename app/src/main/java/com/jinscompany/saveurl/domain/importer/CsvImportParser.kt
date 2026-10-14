@@ -18,11 +18,11 @@ object CsvImportParser {
     private const val SAVELINK_HEADER_PREFIX = "id,url,imageUrl"
 
     fun isSaveLinkBackup(header: String): Boolean =
-        header.removePrefix("﻿").trim().startsWith(SAVELINK_HEADER_PREFIX)
+        header.removePrefix("\uFEFF").trim().startsWith(SAVELINK_HEADER_PREFIX)
 
     /** 첫 줄이 쉼표로 나뉜 열 이름처럼 보이는지 (.csv 확장자가 없을 때) */
     fun looksLikeCsvHeader(header: String): Boolean {
-        val cols = splitLine(header.removePrefix("﻿")).map { it.trim().lowercase() }
+        val cols = splitLine(header.removePrefix("\uFEFF")).map { it.trim().lowercase() }
         return cols.size >= 2 && cols.any { it in URL_COLUMNS }
     }
 

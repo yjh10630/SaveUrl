@@ -33,7 +33,7 @@ class KakaoChatParser(
 
     /** 한 줄 읽기. 찾은 링크를 [emit] 으로 넘긴다 */
     fun accept(rawLine: String, emit: (ImportCandidate) -> Unit) {
-        val line = if (lineIndex == 0) rawLine.removePrefix("﻿") else rawLine
+        val line = if (lineIndex == 0) rawLine.removePrefix("\uFEFF") else rawLine
         lineIndex++
         val trimmed = line.trimEnd()
         if (lineIndex <= 3 && roomName == null) {
@@ -164,7 +164,7 @@ class KakaoChatParser(
             MONTHS.indexOf(name.lowercase().take(3)).takeIf { it >= 0 }?.plus(1)
 
         fun headerRoomName(line: String): String? {
-            val l = line.removePrefix("﻿").trim()
+            val l = line.removePrefix("\uFEFF").trim()
             HEADER_KO.matchEntire(l)?.let { return it.groupValues[1].trim().takeIf { n -> n.isNotEmpty() } }
             HEADER_EN.matchEntire(l)?.let { return it.groupValues[1].trim().takeIf { n -> n.isNotEmpty() } }
             return null
@@ -184,7 +184,7 @@ class KakaoChatParser(
          * 카톡 대화인지 (34번 §2.1, 31번 §2.3-6): 앞 2줄에 헤더가 있거나, 앞 8줄 중 2줄 이상이 카톡 시각 형식.
          */
         fun looksLikeKakao(firstLines: List<String>): Boolean {
-            val lines = firstLines.map { it.removePrefix("﻿") }
+            val lines = firstLines.map { it.removePrefix("\uFEFF") }
             if (lines.take(2).any { headerRoomName(it) != null || it.contains("카카오톡 대화") }) return true
             return lines.filter { it.isNotBlank() }.take(8).count { looksLikeMessageLine(it) } >= 2
         }
