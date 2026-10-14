@@ -44,6 +44,7 @@ import com.jinscompany.saveurl.ui.tutorial.TutorialTopicScreen
 import com.jinscompany.saveurl.ui.webview.StaticWebScreen
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
 import java.net.URLDecoder
 
 /**
@@ -147,6 +148,11 @@ private fun AppNavHost(
                             scrollToTop = true
                         )
                     }}
+            }
+            // 잠금 링크를 수정하던 중 다시 잠기면 닫는다 (이 화면이 보이는 동안만 확인하므로 맨 위 항목을 닫는다)
+            LaunchedEffect(Unit) {
+                viewModel.uiState.first { it.isClosedByRelock }
+                navController.popBackStack()
             }
             // 전달받은 URL(공유하기/클립보드/수정)은 ViewModel 당 최초 1회만 크롤링
             // (카테고리 편집 화면에서 돌아오거나 화면 회전 시 다시 크롤링되어 입력값이 초기화되는 문제 방지)

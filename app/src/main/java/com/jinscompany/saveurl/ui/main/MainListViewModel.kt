@@ -15,6 +15,8 @@ import com.jinscompany.saveurl.domain.model.FilterParams
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.domain.usecase.DeleteWithTrashUseCase
 import com.jinscompany.saveurl.domain.usecase.GetCategoriesUseCase
+import com.jinscompany.saveurl.domain.usecase.GetSiteNameListUseCase
+import com.jinscompany.saveurl.domain.usecase.GetTagListUseCase
 import com.jinscompany.saveurl.domain.usecase.GetTrashStateUseCase
 import com.jinscompany.saveurl.domain.usecase.GetUrlListUseCase
 import com.jinscompany.saveurl.domain.usecase.IsSavedUrlUseCase
@@ -61,6 +63,8 @@ class MainListViewModel @Inject constructor(
     private val clipboardReader: ClipboardReader,
     private val markAsReadUseCase: MarkAsReadUseCase,
     private val getCategoriesUseCase: GetCategoriesUseCase,
+    private val getSiteNameListUseCase: GetSiteNameListUseCase,
+    private val getTagListUseCase: GetTagListUseCase,
     private val lockSession: CategoryLockSession,
     observeLockedCategoriesUseCase: ObserveLockedCategoriesUseCase,
 ) : ViewModel() {
@@ -111,16 +115,28 @@ class MainListViewModel @Inject constructor(
             lockedCategoryNames.drop(1).collect { loadCategories() }
         }
         // 세션이 바뀌면 목록을 다시 만든다 (includeLocked 는 PagingSource 를 만들 때 정해지므로).
-        // 닫힐 때 잠금 카테고리를 보고 있었으면 "전체"로 돌아간다.
+        // 닫힐 때 잠금 카테고리를 보고 있었으면 "전체"로 돌아가고, 잠금 링크에만 있던 사이트·태그 필터는 뺀다
+        // (상세 필터 칩 줄에 이름이 남지 않게. 38번 리뷰 4번)
         viewModelScope.launch {
             lockSession.isUnlocked.drop(1).collect { unlocked ->
-                val current = _filterSelectedItems.value
-                if (!unlocked && current.categories.any { it in lockedCategoryNames.value }) {
-                    _filterSelectedItems.value = current.copy(categories = listOf(FilterDefaults.CATEGORY_ALL))
-                }
+                if (!unlocked) _filterSelectedItems.value = prunedForLockedSession(_filterSelectedItems.value)
                 getLinkList()
             }
         }
+    }
+
+    private suspend fun prunedForLockedSession(current: FilterParams): FilterParams {
+        val lockedNames = lockedCategoryNames.value
+        val categories = current.categories.filterNot { it in lockedNames }.ifEmpty { listOf(FilterDefaults.CATEGORY_ALL) }
+        val sites = if (current.siteList.isEmpty()) current.siteList else {
+            val visible = runCatching { getSiteNameListUseCase() }.getOrDefault(emptyList()).toSet()
+            current.siteList.filter { it in visible }
+        }
+        val tags = if (current.tagList.isEmpty()) current.tagList else {
+            val visible = runCatching { getTagListUseCase() }.getOrDefault(emptyList()).toSet()
+            current.tagList.filter { it in visible }
+        }
+        return current.copy(categories = categories, siteList = sites, tagList = tags)
     }
 
     private fun loadCategories() {

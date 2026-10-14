@@ -13,6 +13,8 @@ data class LinkSaveUiState (
     val isEditScreen: Boolean = false,  // 수정 모드 일경우 true
     /** 잠금 카테고리 이름 (카테고리 행에 자물쇠 표시) */
     val lockedCategoryNames: List<String> = emptyList(),
+    /** 잠금 링크를 수정하던 중 다시 잠김 → 화면을 닫는다 (38번 리뷰 4번) */
+    val isClosedByRelock: Boolean = false,
 ) {
     fun getSaveData(): UrlData? {
         return (linkUrlPreviewUiState as? LinkUrlPreviewUiState.LinkUrlData) ?.let {

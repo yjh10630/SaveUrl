@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -60,6 +61,27 @@ class LinkSaveViewModel @Inject constructor(
             observeLockedCategoriesUseCase().collect { names ->
                 _uiState.update { it.copy(lockedCategoryNames = names) }
             }
+        }
+        viewModelScope.launch {
+            lockSession.isUnlocked.drop(1).collect { unlocked -> if (!unlocked) onRelocked() }
+        }
+    }
+
+    /**
+     * 다시 잠기면 잠금 카테고리 내용이 화면에 남지 않게 한다 (38번 리뷰 4번).
+     * - 잠금 링크를 수정 중: 화면을 닫는다 (제목·태그·카테고리 이름이 보이므로)
+     * - 새 링크에 잠금 카테고리를 골라 둔 상태: 카테고리 선택만 "선택 안 함"으로 되돌린다
+     */
+    private suspend fun onRelocked() {
+        val state = _uiState.value
+        val lockedNames = observeLockedCategoriesUseCase().first()
+        if (state.isEditScreen) {
+            val savedCategory = findUrlDataUseCase(state.userInputUrl)?.category
+            if (state.categoryName in lockedNames || savedCategory in lockedNames) {
+                _uiState.update { it.copy(isClosedByRelock = true) }
+            }
+        } else if (state.categoryName in lockedNames) {
+            _uiState.update { it.copy(categoryName = FilterDefaults.CATEGORY_ALL) }
         }
     }
 

@@ -176,6 +176,13 @@ fun MainListScreen(
     var linkInfoDialog by remember { mutableStateOf<SimpleMenuModel?>(null) }
     // 2분할: 링크 메뉴 드롭다운을 붙일 행 (⋮ 또는 길게 누른 행)
     var menuTargetId by remember { mutableStateOf<Int?>(null) }
+    // 다시 잠기면 열려 있던 링크 정보 시트·메뉴를 닫는다 (잠금 링크의 제목·카테고리가 남지 않게. 38번 리뷰 4번)
+    LaunchedEffect(isLockedUnlocked) {
+        if (!isLockedUnlocked) {
+            linkInfoDialog = null
+            menuTargetId = null
+        }
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
