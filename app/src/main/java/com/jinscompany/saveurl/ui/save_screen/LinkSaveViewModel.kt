@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.jinscompany.saveurl.domain.lock.CategoryLockSession
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.UrlData
-import com.jinscompany.saveurl.domain.model.MetaState
 import com.jinscompany.saveurl.domain.usecase.FindUrlDataUseCase
 import com.jinscompany.saveurl.domain.usecase.GetCategoriesUseCase
 import com.jinscompany.saveurl.domain.usecase.InsertCategoryUseCase
@@ -55,6 +54,8 @@ class LinkSaveViewModel @Inject constructor(
 
     private var parseJob: Job? = null
     private var suggestedCategory: String? = null
+    /** 수정 모드로 열 때 읽은 저장된 행 (저장할 때 그사이 채워진 미리보기를 지키는 기준) */
+    private var editOriginal: UrlData? = null
     private var isInitialUrlHandled = false
 
     init {
@@ -165,8 +166,10 @@ class LinkSaveViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value.getSaveData()?.let { urlData ->
                 if (_uiState.value.isEditScreen) {
-                    // 가져와서 미리보기를 기다리던 링크를 사용자가 고쳐 저장하면 그 내용을 지킨다 (채우기 작업이 덮어쓰지 않게)
-                    val edited = if (urlData.metaState != MetaState.DONE) urlData.copy(metaState = MetaState.DONE) else urlData
+                    // 그사이 미리보기 채우기가 채운 값은 살리고, 사용자가 바꾼 칸만 쓴다 (39번 독립 리뷰 R1)
+                    val original = editOriginal
+                    val fresh = findUrlDataUseCase(original?.url ?: urlData.url ?: _uiState.value.userInputUrl)
+                    val edited = EditedLinkMerger.merge(original, urlData, fresh)
                     updateUrlUseCase(edited)
                     afterSave(edited)
                 } else {
@@ -276,6 +279,7 @@ class LinkSaveViewModel @Inject constructor(
                 if (!realUrl.isNullOrEmpty()) {
                     // 닫힌 잠금 카테고리의 링크는 수정 모드로 열지 않고 새 링크처럼 다룬다 (저장하면 중복 안내, 제목 없이)
                     findUrlDataUseCase(realUrl)?.takeUnless { it.isHiddenByLock() }?.let {
+                        editOriginal = it.copy()
                         _uiState.update { current ->
                             current.copy(
                                 isEditScreen = true,
@@ -302,6 +306,7 @@ class LinkSaveViewModel @Inject constructor(
                                 description = data.description,
                             )
                             suggestedCategory = suggested
+                            editOriginal = checkData?.copy()
                             _uiState.update { current ->
                                 current.copy(
                                     isEditScreen = data.title == (checkData?.title ?: ""),
