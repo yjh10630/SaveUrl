@@ -127,4 +127,11 @@ class AutoCategorySaveFlowTest {
         assertTrue(notices.take() is AutoCategoryNotice.Suggest)
     }
 
+    @Test
+    fun `하위 도메인 링크를 저장해 사이트 키 제안이 처음 문턱을 채우면 스낵바 (R2)`() = runTest {
+        val google = RuleKey(RuleMatchType.HOST, "google.com")
+        coEvery { repository.suggestions(any()) } returns listOf(RuleSuggestion(google, 1, "맛집", 10))
+        flow.afterSave("https://maps.google.com/x", "맛집", 1, appliedRuleId = null)
+        assertTrue(notices.take() is AutoCategoryNotice.Suggest)
+    }
 }

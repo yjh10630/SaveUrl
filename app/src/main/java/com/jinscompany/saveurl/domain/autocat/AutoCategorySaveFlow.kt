@@ -128,7 +128,8 @@ class AutoCategorySaveFlow @Inject constructor(
         val keys = AutoCategoryKeys.keysOf(savedUrl) ?: return
         val thresholds = remoteFlags.autoCategoryThresholds
         val candidate = repository.suggestions(thresholds).firstOrNull { s ->
-            (s.key == keys.ownerKey || s.key == keys.hostKey) &&
+            // 이번 링크가 근거에 들어가는 제안 (사이트 키는 하위 도메인 링크도 센다)
+            (s.key == keys.ownerKey || (s.key.type == RuleMatchType.HOST && AutoCategoryKeys.hostMatches(s.key.pattern, keys.host))) &&
                 s.categoryId == savedCategoryId &&
                 // 이번 저장으로 처음 조건을 채웠을 때만 스낵바 (그 전부터 채워져 있던 제안은 설정 목록에서)
                 s.count == thresholds.minFor(s.key)

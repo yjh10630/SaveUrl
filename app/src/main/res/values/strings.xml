@@ -601,10 +601,12 @@
 
     <!-- 제안 -->
     <string name="autocat_suggest_msg">%1$s 링크 %2$d개를 모두 \'%3$s\'에 넣었어요. 앞으로 미리 골라 둘까요?</string>
+    <string name="autocat_suggest_msg_most">%1$s 링크 %2$d개 중 %3$d개를 \'%4$s\'에 넣었어요. 앞으로 미리 골라 둘까요?</string>
     <string name="autocat_suggest_accept">규칙 만들기</string>
     <string name="autocat_suggest_accepted">앞으로 %1$s 링크는 \'%2$s\'(으)로 골라 둘게요</string>
     <string name="autocat_suggest_row">%1$s → %2$s</string>
     <string name="autocat_suggest_row_sub">%1$d개 모두 \'%2$s\'에 있어요</string>
+    <string name="autocat_suggest_row_sub_most">%1$d개 중 %2$d개가 \'%3$s\'에 있어요</string>
     <string name="autocat_suggest_dismissed">다시 제안하지 않을게요</string>
     <string name="autocat_suggest_show_all">제안 %1$d개 모두 보기</string>
     <string name="autocat_launch_card_title">자동 분류 규칙 %1$d개를 바로 만들 수 있어요</string>

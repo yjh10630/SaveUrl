@@ -290,7 +290,9 @@ private fun SuggestionRow(s: RuleSuggestion, onAccept: () -> Unit, onDismiss: ()
         Column(modifier = Modifier.weight(1f)) {
             Text(stringResource(R.string.autocat_suggest_row, AutoCategoryKeys.displayName(s.key), s.categoryName),
                 style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp), color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(stringResource(R.string.autocat_suggest_row_sub, s.count, s.categoryName), fontSize = 12.sp, color = colors.textSecondary)
+            val sub = if (s.unanimous) stringResource(R.string.autocat_suggest_row_sub, s.count, s.categoryName)
+            else stringResource(R.string.autocat_suggest_row_sub_most, s.count, s.topCount, s.categoryName)
+            Text(sub, fontSize = 12.sp, color = colors.textSecondary)
         }
         Text(
             stringResource(R.string.autocat_create), style = MaterialTheme.typography.labelLarge, color = colors.onAccent,

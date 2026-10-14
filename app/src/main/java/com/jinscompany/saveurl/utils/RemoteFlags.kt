@@ -18,7 +18,7 @@ import javax.inject.Singleton
  *   설정에 예전 "데이터 가져오기 (CSV)" 줄이 돌아온다 (34번 §0).
  *
  * - `autocat_min_n` (기본 5), `autocat_min_n_general` (기본 10), `autocat_min_ratio` (기본 1.0): 자동 분류 제안 문턱 (36번 §4.1).
- *   잘못된 값(1 미만, 비율 0 이하·1 초과)은 기본값을 쓴다.
+ *   하한: 개수 3, 비율 0.8 (그보다 작으면 하한으로). 범용 문턱은 일반 문턱보다 작지 않게, 비율은 1 이하로 맞춘다.
  *
  * 콘솔에 값이 없거나 아직 한 번도 받지 못했으면 기본값을 쓴다 (기본값 등록 전에도 켜져 있도록 여기서 직접 판단).
  */
@@ -40,10 +40,11 @@ class RemoteFlags @Inject constructor() : TutorialFeatureFlags {
     }
 
     private fun readThresholds(): SuggestThresholds = runCatching {
-        val minN = readLong(KEY_AUTOCAT_MIN_N)?.toInt()?.takeIf { it >= 1 } ?: SuggestThresholds.DEFAULT_MIN_N
-        val minNBroad = readLong(KEY_AUTOCAT_MIN_N_GENERAL)?.toInt()?.takeIf { it >= 1 } ?: SuggestThresholds.DEFAULT_MIN_N_BROAD
-        val ratio = readDouble(KEY_AUTOCAT_MIN_RATIO)?.takeIf { it > 0.0 && it <= 1.0 } ?: SuggestThresholds.DEFAULT_MIN_RATIO
-        SuggestThresholds(minN = minN, minNBroad = minNBroad, minRatio = ratio)
+        SuggestThresholds.clamped(
+            minN = readLong(KEY_AUTOCAT_MIN_N)?.coerceIn(0L, Int.MAX_VALUE.toLong())?.toInt(),
+            minNBroad = readLong(KEY_AUTOCAT_MIN_N_GENERAL)?.coerceIn(0L, Int.MAX_VALUE.toLong())?.toInt(),
+            minRatio = readDouble(KEY_AUTOCAT_MIN_RATIO),
+        )
     }.getOrDefault(SuggestThresholds())
 
     private fun readLong(key: String): Long? = runCatching {

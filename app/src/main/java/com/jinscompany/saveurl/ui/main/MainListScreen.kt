@@ -231,7 +231,8 @@ fun MainListScreen(
                 is AutoCategoryNotice.Suggest -> {
                     val s = notice.suggestion
                     val result = snackBarHostState.showSnackbar(
-                        message = resources.getString(R.string.autocat_suggest_msg, notice.siteName, s.count, s.categoryName),
+                        message = if (s.unanimous) resources.getString(R.string.autocat_suggest_msg, notice.siteName, s.count, s.categoryName)
+                        else resources.getString(R.string.autocat_suggest_msg_most, notice.siteName, s.count, s.topCount, s.categoryName),
                         actionLabel = resources.getString(R.string.autocat_suggest_accept),
                         withDismissAction = true,
                         duration = SnackbarDuration.Long,

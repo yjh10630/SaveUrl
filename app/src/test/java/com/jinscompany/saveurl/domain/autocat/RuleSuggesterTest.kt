@@ -101,4 +101,61 @@ class RuleSuggesterTest {
         val result = RuleSuggester.suggest(evidence, emptyList(), categories, SuggestThresholds(minN = 3, minNBroad = 6))
         assertEquals(3, result.single().count)
     }
+
+    @Test
+    fun `사이트 키는 규칙과 같은 범위를 센다 - 하위 도메인에 다른 카테고리가 있으면 제안하지 않는다 (R2)`() {
+        val cats = categories + ("업무" to 5)
+        val evidence = links("https://www.google.com/maps/place", "맛집", 10) + links("https://docs.google.com/document", "업무", 3)
+        val result = suggest(evidence, cats = cats)
+        assertTrue(result.none { it.key == RuleKey(RuleMatchType.HOST, "google.com") })
+        // 하위 도메인이 같은 카테고리면 합쳐서 센다
+        val same = links("https://www.google.com/maps/place", "맛집", 7) + links("https://maps.google.com/x", "맛집", 3)
+        val s = suggest(same).first { it.key == RuleKey(RuleMatchType.HOST, "google.com") }
+        assertEquals(10, s.count)
+    }
+
+    @Test
+    fun `더 구체적인 켜진 규칙이 맡는 링크는 사이트 키 근거에서 빠진다 (R2·R3)`() {
+        val cats = categories + ("업무" to 5)
+        val docsRule = AutoCategoryRule(id = 1, matchType = "HOST", pattern = "docs.google.com", categoryId = 5)
+        val evidence = links("https://www.google.com/maps/place", "맛집", 10) + links("https://docs.google.com/document", "업무", 3)
+        val s = suggest(evidence, rules = listOf(docsRule), cats = cats).single()
+        assertEquals(RuleKey(RuleMatchType.HOST, "google.com"), s.key)
+        assertEquals(10, s.count)
+        // 주인 규칙이 있는 블로거 링크도 사이트 전체 근거가 아니다
+        val ownerRule = AutoCategoryRule(id = 2, matchType = "PATH", pattern = "blog.naver.com/seoul_eat", categoryId = 4)
+        val blogs = (1..5).flatMap { links("https://blog.naver.com/w$it", "맛집", 2) } + links("https://blog.naver.com/seoul_eat", "쇼핑", 3)
+        assertEquals(RuleKey(RuleMatchType.HOST, "blog.naver.com"), suggest(blogs, rules = listOf(ownerRule)).single().key)
+        assertTrue(suggest(blogs).none { it.key == RuleKey(RuleMatchType.HOST, "blog.naver.com") })
+    }
+
+    @Test
+    fun `하위 도메인 잠금 링크가 걸리는 사이트 키는 제안하지 않는다`() {
+        val evidence = links("https://www.ohou.se/p", "여행", 6) + links("https://store.ohou.se/x", "쇼핑", 1, locked = true)
+        assertTrue(suggest(evidence).none { it.key == RuleKey(RuleMatchType.HOST, "ohou.se") })
+    }
+
+    @Test
+    fun `비율을 낮추면 n개 중 m개, 1등이 둘이면 제안하지 않는다 (R14)`() {
+        val t = SuggestThresholds(minN = 5, minNBroad = 10, minRatio = 0.8)
+        val evidence = links("https://www.10000recipe.com/a", "레시피", 8) + links("https://10000recipe.com/b", "맛집", 2)
+        val s = RuleSuggester.suggest(evidence, emptyList(), categories, t).single()
+        assertEquals(10, s.count)
+        assertEquals(8, s.topCount)
+        assertTrue(!s.unanimous)
+        val tie = links("https://www.10000recipe.com/a", "레시피", 5) + links("https://10000recipe.com/b", "맛집", 5)
+        assertTrue(RuleSuggester.suggest(tie, emptyList(), categories, SuggestThresholds(minRatio = 0.5)).isEmpty())
+    }
+
+    @Test
+    fun `원격 문턱은 하한으로 올리고 범용은 일반보다 작지 않게 (R14)`() {
+        val t = SuggestThresholds.clamped(minN = 1, minNBroad = 2, minRatio = 0.5)
+        assertEquals(3, t.minN)
+        assertEquals(3, t.minNBroad)
+        assertEquals(0.8, t.minRatio, 0.0)
+        val d = SuggestThresholds.clamped(null, null, null)
+        assertEquals(SuggestThresholds(), d)
+        assertEquals(1.0, SuggestThresholds.clamped(5, 10, 3.0).minRatio, 0.0)
+        assertEquals(1.0, SuggestThresholds.clamped(5, 10, Double.NaN).minRatio, 0.0)
+    }
 }
