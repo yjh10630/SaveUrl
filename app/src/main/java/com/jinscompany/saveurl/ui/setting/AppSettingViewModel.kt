@@ -78,8 +78,10 @@ class AppSettingViewModel @Inject constructor(
     private val _notifBlocked = kotlinx.coroutines.flow.MutableStateFlow<NotifBlock?>(null)
     val notifBlocked: StateFlow<NotifBlock?> = _notifBlocked
 
+    /** 링크 알림 채널을 먼저 보고, 주간 정리가 켜져 있으면 그 채널도 본다 (주간 채널만 꺼도 경고) */
     fun refreshNotifBlocked() {
         _notifBlocked.value = revisitNotifier.blockedReason(RevisitNotifier.CHANNEL_REMINDER)
+            ?: if (weeklyEnabled.value) revisitNotifier.blockedReason(RevisitNotifier.CHANNEL_WEEKLY) else null
     }
 
     fun setRevisitCardEnabled(enabled: Boolean) {

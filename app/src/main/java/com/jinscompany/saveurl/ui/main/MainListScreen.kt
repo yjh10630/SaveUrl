@@ -220,10 +220,7 @@ fun MainListScreen(
     val revisitCard by viewModel.revisitCard.collectAsState()
     val weeklyPrompt by viewModel.weeklyPrompt.collectAsState()
     var reminderRequest by remember { mutableStateOf<ReminderPickRequest?>(null) }
-    // 시트는 고르는 순간 닫히고(요청 = null) 권한 확인 뒤에 결과가 오므로 대상 링크를 따로 들고 있는다
-    val pendingReminderLinkId = remember { arrayOfNulls<Int>(1) }
     var showRevisitStopDialog by rememberSaveable { mutableStateOf(false) }
-    val weeklyPermission = rememberNotifPermissionRequester()
     val showNotAllowed: (NotifPermissionResult) -> Unit = { result ->
         coroutineScope.launch {
             val blocked = result as? NotifPermissionResult.Blocked
@@ -235,11 +232,16 @@ fun MainListScreen(
             if (action == SnackbarResult.ActionPerformed && blocked != null) context.openNotificationSettings(blocked.reason)
         }
     }
+    val weeklyPermission = rememberNotifPermissionRequester { _, result ->
+        val granted = result == NotifPermissionResult.Granted
+        viewModel.acceptWeeklyPrompt(granted)
+        if (granted) coroutineScope.launch { snackBarHostState.showSnackbar(resources.getString(R.string.weekly_on_snack)) }
+        else showNotAllowed(result)
+    }
     ReminderPicker(
         request = reminderRequest,
         onDismiss = { reminderRequest = null },
-        onPicked = { preset, at ->
-            val linkId = reminderRequest?.linkId ?: pendingReminderLinkId[0] ?: return@ReminderPicker
+        onPicked = { linkId, preset, at ->
             coroutineScope.launch {
                 val previous = viewModel.setReminder(linkId, preset, at)
                 val label = ReminderTimes.sheetLabel(at, System.currentTimeMillis(), java.time.ZoneId.systemDefault())
@@ -251,8 +253,7 @@ fun MainListScreen(
                 if (undo == SnackbarResult.ActionPerformed) viewModel.restoreReminder(linkId, previous)
             }
         },
-        onTurnOff = {
-            val linkId = pendingReminderLinkId[0] ?: return@ReminderPicker
+        onTurnOff = { linkId ->
             coroutineScope.launch {
                 val previous = viewModel.cancelReminder(linkId)
                 val undo = snackBarHostState.showSnackbar(
@@ -431,7 +432,6 @@ fun MainListScreen(
                 is MainListUiEffect.OpenReminderSheet -> {
                     linkInfoDialog = null
                     menuTargetId = null
-                    pendingReminderLinkId[0] = effect.request.linkId
                     reminderRequest = effect.request
                 }
                 MainListUiEffect.OpenTutorial -> navController.navigateToTutorial(replaceRightPane = isListPane)
@@ -593,12 +593,7 @@ fun MainListScreen(
             },
             weeklyPrompt = weeklyPrompt,
             onWeeklyAccept = {
-                weeklyPermission.request(RevisitNotifier.CHANNEL_WEEKLY, R.string.notif_perm_body_weekly) { result ->
-                    val granted = result == NotifPermissionResult.Granted
-                    viewModel.acceptWeeklyPrompt(granted)
-                    if (granted) coroutineScope.launch { snackBarHostState.showSnackbar(resources.getString(R.string.weekly_on_snack)) }
-                    else showNotAllowed(result)
-                }
+                weeklyPermission.request(RevisitNotifier.CHANNEL_WEEKLY, R.string.notif_perm_body_weekly)
             },
             onWeeklyDecline = { viewModel.declineWeeklyPrompt() },
             onLinkItemLongClick = { urlData: UrlData -> showLinkMenu(urlData) },

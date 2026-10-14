@@ -65,7 +65,12 @@ import com.jinscompany.saveurl.ui.theme.AppDimens
 import com.jinscompany.saveurl.ui.theme.AppTheme
 import com.jinscompany.saveurl.utils.PreferencesManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -98,8 +103,10 @@ class NotifPermissionViewModel @Inject constructor(
     private val preferences: PreferencesManager,
     private val notifier: RevisitNotifier,
 ) : ViewModel() {
-    val asked: StateFlow<Boolean> = preferences.notifPermissionAsked
-        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    /** null = DataStore 를 아직 읽지 못함 (읽기 전에 누르면 기다린다. 이미 영구 거절된 사용자에게 사전 안내를 띄우지 않게) */
+    val asked: StateFlow<Boolean?> = preferences.notifPermissionAsked
+        .map<Boolean, Boolean?> { it }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     fun markAsked() {
         viewModelScope.launch { preferences.setNotifPermissionAsked() }
@@ -114,27 +121,32 @@ class NotifPermissionViewModel @Inject constructor(
  * 2. API 33+ 이고 아직 물을 수 있음 → 사전 안내 시트 → [허용하기] → 시스템 대화상자
  * 3. 그 밖(다시 물을 수 없음, 앱 알림·채널 꺼짐) → Blocked
  *
- * 시스템 대화상자가 떠 있는 동안 화면이 다시 만들어지면 결과 콜백이 사라질 수 있다 (권한은 남으므로 다시 누르면 바로 예약된다).
+ * 결과는 [rememberNotifPermissionRequester] 의 onResult 로 온다. 무엇에 대한 요청인지는 [payload] 문자열로 넘기고,
+ * 이 값은 저장되어 사전 안내 시트·시스템 대화상자 중 회전하거나 프로세스가 다시 만들어져도 이어진다 (리뷰 R9).
  */
 class NotifPermissionRequester internal constructor(
-    private val start: (channelId: String, bodyRes: Int, onResult: (NotifPermissionResult) -> Unit) -> Unit,
+    private val start: (channelId: String, bodyRes: Int, payload: String) -> Unit,
 ) {
-    fun request(channelId: String, bodyRes: Int, onResult: (NotifPermissionResult) -> Unit) = start(channelId, bodyRes, onResult)
+    fun request(channelId: String, bodyRes: Int, payload: String = "") = start(channelId, bodyRes, payload)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun rememberNotifPermissionRequester(viewModel: NotifPermissionViewModel = hiltViewModel()): NotifPermissionRequester {
+fun rememberNotifPermissionRequester(
+    viewModel: NotifPermissionViewModel = hiltViewModel(),
+    onResult: (payload: String, result: NotifPermissionResult) -> Unit,
+): NotifPermissionRequester {
     val context = LocalContext.current
-    val asked by viewModel.asked.collectAsState()
+    val scope = rememberCoroutineScope()
+    val currentOnResult by rememberUpdatedState(onResult)
     var prePromptBody by rememberSaveable { mutableStateOf<Int?>(null) }
     var prePromptChannel by rememberSaveable { mutableStateOf(RevisitNotifier.CHANNEL_REMINDER) }
-    val pending = remember { arrayOfNulls<(NotifPermissionResult) -> Unit>(1) }
+    var pendingPayload by rememberSaveable { mutableStateOf<String?>(null) }
 
     fun finish(result: NotifPermissionResult) {
-        val callback = pending[0]
-        pending[0] = null
-        callback?.invoke(result)
+        val payload = pendingPayload ?: return
+        pendingPayload = null
+        currentOnResult(payload, result)
     }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -170,17 +182,20 @@ fun rememberNotifPermissionRequester(viewModel: NotifPermissionViewModel = hiltV
     }
 
     return remember(viewModel, launcher) {
-        NotifPermissionRequester { channelId, bodyRes, onResult ->
-            val reason = viewModel.blockedReason(channelId)
-            when {
-                reason == null -> onResult(NotifPermissionResult.Granted)
-                reason == NotifBlock.PERMISSION && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                    (!viewModel.asked.value || canAskAgain(context)) -> {
-                    pending[0] = onResult
-                    prePromptChannel = channelId
-                    prePromptBody = bodyRes
+        NotifPermissionRequester { channelId, bodyRes, payload ->
+            scope.launch {
+                val asked = viewModel.asked.filterNotNull().first()
+                val reason = viewModel.blockedReason(channelId)
+                when {
+                    reason == null -> currentOnResult(payload, NotifPermissionResult.Granted)
+                    reason == NotifBlock.PERMISSION && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                        (!asked || canAskAgain(context)) -> {
+                        pendingPayload = payload
+                        prePromptChannel = channelId
+                        prePromptBody = bodyRes
+                    }
+                    else -> currentOnResult(payload, NotifPermissionResult.Blocked(reason))
                 }
-                else -> onResult(NotifPermissionResult.Blocked(reason))
             }
         }
     }
@@ -247,29 +262,35 @@ private fun NotifPrePromptContent(body: String, onAllow: () -> Unit, onLater: ()
 fun ReminderPicker(
     request: ReminderPickRequest?,
     onDismiss: () -> Unit,
-    onPicked: (ReminderPreset, Long) -> Unit,
-    onTurnOff: () -> Unit,
+    onPicked: (linkId: Int, preset: ReminderPreset, at: Long) -> Unit,
+    onTurnOff: (linkId: Int) -> Unit,
     onNotAllowed: (NotifPermissionResult) -> Unit,
 ) {
     val context = LocalContext.current
-    val permission = rememberNotifPermissionRequester()
-    val pick: (ReminderPreset, Long) -> Unit = { preset, at ->
+    // 대상 링크·선택은 payload 로 저장해 권한 흐름 중 회전해도 이어진다 ("linkId|preset|at")
+    val permission = rememberNotifPermissionRequester { payload, result ->
+        val parts = payload.split('|')
+        val linkId = parts.getOrNull(0)?.toIntOrNull() ?: return@rememberNotifPermissionRequester
+        val preset = ReminderPreset.entries.firstOrNull { it.key == parts.getOrNull(1) } ?: return@rememberNotifPermissionRequester
+        val at = parts.getOrNull(2)?.toLongOrNull() ?: return@rememberNotifPermissionRequester
+        if (result == NotifPermissionResult.Granted) onPicked(linkId, preset, at) else onNotAllowed(result)
+    }
+    val pick: (Int, ReminderPreset, Long) -> Unit = { linkId, preset, at ->
         onDismiss()
-        permission.request(RevisitNotifier.CHANNEL_REMINDER, R.string.notif_perm_body_link) { result ->
-            if (result == NotifPermissionResult.Granted) onPicked(preset, at) else onNotAllowed(result)
-        }
+        permission.request(RevisitNotifier.CHANNEL_REMINDER, R.string.notif_perm_body_link, "$linkId|${preset.key}|$at")
     }
     if (request == null) return
+    val linkId = request.linkId
     AppBottomSheet(onDismissRequest = onDismiss) {
         ReminderSheetContent(
             request = request,
-            onPick = pick,
+            onPick = { preset, at -> pick(linkId, preset, at) },
             onCustom = {
-                showCustomPicker(context) { at -> pick(ReminderPreset.CUSTOM, at) }
+                showCustomPicker(context) { at -> pick(linkId, ReminderPreset.CUSTOM, at) }
             },
             onTurnOff = {
                 onDismiss()
-                onTurnOff()
+                onTurnOff(linkId)
             },
         )
     }

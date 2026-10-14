@@ -121,15 +121,13 @@ fun RemindersScreen(onBack: () -> Unit, viewModel: RemindersViewModel = hiltView
     val upcoming by viewModel.upcoming.collectAsState()
     val unlocked by viewModel.isUnlocked.collectAsState()
     var request by remember { mutableStateOf<ReminderPickRequest?>(null) }
-    val target = remember { arrayOfNulls<Int>(1) }
     val now = remember(upcoming) { System.currentTimeMillis() }
     val zone = remember { ZoneId.systemDefault() }
 
     ReminderPicker(
         request = request,
         onDismiss = { request = null },
-        onPicked = { preset, at ->
-            val linkId = target[0] ?: return@ReminderPicker
+        onPicked = { linkId, preset, at ->
             scope.launch {
                 val previous = viewModel.set(linkId, preset, at)
                 val undo = snackbar.showSnackbar(
@@ -139,7 +137,7 @@ fun RemindersScreen(onBack: () -> Unit, viewModel: RemindersViewModel = hiltView
                 if (undo == SnackbarResult.ActionPerformed) viewModel.restore(linkId, previous)
             }
         },
-        onTurnOff = { target[0]?.let { turnOff(it, viewModel, scope, snackbar, resources) } },
+        onTurnOff = { linkId -> turnOff(linkId, viewModel, scope, snackbar, resources) },
         onNotAllowed = { result ->
             scope.launch {
                 val blocked = result as? NotifPermissionResult.Blocked
@@ -199,7 +197,6 @@ fun RemindersScreen(onBack: () -> Unit, viewModel: RemindersViewModel = hiltView
                             zone = zone,
                             onClick = { viewModel.open(row.linkId) },
                             onChange = {
-                                target[0] = row.linkId
                                 request = ReminderPickRequest(
                                     linkId = row.linkId,
                                     linkTitle = if (row.locked && !unlocked) resources.getString(R.string.reminders_locked_title)

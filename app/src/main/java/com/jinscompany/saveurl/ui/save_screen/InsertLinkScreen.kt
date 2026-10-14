@@ -96,7 +96,7 @@ fun InsertLinkScreen(
     ReminderPicker(
         request = reminderRequest,
         onDismiss = { reminderRequest = null },
-        onPicked = { preset, at -> event.invoke(LinkSaveIntent.SetReminder(preset, at)) },
+        onPicked = { _, preset, at -> event.invoke(LinkSaveIntent.SetReminder(preset, at)) },
         onTurnOff = { event.invoke(LinkSaveIntent.ClearReminder) },
         onNotAllowed = { Toast.makeText(context, R.string.notif_off_snack, Toast.LENGTH_SHORT).show() },
     )

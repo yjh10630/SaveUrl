@@ -156,7 +156,13 @@ fun AppSettingScreen(
     val weeklyRemote by settingViewModel.weeklyRemote.collectAsState()
     val weeklyEnabled by settingViewModel.weeklyEnabled.collectAsState()
     val notifBlocked by settingViewModel.notifBlocked.collectAsState()
-    val weeklyPermission = rememberNotifPermissionRequester()
+    val weeklyPermission = rememberNotifPermissionRequester { _, result ->
+        if (result == NotifPermissionResult.Granted) settingViewModel.setWeeklyEnabled(true)
+        else {
+            Toast.makeText(context, R.string.notif_off_snack, Toast.LENGTH_SHORT).show()
+            (result as? NotifPermissionResult.Blocked)?.let { context.openNotificationSettings(it.reason, RevisitNotifier.CHANNEL_WEEKLY) }
+        }
+    }
     val settingLifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current
     androidx.compose.runtime.DisposableEffect(settingLifecycle) {
         // 시스템 설정에서 알림을 켜고 돌아오면 경고 줄을 다시 판단한다
@@ -253,13 +259,7 @@ fun AppSettingScreen(
             weeklyEnabled = weeklyEnabled,
             onWeeklyChange = { on ->
                 if (!on) settingViewModel.setWeeklyEnabled(false)
-                else weeklyPermission.request(RevisitNotifier.CHANNEL_WEEKLY, R.string.notif_perm_body_weekly) { result ->
-                    if (result == NotifPermissionResult.Granted) settingViewModel.setWeeklyEnabled(true)
-                    else {
-                        Toast.makeText(context, R.string.notif_off_snack, Toast.LENGTH_SHORT).show()
-                        (result as? NotifPermissionResult.Blocked)?.let { context.openNotificationSettings(it.reason, RevisitNotifier.CHANNEL_WEEKLY) }
-                    }
-                }
+                else weeklyPermission.request(RevisitNotifier.CHANNEL_WEEKLY, R.string.notif_perm_body_weekly)
             },
             // 예약이나 주간 정리가 켜져 있는데 알림이 꺼져 있을 때만
             notifBlockedVisible = notifBlocked != null && (reminderCount > 0 || weeklyEnabled),
