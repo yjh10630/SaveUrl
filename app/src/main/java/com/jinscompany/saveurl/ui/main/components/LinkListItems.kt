@@ -27,6 +27,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
+import androidx.compose.material.icons.outlined.Alarm
+import com.jinscompany.saveurl.domain.revisit.ReminderTimes
+import java.time.ZoneId
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -323,6 +328,7 @@ private fun LargeCardLinkItem(
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 MetaStateTail(data)
+                ReminderTail(data)
                 Spacer(modifier = Modifier.weight(1f))
                 data.tagList?.firstOrNull { it.isNotBlank() }?.let { TagChip(it) }
             }
@@ -389,6 +395,7 @@ private fun MetaRow(data: UrlData, showTag: Boolean) {
             modifier = Modifier.weight(1f, fill = false)
         )
         MetaStateTail(data)
+        ReminderTail(data)
         if (showTag) {
             data.tagList?.firstOrNull { it.isNotBlank() }?.let {
                 Spacer(modifier = Modifier.width(8.dp))
@@ -457,6 +464,21 @@ private fun MetaStateTail(data: UrlData) {
         Spacer(modifier = Modifier.width(2.dp))
     }
     Text(text, style = MaterialTheme.typography.labelMedium, color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+}
+
+/** 목록 ⏰ 표시용 예약 시각 (linkId → remindAt). 메인 목록이 넣어 준다 (42번 §2.8). 없으면 표시 안 함 */
+val LocalLinkReminders = compositionLocalOf<Map<Int, Long>> { emptyMap() }
+
+/** 알림이 예약된 링크: 메타 줄 끝 파란 ⏰ + 시각. 메타 글이 길면 사이트 이름이 먼저 줄어든다 */
+@Composable
+private fun ReminderTail(data: UrlData) {
+    val at = LocalLinkReminders.current[data.id] ?: return
+    val colors = AppTheme.colors
+    val label = remember(at) { ReminderTimes.shortLabel(at, System.currentTimeMillis(), ZoneId.systemDefault()) }
+    Spacer(modifier = Modifier.width(6.dp))
+    Icon(Icons.Outlined.Alarm, contentDescription = null, tint = colors.accent, modifier = Modifier.size(12.dp))
+    Spacer(modifier = Modifier.width(2.dp))
+    Text(label, style = MaterialTheme.typography.labelMedium, color = colors.accent, maxLines = 1, softWrap = false)
 }
 
 /** 미리보기(썸네일)를 기다리는 링크의 자리표시 글자. 기다리지 않으면 null */

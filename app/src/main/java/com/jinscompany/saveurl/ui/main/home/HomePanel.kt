@@ -70,6 +70,10 @@ import com.jinscompany.saveurl.utils.extractUrlFromText
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.ui.res.stringResource
 import com.jinscompany.saveurl.R
+import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.runtime.remember
+import com.jinscompany.saveurl.domain.model.UpcomingReminder
+import com.jinscompany.saveurl.domain.revisit.ReminderTimes
 
 /** 오른쪽 패널이 이 폭보다 좁으면(예: 펼친 폭 673dp → 약 313dp) 요약을 카드 하나(3열)로 합치고 여백을 줄인다 (Stitch 3번) */
 private val NARROW_PANEL_WIDTH = 400.dp
@@ -86,8 +90,11 @@ private val NARROW_PANEL_WIDTH = 400.dp
 fun HomePanel(
     mainListViewModel: MainListViewModel,
     onOpenSave: (String) -> Unit,
+    onShowAllReminders: () -> Unit = {},
     viewModel: HomePanelViewModel = hiltViewModel(),
 ) {
+    val upcoming by mainListViewModel.upcomingReminders.collectAsState()
+    val unlocked by mainListViewModel.isUnlocked.collectAsState()
     val stats by viewModel.stats.collectAsState()
     val suggestion by viewModel.clipboardSuggestion.collectAsState()
     val filter by mainListViewModel.filterSelectedItems.collectAsState()
@@ -105,6 +112,10 @@ fun HomePanel(
             onOpenSave(url)
         },
         onSuggestionDismiss = viewModel::dismissClipboardSuggestion,
+        upcomingReminders = upcoming,
+        showLockedTitles = unlocked,
+        onUpcomingClick = mainListViewModel::openReminderLink,
+        onShowAllReminders = onShowAllReminders,
         onCategoryClick = { name ->
             mainListViewModel.onIntent(
                 MainListIntent.NewFilterData(
@@ -130,6 +141,11 @@ fun HomePanelContent(
     onSuggestionClick: (String) -> Unit = {},
     onSuggestionDismiss: () -> Unit = {},
     onCategoryClick: (String) -> Unit = {},
+    /** "곧 올 알림" (예약이 있을 때만, 최대 3개. 42번 §8). 닫힌 세션이면 잠금 링크 제목을 가린다 */
+    upcomingReminders: List<UpcomingReminder> = emptyList(),
+    showLockedTitles: Boolean = false,
+    onUpcomingClick: (Int) -> Unit = {},
+    onShowAllReminders: () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
     // 패널 빈 곳을 누르면 빠른 저장 입력칸 포커스를 푼다 (다시 포커스할 때 클립보드를 새로 확인)
@@ -156,6 +172,15 @@ fun HomePanelContent(
             }
             Spacer(modifier = Modifier.height(16.dp))
             SummaryCounts(counts = stats?.counts, isNarrow = isNarrow)
+            if (upcomingReminders.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(28.dp))
+                UpcomingReminders(
+                    items = upcomingReminders.take(3),
+                    showLockedTitles = showLockedTitles,
+                    onClick = onUpcomingClick,
+                    onShowAll = onShowAllReminders,
+                )
+            }
             Spacer(modifier = Modifier.height(28.dp))
             PanelSectionTitle("카테고리별")
             CategoryCountGrid(
@@ -174,6 +199,58 @@ fun HomePanelContent(
                         color = AppTheme.colors.textSecondary,
                     )
                 }
+            }
+        }
+    }
+}
+
+/** 곧 올 알림: 행 = ⏰ + 제목 + 시각, 오른쪽 위 "모두 보기 ›" */
+@Composable
+private fun UpcomingReminders(
+    items: List<UpcomingReminder>,
+    showLockedTitles: Boolean,
+    onClick: (Int) -> Unit,
+    onShowAll: () -> Unit,
+) {
+    val colors = AppTheme.colors
+    val now = remember(items) { System.currentTimeMillis() }
+    val zone = remember { java.time.ZoneId.systemDefault() }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.weight(1f)) { PanelSectionTitle(stringResource(R.string.home_upcoming_reminders)) }
+        Text(
+            text = stringResource(R.string.home_upcoming_all) + " ›",
+            style = MaterialTheme.typography.labelLarge,
+            color = colors.accent,
+            modifier = Modifier.padding(bottom = 12.dp).clickable(onClick = onShowAll),
+        )
+    }
+    Column(modifier = Modifier.fillMaxWidth().panelCard()) {
+        items.forEach { item ->
+            val hidden = item.locked && !showLockedTitles
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable { onClick(item.linkId) }.padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    if (hidden) Icons.Outlined.Lock else Icons.Outlined.Alarm,
+                    contentDescription = null, tint = colors.accent, modifier = Modifier.size(16.dp),
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = if (hidden) stringResource(R.string.reminders_locked_title) else item.title.orEmpty().ifBlank { item.url.orEmpty() },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.textPrimary,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    ReminderTimes.shortLabel(item.remindAt, now, zone),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                )
             }
         }
     }

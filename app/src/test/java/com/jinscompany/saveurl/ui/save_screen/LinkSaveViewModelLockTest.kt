@@ -54,6 +54,7 @@ class LinkSaveViewModelLockTest {
             observeLockedCategoriesUseCase = observeLocked,
             autoCategorySaveFlow = disabledAutoCategory(),
             autoCategoryRepository = emptyAutoCategoryRepository(),
+            revisitRepository = io.mockk.mockk(relaxed = true),
         )
     }
 

@@ -46,6 +46,7 @@ class LinkSaveViewModel @Inject constructor(
     private val observeLockedCategoriesUseCase: ObserveLockedCategoriesUseCase,
     private val autoCategorySaveFlow: AutoCategorySaveFlow,
     private val autoCategoryRepository: AutoCategoryRepository,
+    private val revisitRepository: com.jinscompany.saveurl.data.revisit.RevisitRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LinkSaveUiState())
@@ -57,6 +58,10 @@ class LinkSaveViewModel @Inject constructor(
     private var parseJob: Job? = null
     /** 수정 모드로 열 때 읽은 저장된 행 (저장할 때 그사이 채워진 미리보기를 지키는 기준) */
     private var editOriginal: UrlData? = null
+        set(value) {
+            field = value
+            loadStoredReminder(value)
+        }
     private var isInitialUrlHandled = false
     /** 칩으로 규칙을 바꾸거나 껐음 → 이번 저장은 규칙 기록에 넣지 않는다 (36번 §2.5-2) */
     private var ruleActionTaken = false
@@ -137,6 +142,10 @@ class LinkSaveViewModel @Inject constructor(
                 s.copy(autoCatDone = AutoCatDone.Once(s.categoryName.takeIf { LinkSaveUiState.isRealCategory(it) }), autoCatCanUndo = false)
             }
             LinkSaveIntent.UndoAutoCat -> undoAutoCat()
+            is LinkSaveIntent.SetReminder -> _uiState.update {
+                it.copy(reminderAt = intent.at, reminderPreset = intent.preset, reminderDirty = true)
+            }
+            LinkSaveIntent.ClearReminder -> _uiState.update { it.copy(reminderAt = null, reminderPreset = null, reminderDirty = true) }
         }
     }
 
@@ -365,7 +374,33 @@ class LinkSaveViewModel @Inject constructor(
         }
     }
 
+    /** 수정 모드면 저장된 예약을 알림 줄에 보인다 (이 화면에서 이미 바꿨으면 그대로) */
+    private fun loadStoredReminder(link: UrlData?) {
+        if (_uiState.value.reminderDirty) return
+        viewModelScope.launch {
+            val at = link?.let { runCatching { revisitRepository.getReminder(it.id)?.remindAt }.getOrNull() }
+            _uiState.update { if (it.reminderDirty) it else it.copy(reminderAt = at, reminderPreset = null) }
+        }
+    }
+
+    /**
+     * 저장을 눌렀을 때 알림 줄 값대로 예약하거나 끈다 (화면을 닫기 전에 마친다: 닫히면 이 ViewModel 범위가 끝남).
+     * 새 링크는 방금 저장한 행의 id 를 주소로 찾는다.
+     */
+    private suspend fun applyReminder(urlData: UrlData, isNew: Boolean) {
+        val state = _uiState.value
+        if (!state.reminderDirty) return
+        runCatching {
+            val linkId = if (isNew) urlData.url?.let { revisitRepository.latestLinkIdForUrl(it) } else urlData.id
+            if (linkId == null || linkId <= 0) return@runCatching
+            val at = state.reminderAt
+            if (at != null) revisitRepository.setReminder(linkId, at, state.reminderPreset ?: com.jinscompany.saveurl.domain.revisit.ReminderPreset.CUSTOM)
+            else revisitRepository.cancelReminder(linkId)
+        }.onFailure { if (it is CancellationException) throw it else CrashReporter.record(it) }
+    }
+
     private suspend fun afterSave(urlData: UrlData, isNew: Boolean) {
+        applyReminder(urlData, isNew)
         if (isNew) {
             val state = _uiState.value
             runCatching {

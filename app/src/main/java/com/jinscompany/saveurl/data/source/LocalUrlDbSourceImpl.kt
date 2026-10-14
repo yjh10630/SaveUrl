@@ -67,6 +67,24 @@ class LocalUrlDbSourceImpl @Inject constructor(
         }
     }
 
+    override fun getUnreadList(params: FilterParams?, keepIds: List<Int>, includeLocked: Boolean): PagingSource<Int, UrlData> {
+        val categories = params?.categories ?: listOf(FilterDefaults.CATEGORY_ALL)
+        val siteNames = params?.siteList.orEmpty()
+        val oldest = (params?.sort ?: FilterDefaults.SORT_LATEST) != FilterDefaults.SORT_LATEST
+        val all = categories.contains(FilterDefaults.CATEGORY_ALL)
+        val bookmark = !all && categories.contains(FilterDefaults.CATEGORY_BOOKMARK)
+        return baseSaveUrlDao.getUnread(
+            keepIds = keepIds,
+            allCategories = all,
+            onlyBookmark = bookmark,
+            categories = if (all || bookmark) emptyList() else categories,
+            allSites = siteNames.isEmpty(),
+            siteNames = siteNames,
+            oldest = oldest,
+            includeLocked = includeLocked,
+        )
+    }
+
     override suspend fun findByNormalizedUrl(normalizedUrl: String): UrlData? = withContext(Dispatchers.IO) {
         return@withContext baseSaveUrlDao.findByNormalizedUrl(normalizedUrl)
     }

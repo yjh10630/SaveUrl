@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.Flow
 interface UrlRepository {
     // includeLocked: 잠금 카테고리 링크도 포함할지 (유스케이스가 CategoryLockSession 으로 정한다)
     fun getUrlList(params: FilterParams?, includeLocked: Boolean): PagingSource<Int, UrlData>
+    /** 안 읽음 탭 (42번 §1). [keepIds] = 이번 탭 진입 뒤 연 링크 (바로 빠지지 않게) */
+    fun getUnreadList(params: FilterParams?, keepIds: List<Int>, includeLocked: Boolean): PagingSource<Int, UrlData>
     fun searchAll(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData>
     fun searchByTitle(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData>
     fun searchByDescription(keyword: String, includeLocked: Boolean): PagingSource<Int, UrlData>

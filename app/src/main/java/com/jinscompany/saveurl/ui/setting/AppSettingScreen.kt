@@ -107,9 +107,20 @@ import com.jinscompany.saveurl.utils.openPlayStorePage
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.NotificationsOff
+import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.Schedule
+import com.jinscompany.saveurl.data.revisit.RevisitNotifier
+import com.jinscompany.saveurl.ui.composable.AppSwitch
+import com.jinscompany.saveurl.ui.navigation.navigateToReminders
+import com.jinscompany.saveurl.ui.revisit.NotifPermissionResult
+import com.jinscompany.saveurl.ui.revisit.openNotificationSettings
+import com.jinscompany.saveurl.ui.revisit.rememberNotifPermissionRequester
 
 /** 2분할 설정에서 오른쪽 패널에 열 수 있는 하위 화면 (왼쪽 목록의 선택 행) */
-enum class SettingPaneRow { LOCKED_CATEGORIES, CATEGORY_EDIT, AUTO_CATEGORY, TRASH, IMPORT, TUTORIAL }
+enum class SettingPaneRow { REMINDERS, LOCKED_CATEGORIES, CATEGORY_EDIT, AUTO_CATEGORY, TRASH, IMPORT, TUTORIAL }
 
 /**
  * 설정.
@@ -138,6 +149,23 @@ fun AppSettingScreen(
     val importEnabled by settingViewModel.importEnabled.collectAsState()
     val importNew by settingViewModel.importNew.collectAsState()
     val resources = LocalResources.current
+    // 설정 › 알림 (42번 §6)
+    val reminderCount by settingViewModel.reminderCount.collectAsState()
+    val revisitCardRemote by settingViewModel.revisitCardRemote.collectAsState()
+    val revisitCardEnabled by settingViewModel.revisitCardEnabled.collectAsState()
+    val weeklyRemote by settingViewModel.weeklyRemote.collectAsState()
+    val weeklyEnabled by settingViewModel.weeklyEnabled.collectAsState()
+    val notifBlocked by settingViewModel.notifBlocked.collectAsState()
+    val weeklyPermission = rememberNotifPermissionRequester()
+    val settingLifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(settingLifecycle) {
+        // 시스템 설정에서 알림을 켜고 돌아오면 경고 줄을 다시 판단한다
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) settingViewModel.refreshNotifBlocked()
+        }
+        settingLifecycle.lifecycle.addObserver(observer)
+        onDispose { settingLifecycle.lifecycle.removeObserver(observer) }
+    }
     // 시트 표시 여부와 "포함" 선택값은 ViewModel(SavedStateHandle)에 둔다 (38번 리뷰 2번)
     val showCsvExportSheet by settingViewModel.showCsvExportSheet.collectAsState()
 
@@ -213,6 +241,29 @@ fun AppSettingScreen(
                 // 잠금 카테고리가 있으면 포함 여부를 먼저 묻는다 (기본 미포함)
                 if (lockedCategoryCount > 0) settingViewModel.setShowCsvExportSheet(true) else launchExport(false)
             },
+            reminderCount = reminderCount,
+            remindersClick = {
+                if (isListPane) navController.navigateInSettingsPane(Navigation.Routes.REMINDERS)
+                else navController.navigateToReminders()
+            },
+            revisitCardVisible = revisitCardRemote,
+            revisitCardEnabled = revisitCardEnabled,
+            onRevisitCardChange = settingViewModel::setRevisitCardEnabled,
+            weeklyVisible = weeklyRemote,
+            weeklyEnabled = weeklyEnabled,
+            onWeeklyChange = { on ->
+                if (!on) settingViewModel.setWeeklyEnabled(false)
+                else weeklyPermission.request(RevisitNotifier.CHANNEL_WEEKLY, R.string.notif_perm_body_weekly) { result ->
+                    if (result == NotifPermissionResult.Granted) settingViewModel.setWeeklyEnabled(true)
+                    else {
+                        Toast.makeText(context, R.string.notif_off_snack, Toast.LENGTH_SHORT).show()
+                        (result as? NotifPermissionResult.Blocked)?.let { context.openNotificationSettings(it.reason, RevisitNotifier.CHANNEL_WEEKLY) }
+                    }
+                }
+            },
+            // 예약이나 주간 정리가 켜져 있는데 알림이 꺼져 있을 때만
+            notifBlockedVisible = notifBlocked != null && (reminderCount > 0 || weeklyEnabled),
+            onOpenNotifSettings = { context.openNotificationSettings(notifBlocked) },
             lockedCategoryCount = lockedCategoryCount,
             lockedCategoriesClick = {
                 categoryPaneFromLockedRow = true
@@ -279,6 +330,7 @@ fun AppSettingScreen(
                 Navigation.Routes.EDIT_CATEGORY ->
                     if (categoryPaneFromLockedRow) SettingPaneRow.LOCKED_CATEGORIES else SettingPaneRow.CATEGORY_EDIT
                 Navigation.Routes.TRASH -> SettingPaneRow.TRASH
+                Navigation.Routes.REMINDERS -> SettingPaneRow.REMINDERS
                 Navigation.Routes.AUTO_CATEGORY -> SettingPaneRow.AUTO_CATEGORY
                 Navigation.Routes.IMPORT, Navigation.Routes.IMPORT_HISTORY -> SettingPaneRow.IMPORT
                 Navigation.Routes.TUTORIAL, Navigation.Routes.TUTORIAL_TOPIC -> SettingPaneRow.TUTORIAL
@@ -326,6 +378,17 @@ fun AppSettingScreen(
     /** 자동 분류 ("확인 n" / "제안 n" 배지) */
     autoCategoryBadge: String? = null,
     autoCategoryClick: () -> Unit = {},
+    /** 설정 › 알림 (42번 §6) */
+    reminderCount: Int = 0,
+    remindersClick: () -> Unit = {},
+    revisitCardVisible: Boolean = true,
+    revisitCardEnabled: Boolean = true,
+    onRevisitCardChange: (Boolean) -> Unit = {},
+    weeklyVisible: Boolean = true,
+    weeklyEnabled: Boolean = false,
+    onWeeklyChange: (Boolean) -> Unit = {},
+    notifBlockedVisible: Boolean = false,
+    onOpenNotifSettings: () -> Unit = {},
 ) {
     val colors = AppTheme.colors
     LazyColumn(
@@ -385,6 +448,61 @@ fun AppSettingScreen(
                 selected = listViewMode,
                 onSelect = onListViewModeChange,
             )
+        }
+
+        // 알림 ("화면"과 "데이터" 사이, 42번 §6)
+        item { SectionLabel(stringResource(R.string.setting_section_notif)) }
+        item {
+            SettingRow(
+                icon = Icons.Outlined.Alarm,
+                label = stringResource(R.string.setting_reminders),
+                onClick = remindersClick,
+                selected = selectedRow == SettingPaneRow.REMINDERS,
+                value = if (reminderCount > 0) stringResource(R.string.setting_reminders_count, reminderCount)
+                    else stringResource(R.string.setting_reminders_none),
+            )
+        }
+        if (revisitCardVisible) {
+            item {
+                SettingSwitchRow(
+                    icon = Icons.Outlined.Schedule,
+                    label = stringResource(R.string.setting_revisit_card),
+                    subtitle = stringResource(R.string.setting_revisit_card_sub),
+                    checked = revisitCardEnabled,
+                    onCheckedChange = onRevisitCardChange,
+                )
+            }
+        }
+        if (weeklyVisible) {
+            item {
+                SettingSwitchRow(
+                    icon = Icons.Outlined.CalendarMonth,
+                    label = stringResource(R.string.setting_weekly),
+                    subtitle = stringResource(R.string.setting_weekly_sub),
+                    checked = weeklyEnabled,
+                    onCheckedChange = onWeeklyChange,
+                )
+            }
+        }
+        if (notifBlockedVisible) {
+            item {
+                SettingRow(
+                    icon = Icons.Outlined.NotificationsOff,
+                    label = stringResource(R.string.setting_notif_blocked),
+                    subtitle = stringResource(R.string.notif_open_settings),
+                    onClick = onOpenNotifSettings,
+                )
+            }
+        }
+        item {
+            Row(
+                modifier = Modifier.padding(horizontal = AppDimens.Gutter, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Outlined.PhoneAndroid, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(stringResource(R.string.remind_local_only), style = MaterialTheme.typography.labelMedium, color = colors.textSecondary)
+            }
         }
 
         // 데이터
@@ -570,6 +688,24 @@ private fun SettingRow(
             tint = if (selected) AppTheme.colors.accent else AppTheme.colors.textSecondary,
             modifier = Modifier.size(22.dp)
         )
+    }
+}
+
+/** 라벨(+ 2줄까지 부제) + 오른쪽 스위치. 행 전체를 눌러도 바뀐다 */
+@Composable
+private fun SettingSwitchRow(icon: ImageVector, label: String, subtitle: String?, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val colors = AppTheme.colors
+    SettingRowContainer(onClick = { onCheckedChange(!checked) }) {
+        Icon(imageVector = icon, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(22.dp))
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = label, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp), color = colors.textPrimary, maxLines = 1)
+            if (subtitle != null) {
+                Text(text = subtitle, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textSecondary, maxLines = 2)
+            }
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        AppSwitch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

@@ -15,6 +15,10 @@ class GetUrlListUseCase @Inject constructor(
     operator fun invoke(params: FilterParams?): PagingSource<Int, UrlData> =
         repository.getUrlList(params, includeLocked = includeLocked(params, lockSession.isUnlocked.value))
 
+    /** 안 읽음 탭: 잠금 규칙은 다른 탭과 같다 */
+    fun unread(params: FilterParams?, keepIds: List<Int>): PagingSource<Int, UrlData> =
+        repository.getUnreadList(params, keepIds, includeLocked = includeLocked(params, lockSession.isUnlocked.value))
+
     companion object {
         /**
          * "전체"·"북마크"에는 세션이 열려 있어도 잠금 카테고리 링크를 섞지 않는다.

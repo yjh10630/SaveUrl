@@ -72,6 +72,12 @@ data class LinkSaveUiState (
     val autoCatDone: AutoCatDone? = null,
     /** 확인 문구의 되돌리기를 쓸 수 있음 */
     val autoCatCanUndo: Boolean = false,
+    // ---- 링크 알림 (42번 §2.1) ----
+    /** 알림 줄에 보일 예약 시각 (수정 모드는 저장된 예약, 이 화면에서 고르면 그 값). null = 없음 */
+    val reminderAt: Long? = null,
+    val reminderPreset: com.jinscompany.saveurl.domain.revisit.ReminderPreset? = null,
+    /** 이 화면에서 알림을 바꿨음 (저장할 때 예약·취소) */
+    val reminderDirty: Boolean = false,
 ) {
     fun getSaveData(): UrlData? {
         return (linkUrlPreviewUiState as? LinkUrlPreviewUiState.LinkUrlData) ?.let {
@@ -149,6 +155,9 @@ sealed class LinkSaveIntent {
     data object OnceChip: LinkSaveIntent()
     /** 확인 문구의 되돌리기 */
     data object UndoAutoCat: LinkSaveIntent()
+    // ---- 링크 알림 (42번 §2.1): 저장을 눌러야 예약된다 ----
+    data class SetReminder(val preset: com.jinscompany.saveurl.domain.revisit.ReminderPreset, val at: Long): LinkSaveIntent()
+    data object ClearReminder: LinkSaveIntent()
 }
 
 sealed class LinkSaveUiEffect {

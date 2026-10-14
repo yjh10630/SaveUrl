@@ -4,6 +4,22 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import com.jinscompany.saveurl.data.revisit.RevisitClock
+import com.jinscompany.saveurl.data.revisit.RevisitRepository
+import com.jinscompany.saveurl.domain.model.LinkReminder
+import com.jinscompany.saveurl.domain.revisit.ReminderPreset
+import com.jinscompany.saveurl.domain.revisit.ReminderTimes
+import com.jinscompany.saveurl.domain.revisit.RevisitRules
+import com.jinscompany.saveurl.domain.revisit.WeeklyPromptState
+import com.jinscompany.saveurl.ui.revisit.ReminderPickRequest
+import com.jinscompany.saveurl.ui.revisit.RevisitOpenInbox
+import com.jinscompany.saveurl.ui.revisit.RevisitOpenRequest
+import com.jinscompany.saveurl.domain.model.UpcomingReminder
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
@@ -84,7 +100,39 @@ class MainListViewModel @Inject constructor(
     private val mainListRequests: MainListRequests,
     private val autoCategoryNotices: AutoCategoryNotices,
     private val autoCategoryRepository: AutoCategoryRepository,
+    private val revisitRepository: RevisitRepository,
+    private val revisitOpenInbox: RevisitOpenInbox,
+    private val revisitClock: RevisitClock,
+    @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
+
+    // ---- 다시 보게 만들기 (42번) ----
+    /** 안 읽음 탭 숫자 (회색 작은 글씨) */
+    val unreadCount: StateFlow<Int> = revisitRepository.observeUnreadCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    /** 목록 ⏰ 표시: linkId → remindAt */
+    val reminderTimes: StateFlow<Map<Int, Long>> = revisitRepository.observeReminderTimes()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    /** 2분할 홈 패널 "곧 올 알림" (시간 순) */
+    val upcomingReminders: StateFlow<List<UpcomingReminder>> = revisitRepository.observeUpcoming()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** "곧 올 알림" 행: 알림에서 연 것과 같은 경로 (잠금 링크는 인증 뒤) */
+    fun openReminderLink(linkId: Int) = revisitOpenInbox.put(RevisitOpenRequest.Link(linkId))
+
+    /** 안 읽음 탭에 들어온 뒤 연 링크 (목록에서 바로 빠지지 않게). 탭에 다시 들어오면 비운다 */
+    private val unreadKeepIds = java.util.concurrent.CopyOnWriteArraySet<Int>()
+
+    /** 오늘의 다시 볼 링크 카드 (null = 숨김) */
+    private val _revisitCard = MutableStateFlow<UrlData?>(null)
+    val revisitCard: StateFlow<UrlData?> = _revisitCard.asStateFlow()
+
+    /** 주간 정리 제안 카드 (이 실행에서 보이면 다시 볼 링크 카드 대신) */
+    private val _weeklyPrompt = MutableStateFlow(false)
+    val weeklyPrompt: StateFlow<Boolean> = _weeklyPrompt.asStateFlow()
+    private var weeklyPromptChecked = false
 
     /** 저장 직후 자동 분류 스낵바 (화면이 [takeAutoCategoryNotice] 로 받아 간다) */
     val autoCategoryNotice: StateFlow<AutoCategoryNotice?> = autoCategoryNotices.pending
@@ -157,6 +205,127 @@ class MainListViewModel @Inject constructor(
         loadCategories()
         observeLockState()
         loadAutoCategoryLaunchCard()
+        observeTabRequests()
+        loadRevisitCards()
+    }
+
+    /** 알림 "안 읽은 링크 보기" → 안 읽음 탭 + 전체 (42번 §2.7) */
+    private fun observeTabRequests() {
+        viewModelScope.launch {
+            revisitOpenInbox.tabRequests.collect { tab ->
+                revisitOpenInbox.consumeTabRequest()
+                unreadKeepIds.clear()
+                _selectedTab.value = tab
+                _filterSelectedItems.value = _filterSelectedItems.value.copy(
+                    categories = listOf(FilterDefaults.CATEGORY_ALL), siteList = listOf(), tagList = listOf(),
+                )
+                getLinkList()
+                loadRevisitCards()
+            }
+        }
+    }
+
+    /**
+     * 메인 상단 카드: 주간 정리 제안(조건이 되면 이 실행 동안) > 다시 볼 링크 (42번 §4.1·§5.1).
+     * 다시 볼 링크는 "최근 저장 · 전체 · 필터 없음"에서만 고른다 (고르는 순간 표시 시각을 기록하므로 다른 화면에선 고르지 않음).
+     */
+    private fun loadRevisitCards() {
+        viewModelScope.launch {
+            runCatching {
+                if (!weeklyPromptChecked) {
+                    weeklyPromptChecked = true
+                    _weeklyPrompt.value = shouldShowWeeklyPrompt()
+                }
+                if (_weeklyPrompt.value) {
+                    _revisitCard.value = null
+                    return@runCatching
+                }
+                val params = _filterSelectedItems.value
+                val context = RevisitRules.isCardContext(
+                    isRecentTab = _selectedTab.value == MainTab.RECENT,
+                    isAllCategory = params.categories.contains(FilterDefaults.CATEGORY_ALL),
+                    hasDetailFilter = params.siteList.isNotEmpty() || params.tagList.isNotEmpty(),
+                )
+                val today = ReminderTimes.epochDay(revisitClock.now(), revisitClock.zone())
+                val enabled = remoteFlags.revisitCardEnabled.value && preferencesManager.revisitCardEnabled.first() &&
+                    preferencesManager.revisitCardClosedDay.first() != today
+                _revisitCard.value = if (context && enabled) revisitRepository.todaysRevisitLink() else null
+            }
+        }
+    }
+
+    private suspend fun shouldShowWeeklyPrompt(): Boolean {
+        val installedAt = preferencesManager.appInstalledAt()
+        val now = revisitClock.now()
+        val show = RevisitRules.shouldShowWeeklyPrompt(
+            remoteEnabled = remoteFlags.weeklyDigestEnabled.value,
+            promptState = preferencesManager.weeklyPromptState.first(),
+            directLinks = revisitRepository.countDirectLinks(),
+            minLinks = remoteFlags.weeklyPromptMinLinks,
+            installedAt = installedAt,
+            now = now,
+        ) && !preferencesManager.weeklyDigestEnabled.first()
+        if (!show) return false
+        return preferencesManager.countWeeklyPromptShow(
+            epochDay = ReminderTimes.epochDay(now, revisitClock.zone()),
+            max = RevisitRules.WEEKLY_PROMPT_MAX_SHOWS,
+            autoHiddenState = WeeklyPromptState.AUTO_HIDDEN,
+        )
+    }
+
+    /** 다시 볼 링크 [열기] (카드 전체 눌러도 같음): 기존 열기 경로 → 그날 카드 숨김 */
+    fun openRevisitCard(link: UrlData) {
+        _revisitCard.value = null
+        onIntent(MainListIntent.GoToOutLinkWebSite(link.url, link.id))
+    }
+
+    /** ✕: 오늘은 닫기 */
+    fun closeRevisitCardToday() {
+        _revisitCard.value = null
+        viewModelScope.launch {
+            preferencesManager.setRevisitCardClosedDay(ReminderTimes.epochDay(revisitClock.now(), revisitClock.zone()))
+        }
+    }
+
+    /** 스낵바 [그만 보기] → 확인 → 스위치 끔 */
+    fun stopRevisitCard() {
+        _revisitCard.value = null
+        viewModelScope.launch { preferencesManager.setRevisitCardEnabled(false) }
+    }
+
+    /** 주간 정리 제안 [받기]: 권한 결과에 따라 켜고(허용) 다시 묻지 않음 */
+    fun acceptWeeklyPrompt(granted: Boolean) {
+        _weeklyPrompt.value = false
+        viewModelScope.launch {
+            preferencesManager.setWeeklyPromptState(WeeklyPromptState.ACCEPTED)
+            if (granted) {
+                preferencesManager.setWeeklyDigestEnabled(true)
+                revisitRepository.syncWeekly()
+            }
+        }
+    }
+
+    /** 주간 정리 제안 [괜찮아요] */
+    fun declineWeeklyPrompt() {
+        _weeklyPrompt.value = false
+        viewModelScope.launch { preferencesManager.setWeeklyPromptState(WeeklyPromptState.DECLINED) }
+    }
+
+    /** 시간을 골랐음 (권한 확인 뒤). @return 예전 예약 (실행 취소용) */
+    suspend fun setReminder(linkId: Int, preset: ReminderPreset, at: Long): LinkReminder? = viewModelScope.async {
+        val previous = revisitRepository.getReminder(linkId)
+        revisitRepository.setReminder(linkId, at, preset)
+        previous
+    }.await()
+
+    suspend fun cancelReminder(linkId: Int): LinkReminder? = viewModelScope.async {
+        val previous = revisitRepository.getReminder(linkId)
+        revisitRepository.cancelReminder(linkId)
+        previous
+    }.await()
+
+    fun restoreReminder(linkId: Int, previous: LinkReminder?) {
+        viewModelScope.launch { revisitRepository.restoreReminder(linkId, previous) }
     }
 
     private fun loadAutoCategoryLaunchCard() {
@@ -257,6 +426,8 @@ class MainListViewModel @Inject constructor(
         viewModelScope.launch {
             when (intent) {
                 is MainListIntent.GoToOutLinkWebSite -> {
+                    // 안 읽음 탭에서 연 링크는 탭에 다시 들어올 때까지 남긴다 (읽음이 되어 목록이 다시 읽히기 전에 넣는다)
+                    if (_selectedTab.value == MainTab.UNREAD && intent.linkId != null) unreadKeepIds.add(intent.linkId)
                     if (!intent.url.isNullOrEmpty()) markAsReadUseCase(intent.url)
                     _mainListEffect.emit(
                         if (intent.url.isNullOrEmpty()) {
@@ -296,11 +467,17 @@ class MainListViewModel @Inject constructor(
                 MainListIntent.ReadClipboard -> if (!autoCategoryNotices.isRecentlyActive()) {
                     clipboardReader.readUrl()?.let { clipboardUrlCheckToSnackBar(it) }
                 }
-                MainListIntent.RefreshOnResume -> loadCategories()
+                MainListIntent.RefreshOnResume -> {
+                    loadCategories()
+                    loadRevisitCards()
+                }
                 is MainListIntent.SelectTab -> {
-                    if (_selectedTab.value != intent.tab) {
+                    if (_selectedTab.value != intent.tab || intent.tab == MainTab.UNREAD) {
+                        // 안 읽음 탭에 (다시) 들어오면 읽은 링크를 정리한다
+                        unreadKeepIds.clear()
                         _selectedTab.value = intent.tab
                         getLinkList()
+                        loadRevisitCards()
                     }
                 }
                 MainListIntent.GoToAppSetting -> {
@@ -311,6 +488,7 @@ class MainListViewModel @Inject constructor(
                         FilterParams(categories = intent.category, sort = intent.sort, siteList = intent.site, tagList = intent.tag)
                     }
                     getLinkList()
+                    loadRevisitCards()
                 }
                 is MainListIntent.ShowLinkInfoDialog -> showLinkInfoDialog(intent.data)
                 MainListIntent.OpenTutorial -> _mainListEffect.emit(OpenTutorial)
@@ -328,6 +506,7 @@ class MainListViewModel @Inject constructor(
     private fun showLinkInfoDialog(data: UrlData) {
         viewModelScope.launch {
             val isTrashEnable = getTrashStateUseCase()
+            val reminderAt = revisitRepository.getReminder(data.id)?.remindAt
             val list = mutableListOf<SimpleMenuModel.MenuModel>(
                 SimpleMenuModel.MenuModel(txtRes = R.string.main_list_menu_share, icon = Icons.Outlined.Share, event = {
                     viewModelScope.launch { onIntent(MainListIntent.GotoOutShareUrl(data.url)) }
@@ -335,6 +514,31 @@ class MainListViewModel @Inject constructor(
                 SimpleMenuModel.MenuModel(txtRes = R.string.main_list_menu_edit, icon = Icons.Outlined.Edit, event = {
                     viewModelScope.launch { onIntent(MainListIntent.GoToLinkEditScreen(url = data.url ?: "")) }
                 }),
+                // 읽음/안 읽음 표시 (42번 §1.4): 스낵바 없이 점만 바뀐다
+                SimpleMenuModel.MenuModel(
+                    txtRes = if (data.isRead) R.string.menu_mark_unread else R.string.menu_mark_read,
+                    icon = if (data.isRead) Icons.Outlined.RadioButtonUnchecked else Icons.Outlined.CheckCircle,
+                    event = { viewModelScope.launch { revisitRepository.setRead(data.id, !data.isRead) } },
+                ),
+                // 나중에 알림 받기 / 알림 바꾸기 · 시각 (42번 §2.1)
+                reminderAt.let { at ->
+                    SimpleMenuModel.MenuModel(
+                        txt = if (at != null) appContext.getString(
+                            R.string.menu_remind_change, ReminderTimes.menuLabel(at, revisitClock.now(), revisitClock.zone())
+                        ) else "",
+                        txtRes = if (at != null) null else R.string.menu_remind_later,
+                        icon = Icons.Outlined.Alarm,
+                        event = {
+                            viewModelScope.launch {
+                                _mainListEffect.emit(OpenReminderSheet(ReminderPickRequest(
+                                    linkId = data.id,
+                                    linkTitle = data.title.orEmpty().ifBlank { data.url.orEmpty() },
+                                    currentAt = at,
+                                )))
+                            }
+                        },
+                    )
+                },
                 SimpleMenuModel.MenuModel(
                     txtRes = if (isTrashEnable) R.string.trash_move_label else R.string.main_list_menu_delete,
                     icon = Icons.Outlined.Delete,
@@ -352,6 +556,7 @@ class MainListViewModel @Inject constructor(
             )
 
             if (isTutorialLink(data.url)) list.removeAll { it.txtRes == R.string.main_list_menu_edit }
+            if (isTutorialLink(data.url)) list.removeAll { it.icon == Icons.Outlined.Alarm }
 
             val header = SimpleMenuModel.Header(
                 imgUrl = data.imgUrl,
@@ -396,12 +601,16 @@ class MainListViewModel @Inject constructor(
             val isInitRunApp = preferencesManager.isInitFirstRun.first()
             if (!isInitRunApp) preferencesManager.completeFirstRunWithTutorialCard()
 
+            val isUnreadTab = _selectedTab.value == MainTab.UNREAD
             val dataFlow = Pager(
                 config = PagingConfig(pageSize = 10, prefetchDistance = 5, enablePlaceholders = false),
-                pagingSourceFactory = { getUrlListUseCase(queryParams) }
+                // 안 읽음 탭: 다시 읽힐 때마다(읽음 처리 등) 지금까지 연 링크를 함께 넘긴다
+                pagingSourceFactory = {
+                    if (isUnreadTab) getUrlListUseCase.unread(params, unreadKeepIds.toList()) else getUrlListUseCase(queryParams)
+                }
             ).flow.cachedIn(viewModelScope)
                 .map { pagingData ->
-                    val tagList = queryParams.tagList
+                    val tagList = params.tagList
                     val byTag = if (tagList.isEmpty()) pagingData
                         else pagingData.filter { it.tagList?.any { it in tagList } == true }
                     if (filterBookmarkInMemory) byTag.filter { it.isBookMark } else byTag
