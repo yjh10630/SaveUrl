@@ -104,7 +104,7 @@ import java.util.Date
 import java.util.Locale
 
 /** 2분할 설정에서 오른쪽 패널에 열 수 있는 하위 화면 (왼쪽 목록의 선택 행) */
-enum class SettingPaneRow { CATEGORY_EDIT, TRASH, TUTORIAL }
+enum class SettingPaneRow { LOCKED_CATEGORIES, CATEGORY_EDIT, TRASH, TUTORIAL }
 
 /**
  * 설정.
@@ -174,6 +174,9 @@ fun AppSettingScreen(
         )
     }
 
+    // 2분할: "잠금 카테고리"와 "카테고리 편집" 행은 같은 화면을 열므로, 누른 행에 선택 표시를 한다 (37번 기획서 2장)
+    var categoryPaneFromLockedRow by rememberSaveable { mutableStateOf(false) }
+
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let { settingViewModel.importCsv(it) } }
@@ -203,6 +206,7 @@ fun AppSettingScreen(
             },
             lockedCategoryCount = lockedCategoryCount,
             lockedCategoriesClick = {
+                categoryPaneFromLockedRow = true
                 if (isListPane) navController.navigateInSettingsPane(Navigation.Routes.EDIT_CATEGORY)
                 else navController.navigateToEditCategory()
             },
@@ -242,10 +246,14 @@ fun AppSettingScreen(
             },
             // 카테고리 편집 행은 2분할에서만 둔다 (폰 설정 화면은 그대로: 카테고리 편집은 필터·카테고리 선택 시트에서 진입)
             categoryEditClick = if (isListPane) {
-                { navController.navigateInSettingsPane(Navigation.Routes.EDIT_CATEGORY) }
+                {
+                    categoryPaneFromLockedRow = false
+                    navController.navigateInSettingsPane(Navigation.Routes.EDIT_CATEGORY)
+                }
             } else null,
             selectedRow = if (!isListPane) null else when (selectedPaneRoute) {
-                Navigation.Routes.EDIT_CATEGORY -> SettingPaneRow.CATEGORY_EDIT
+                Navigation.Routes.EDIT_CATEGORY ->
+                    if (categoryPaneFromLockedRow) SettingPaneRow.LOCKED_CATEGORIES else SettingPaneRow.CATEGORY_EDIT
                 Navigation.Routes.TRASH -> SettingPaneRow.TRASH
                 Navigation.Routes.TUTORIAL, Navigation.Routes.TUTORIAL_TOPIC -> SettingPaneRow.TUTORIAL
                 else -> null
@@ -354,6 +362,7 @@ fun AppSettingScreen(
                 icon = Icons.Outlined.Lock,
                 label = stringResource(R.string.setting_locked_categories),
                 onClick = lockedCategoriesClick,
+                selected = selectedRow == SettingPaneRow.LOCKED_CATEGORIES,
                 value = if (lockedCategoryCount > 0) stringResource(R.string.setting_locked_categories_count, lockedCategoryCount)
                     else stringResource(R.string.setting_locked_categories_none),
             )
