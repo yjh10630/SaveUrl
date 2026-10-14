@@ -122,6 +122,53 @@ class LinkSaveViewModelQuickTest {
     }
 
     @Test
+    fun `추적 파라미터가 붙은 공유 링크도 저장된 URL 로 행을 찾아 알림을 건다 (45번 R1)`() = runTest {
+        val shared = "https://youtu.be/abc123?si=XYZtracking"
+        val stored = "https://youtu.be/abc123"
+        val repository = mockk<com.jinscompany.saveurl.domain.repository.UrlRepository>(relaxed = true) {
+            coEvery { findByNormalizedUrl(any()) } returns null
+            coEvery { saveUrl(any()) } returns true
+        }
+        val realSave = SaveUrlUseCase(repository)
+        val never = CompletableDeferred<UrlData>()
+        coEvery { parseUrlUseCase(any()) } coAnswers { never.await() }
+        coEvery { saveUrlUseCase(any(), any()) } coAnswers { realSave(firstArg(), secondArg()) }
+        coEvery { revisitRepository.latestLinkIdForUrl(stored) } returns 7
+        coEvery { revisitRepository.latestLinkIdForUrl(shared) } returns null
+        val vm = viewModel()
+        vm.startQuick(shared)
+        advanceUntilIdle()
+        val at = 5_000_000L
+        vm.onIntent(LinkSaveIntent.SetReminder(com.jinscompany.saveurl.domain.revisit.ReminderPreset.TOMORROW, at))
+        vm.onIntent(LinkSaveIntent.QuickSave)
+        advanceUntilIdle()
+
+        coVerify { revisitRepository.setReminder(7, at, com.jinscompany.saveurl.domain.revisit.ReminderPreset.TOMORROW) }
+        verify { metaFillScheduler.prioritize(7, true) }
+        assertNotNull(vm.uiState.value.quickSaved)
+    }
+
+    @Test
+    fun `안내 중 다시 잠기면 미리보기 카드에서도 저장된 제목을 지운다 (45번 R3)`() = runTest {
+        val existing = UrlData(url = url, title = "비밀 글", imgUrl = "https://img", category = "비밀")
+        lockSession.unlock()
+        val vm = viewModel(existing)
+        vm.startQuick(url)
+        advanceUntilIdle()
+        val shown = (vm.uiState.value.linkUrlPreviewUiState as LinkUrlPreviewUiState.LinkUrlData).urlData
+        assertEquals("비밀 글", shown.title)
+
+        lockSession.relock()
+        advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertTrue(state.alreadySaved!!.hiddenByLock)
+        val preview = (state.linkUrlPreviewUiState as LinkUrlPreviewUiState.LinkUrlData).urlData
+        assertNull(preview.title)
+        assertNull(preview.imgUrl)
+    }
+
+    @Test
     fun `잠금 카테고리에 저장하면 완료 막대에 이름을 쓰지 않도록 표시한다`() = runTest {
         coEvery { parseUrlUseCase(any()) } returns UrlData(url = url, title = "글")
         val saved = slot<UrlData>()

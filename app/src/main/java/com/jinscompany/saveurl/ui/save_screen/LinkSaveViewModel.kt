@@ -24,6 +24,7 @@ import com.jinscompany.saveurl.utils.extractUrlFromText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +33,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import com.jinscompany.saveurl.utils.CrashReporter
 import com.jinscompany.saveurl.domain.importer.MetaFillScheduler
@@ -98,8 +101,14 @@ class LinkSaveViewModel @Inject constructor(
         val state = _uiState.value
         val lockedNames = observeLockedCategoriesUseCase().first()
         // 빠른 저장 "이미 저장한 링크" 안내가 잠금 카테고리 링크를 보이던 중이면 가린다
+        // 미리보기 카드도 저장된 제목·썸네일 대신 URL 만 남긴다 (37번 §6.3, 45번 독립 리뷰 R3)
         state.alreadySaved?.takeIf { !it.hiddenByLock && it.link.category in lockedNames }?.let { shown ->
-            _uiState.update { it.copy(alreadySaved = shown.copy(hiddenByLock = true)) }
+            _uiState.update {
+                it.copy(
+                    alreadySaved = shown.copy(hiddenByLock = true),
+                    linkUrlPreviewUiState = LinkUrlPreviewUiState.LinkUrlData(UrlData(url = it.userInputUrl.ifBlank { shown.link.url })),
+                )
+            }
         }
         if (state.isEditScreen) {
             val savedCategory = findUrlDataUseCase(state.userInputUrl)?.category
@@ -375,7 +384,7 @@ class LinkSaveViewModel @Inject constructor(
                         else _uiEffect.emit(LinkSaveUiEffect.ShowDuplicateDialog(result.existing, hideTitle = result.existing.isHiddenByLock()))
                         return@launch
                     }
-                    is SaveResult.Success -> afterSave(urlData, isNew = true)
+                    is SaveResult.Success -> afterSave(result.urlData, isNew = true)
                     SaveResult.Error -> return@launch
                 }
             }
@@ -386,8 +395,8 @@ class LinkSaveViewModel @Inject constructor(
         viewModelScope.launch {
             val urlData = _uiState.value.getSaveData() ?: return@launch
             ensureCategoryExists(urlData)
-            when (saveUrlUseCase(urlData, force = true)) {
-                is SaveResult.Success -> afterSave(urlData, isNew = true)
+            when (val result = saveUrlUseCase(urlData, force = true)) {
+                is SaveResult.Success -> afterSave(result.urlData, isNew = true)
                 else -> Unit
             }
         }
@@ -419,7 +428,8 @@ class LinkSaveViewModel @Inject constructor(
 
     /**
      * 저장을 눌렀을 때 알림 줄 값대로 예약하거나 끈다 (화면을 닫기 전에 마친다: 닫히면 이 ViewModel 범위가 끝남).
-     * 새 링크는 방금 저장한 행의 id 를 주소로 찾는다.
+     * 새 링크는 방금 저장한 행의 id 를 주소로 찾는다. [urlData] 는 실제로 저장된 값(SaveResult.Success, 추적 파라미터를 뗀 URL)이어야 한다:
+     * 공유받은 원래 URL(유튜브 `?si=` 등)로 찾으면 행이 없어 알림이 조용히 빠진다 (45번 독립 리뷰 R1).
      */
     private suspend fun applyReminder(urlData: UrlData, isNew: Boolean) {
         val state = _uiState.value
@@ -469,24 +479,33 @@ class LinkSaveViewModel @Inject constructor(
         _uiState.update { it.copy(isSaving = true) }
         viewModelScope.launch {
             try {
-                val state = _uiState.value
-                val loaded = state.getSaveData()
-                val url = extractUrlFromText(state.userInputUrl) ?: state.userInputUrl
+                val before = _uiState.value
+                val loaded = before.getSaveData()
+                val url = extractUrlFromText(before.userInputUrl) ?: before.userInputUrl
                 if (url.isBlank()) return@launch
-                val urlData = loaded ?: UrlData(url = url, metaState = MetaState.PENDING).also {
+                if (loaded == null) {
                     parseJob?.cancel()
+                    // 규칙 판정이 끝나기 전에 눌렀으면 한 번 기다린다: "선택 안 함"으로 저장되지 않게 (45번 독립 리뷰 R6)
+                    if (before.categorySource == CategorySource.NONE) withTimeoutOrNull(RULE_WAIT_MS) { evaluateRule(url) }
+                }
+                val state = _uiState.value
+                val urlData = loaded ?: UrlData(url = url, metaState = MetaState.PENDING).also {
                     it.isBookMark = state.isBookMark
                     it.tagList = state.tagList
                     it.category = state.categoryName
                 }
                 ensureCategoryExists(urlData)
-                when (val result = saveUrlUseCase(urlData)) {
-                    is SaveResult.Duplicate -> showAlreadySaved(result.existing)
-                    is SaveResult.Success -> {
-                        if (loaded == null) requestMetaFill(urlData.url ?: url)
-                        afterSave(urlData, isNew = true)
+                // 저장과 그 뒤 처리(알림 예약·채우기 요청)는 시트를 닫아도 끝까지 한다 (45번 독립 리뷰 R5).
+                // 결과의 저장된 값(추적 파라미터를 뗀 URL)으로 행을 찾는다 (R1)
+                withContext(NonCancellable) {
+                    when (val result = saveUrlUseCase(urlData)) {
+                        is SaveResult.Duplicate -> showAlreadySaved(result.existing)
+                        is SaveResult.Success -> {
+                            if (loaded == null) requestMetaFill(result.urlData.url ?: url)
+                            afterSave(result.urlData, isNew = true)
+                        }
+                        SaveResult.Error -> _uiEffect.emit(LinkSaveUiEffect.ShowToast(R.string.quick_save_failed))
                     }
-                    SaveResult.Error -> _uiEffect.emit(LinkSaveUiEffect.ShowToast(R.string.quick_save_failed))
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -695,5 +714,10 @@ class LinkSaveViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    private companion object {
+        /** 불러오는 중에 저장할 때 규칙 판정을 기다리는 최대 시간 (기기 안 DB 조회라 보통 수십 ms) */
+        const val RULE_WAIT_MS = 1_500L
     }
 }
