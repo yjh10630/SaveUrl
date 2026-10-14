@@ -7,6 +7,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.jinscompany.saveurl.data.room.AppDatabase
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -44,7 +45,7 @@ class MigrationTest {
             close()
         }
 
-        val db = helper.runMigrationsAndValidate(testDb, 6, true)
+        val db = helper.runMigrationsAndValidate(testDb, 7, true)
         db.query("SELECT title, tagList, isBookMark, isRead, normalizedUrl FROM BaseSaveUrl").use { c ->
             assertTrue(c.moveToFirst())
             assertEquals("Test Title", c.getString(0))
@@ -104,6 +105,29 @@ class MigrationTest {
             assertTrue(c.moveToFirst())
             assertEquals(0, c.getInt(0))
         }
+        db.close()
+    }
+
+    /**
+     * 링크 가져오기(v6) → 자동 분류(v7): 학습 테이블(DomainCategory)은 지우고 규칙으로 옮기지 않는다 (36번 §10.1).
+     * 링크·카테고리 수는 그대로, 규칙 테이블은 비어 있다.
+     */
+    @Test
+    @Throws(IOException::class)
+    fun migrate6To7() {
+        helper.createDatabase(testDb, 6).apply {
+            execSQL("INSERT INTO BaseSaveUrl (url, imageUrl, siteName, title, description, tagList, addDate, category, isBookMark, isRead, normalizedUrl, metaState) VALUES ('https://a.com', '', '', '제목', '', '[]', 0, '개발', 0, 0, 'https://a.com', 0)")
+            execSQL("INSERT INTO BaseSaveUrl (url, imageUrl, siteName, title, description, tagList, addDate, category, isBookMark, isRead, normalizedUrl, metaState) VALUES ('https://b.com', '', '', '제목2', '', '[]', 0, '전체', 0, 0, 'https://b.com', 0)")
+            execSQL("INSERT INTO Category (name, contentCnt, addDate, `order`, isEditable, isLocked) VALUES ('개발', 0, 0, 1, 1, 0)")
+            execSQL("INSERT INTO DomainCategory (domain, category, learnCount) VALUES ('a.com', '개발', 3)")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(testDb, 7, true)
+        db.query("SELECT COUNT(*) FROM BaseSaveUrl").use { c -> assertTrue(c.moveToFirst()); assertEquals(2, c.getInt(0)) }
+        db.query("SELECT COUNT(*) FROM Category").use { c -> assertTrue(c.moveToFirst()); assertEquals(1, c.getInt(0)) }
+        db.query("SELECT COUNT(*) FROM AutoCategoryRule").use { c -> assertTrue(c.moveToFirst()); assertEquals(0, c.getInt(0)) }
+        db.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'DomainCategory'").use { c -> assertFalse(c.moveToFirst()) }
         db.close()
     }
 
