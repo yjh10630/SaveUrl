@@ -6,7 +6,7 @@ import com.jinscompany.saveurl.domain.model.LinkStats
 import com.jinscompany.saveurl.domain.model.startOfWeekMillis
 import com.jinscompany.saveurl.domain.usecase.GetLinkStatsUseCase
 import com.jinscompany.saveurl.domain.usecase.IsSavedUrlUseCase
-import com.jinscompany.saveurl.utils.ClipboardReader
+import com.jinscompany.saveurl.utils.ClipboardSuggestions
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,7 +24,7 @@ import javax.inject.Inject
 @HiltViewModel
 class HomePanelViewModel @Inject constructor(
     getLinkStatsUseCase: GetLinkStatsUseCase,
-    private val clipboardReader: ClipboardReader,
+    private val clipboardSuggestions: ClipboardSuggestions,
     private val isSavedUrlUseCase: IsSavedUrlUseCase,
 ) : ViewModel() {
 
@@ -40,9 +40,11 @@ class HomePanelViewModel @Inject constructor(
 
     fun onQuickSaveFocused() {
         viewModelScope.launch {
-            val url = runCatching { clipboardReader.readUrl() }.getOrNull() ?: return@launch
-            if (url == dismissedUrl) return@launch
-            _clipboardSuggestion.value = if (isSavedUrlUseCase(url)) null else url
+            // 같은 복사본은 한 번만, 10분이 지난 복사는 제안하지 않는다 (44번 §18)
+            val link = clipboardSuggestions.candidate() ?: return@launch
+            if (link.url == dismissedUrl || isSavedUrlUseCase(link.url)) return@launch
+            clipboardSuggestions.markShown(link)
+            _clipboardSuggestion.value = link.url
         }
     }
 

@@ -48,7 +48,8 @@ import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.EDIT_CATEGORY
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SAVE_LINK
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SEARCH
 import com.jinscompany.saveurl.domain.repository.TrashRepository
-import com.jinscompany.saveurl.utils.ClipboardReader
+import com.jinscompany.saveurl.utils.ClipboardSuggestions
+import com.jinscompany.saveurl.utils.ClipboardLink
 import com.jinscompany.saveurl.utils.PreferencesManager
 import com.jinscompany.saveurl.ui.tutorial.TutorialBadgePrefs
 import com.jinscompany.saveurl.ui.tutorial.isTutorialLink
@@ -87,7 +88,7 @@ class MainListViewModel @Inject constructor(
     private val deleteWithTrashUseCase: DeleteWithTrashUseCase,
     private val trashRepository: TrashRepository,
     private val preferencesManager: PreferencesManager,
-    private val clipboardReader: ClipboardReader,
+    private val clipboardSuggestions: ClipboardSuggestions,
     private val markAsReadUseCase: MarkAsReadUseCase,
     private val getCategoriesUseCase: GetCategoriesUseCase,
     private val getSiteNameListUseCase: GetSiteNameListUseCase,
@@ -194,13 +195,18 @@ class MainListViewModel @Inject constructor(
 
     init {
         // 가져오기 완료 [목록에서 보기]: 최근 저장 탭 + 그 카테고리(여러 개면 전체)
-        mainListRequests.takeCategory()?.let { category ->
-            _selectedTab.value = MainTab.RECENT
-            _filterSelectedItems.value = _filterSelectedItems.value.copy(
-                categories = listOf(category.ifEmpty { FilterDefaults.CATEGORY_ALL }), siteList = listOf(), tagList = listOf(),
-            )
-        }
+        mainListRequests.takeCategory()?.let(::applyCategoryRequest)
         getLinkList()
+        // 목록이 떠 있는 동안 들어온 요청 (공유 시트 [앱에서 보기], 44번 §6.3)
+        viewModelScope.launch {
+            mainListRequests.pending.collect { pending ->
+                if (pending == null) return@collect
+                mainListRequests.takeCategory()?.let {
+                    applyCategoryRequest(it)
+                    getLinkList()
+                }
+            }
+        }
         deleteExpiredTrash()
         loadCategories()
         observeLockState()
@@ -465,7 +471,8 @@ class MainListViewModel @Inject constructor(
                 MainListIntent.FetchCategoryData -> loadCategories()
                 // 저장 직후 자동 분류 스낵바가 먼저다 (같은 진입에서 클립보드 스낵바는 띄우지 않음, 36번 §4.3)
                 MainListIntent.ReadClipboard -> if (!autoCategoryNotices.isRecentlyActive()) {
-                    clipboardReader.readUrl()?.let { clipboardUrlCheckToSnackBar(it) }
+                    // 같은 복사본은 한 번만, 10분이 지난 복사는 띄우지 않는다 (44번 §18)
+                    clipboardSuggestions.candidate()?.let { clipboardUrlCheckToSnackBar(it) }
                 }
                 MainListIntent.RefreshOnResume -> {
                     loadCategories()
@@ -571,10 +578,20 @@ class MainListViewModel @Inject constructor(
         }
     }
 
-    private fun clipboardUrlCheckToSnackBar(url: String) {
+    /** 최근 저장 탭 + 그 카테고리 ("" = 전체). 닫힌 잠금 카테고리면 전체 (이름이 칩에 보이지 않으므로) */
+    private fun applyCategoryRequest(category: String) {
+        val locked = category.isNotEmpty() && !lockSession.isUnlocked.value && category in lockedCategoryNames.value
+        _selectedTab.value = MainTab.RECENT
+        _filterSelectedItems.value = _filterSelectedItems.value.copy(
+            categories = listOf(if (category.isEmpty() || locked) FilterDefaults.CATEGORY_ALL else category), siteList = listOf(), tagList = listOf(),
+        )
+    }
+
+    private fun clipboardUrlCheckToSnackBar(link: ClipboardLink) {
         viewModelScope.launch {
-            val isSaved = isSavedUrlUseCase(url)
-            if (!isSaved) _mainListEffect.emit(ShowSnackBarSaveUrl(url))
+            if (isSavedUrlUseCase(link.url)) return@launch
+            clipboardSuggestions.markShown(link)
+            _mainListEffect.emit(ShowSnackBarSaveUrl(link.url))
         }
     }
 

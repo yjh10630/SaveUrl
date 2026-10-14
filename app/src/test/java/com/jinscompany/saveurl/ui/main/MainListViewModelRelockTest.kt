@@ -56,7 +56,7 @@ class MainListViewModelRelockTest {
             deleteWithTrashUseCase = mockk(relaxed = true),
             trashRepository = mockk(relaxed = true),
             preferencesManager = preferencesManager,
-            clipboardReader = mockk(relaxed = true),
+            clipboardSuggestions = mockk(relaxed = true),
             markAsReadUseCase = mockk(relaxed = true),
             getCategoriesUseCase = getCategoriesUseCase,
             getSiteNameListUseCase = getSiteNameListUseCase,

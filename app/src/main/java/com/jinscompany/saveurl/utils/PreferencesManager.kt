@@ -57,6 +57,8 @@ class PreferencesManager @Inject constructor(
     private val AUTOCAT_LAUNCH_CARD_DONE = booleanPreferencesKey("autocat_launch_card_done")
     /** 처음 카테고리를 잠근 뒤 "잠근 링크는 나만 볼 수 있어요" 안내를 닫았음 (37번 §19) */
     private val LOCK_INTRO_SEEN = booleanPreferencesKey("lock_intro_seen")
+    /** 마지막으로 제안한 클립보드 복사본 "복사 시각:URL 해시" (URL 은 두지 않음, 44번 §18) */
+    private val CLIPBOARD_LAST_SHOWN = stringPreferencesKey("clipboard_last_shown")
     // ---- 다시 보게 만들기 (42번 §3.4) ----
     /** 알림 권한 사전 안내 시트를 한 번이라도 보였는지 (API 33+) */
     private val NOTIF_PERMISSION_ASKED = booleanPreferencesKey("notif_permission_asked")
@@ -223,6 +225,12 @@ class PreferencesManager @Inject constructor(
     }
 
     val lockIntroSeen: Flow<Boolean> = context.dataStore.data.map { it[LOCK_INTRO_SEEN] ?: false }
+
+    suspend fun clipboardLastShownKey(): String? = context.dataStore.data.first()[CLIPBOARD_LAST_SHOWN]
+
+    suspend fun setClipboardLastShownKey(key: String) {
+        context.dataStore.edit { it[CLIPBOARD_LAST_SHOWN] = key }
+    }
 
     suspend fun setLockIntroSeen() {
         context.dataStore.edit { it[LOCK_INTRO_SEEN] = true }

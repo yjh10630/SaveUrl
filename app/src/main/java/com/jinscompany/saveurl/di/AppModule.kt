@@ -46,6 +46,13 @@ class AppModule {
     fun provideClipboardReader(clipboardManager: ClipboardManager): ClipboardReader =
         ClipboardReaderImpl(clipboardManager)
 
+    @Provides
+    fun provideClipboardSeenStore(preferencesManager: com.jinscompany.saveurl.utils.PreferencesManager): com.jinscompany.saveurl.utils.ClipboardSeenStore =
+        object : com.jinscompany.saveurl.utils.ClipboardSeenStore {
+            override suspend fun lastShownKey(): String? = preferencesManager.clipboardLastShownKey()
+            override suspend fun setLastShownKey(key: String) = preferencesManager.setClipboardLastShownKey(key)
+        }
+
     @Singleton
     @Provides
     fun provideBaseSaveUrlDao(appDatabase: AppDatabase): BaseSaveUrlDao =
