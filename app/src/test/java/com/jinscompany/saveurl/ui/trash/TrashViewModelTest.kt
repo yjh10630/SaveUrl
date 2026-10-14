@@ -22,6 +22,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -100,5 +101,20 @@ class TrashViewModelTest {
             assertTrue(effect is TrashUiEffect.ShowMoreBottomSheet)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `잠금 카테고리를 열거나 다시 잠그면 휴지통 목록을 다시 만든다`() = runTest {
+        advanceUntilIdle()
+        val closedList = viewModel.uiState.value.trashList
+
+        lockSession.unlock()
+        advanceUntilIdle()
+        val openList = viewModel.uiState.value.trashList
+        assertNotSame(closedList, openList)
+
+        lockSession.relock()
+        advanceUntilIdle()
+        assertNotSame(openList, viewModel.uiState.value.trashList)
     }
 }
