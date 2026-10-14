@@ -6,6 +6,7 @@ import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.room.BaseSaveUrlDao
 import com.jinscompany.saveurl.data.room.CategoryDao
 import com.jinscompany.saveurl.data.room.DomainCategoryDao
+import com.jinscompany.saveurl.data.room.ImportDao
 import com.jinscompany.saveurl.data.room.TrashDao
 import com.jinscompany.saveurl.utils.ClipboardReader
 import com.jinscompany.saveurl.utils.ClipboardReaderImpl
@@ -62,4 +63,7 @@ class AppModule {
     fun provideDomainCategoryDao(appDatabase: AppDatabase): DomainCategoryDao =
         appDatabase.domainCategoryDao()
 
+    @Singleton
+    @Provides
+    fun provideImportDao(appDatabase: AppDatabase): ImportDao = appDatabase.importDao()
 }

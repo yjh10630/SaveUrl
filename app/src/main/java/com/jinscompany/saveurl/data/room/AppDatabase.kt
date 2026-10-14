@@ -12,6 +12,7 @@ import androidx.room.migration.Migration
 import androidx.room.withTransaction
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.jinscompany.saveurl.domain.model.CategoryModel
+import com.jinscompany.saveurl.domain.model.ImportBatch
 import com.jinscompany.saveurl.domain.model.TrashItem
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.data.room.DomainCategoryEntity
@@ -21,8 +22,8 @@ import java.util.concurrent.Executors
 //todo 마이그레이션을 시도해야 한다 포크를 이용해서 현재 적용되어 있는거 스태시로 옮기고 처음부터 다시 앱 설치 후 링크 저장 몇개 하고 마이그레이션 테스트 진행 해야함... !!!
 
 @Database(
-    entities = [UrlData::class, CategoryModel::class, TrashItem::class, DomainCategoryEntity::class],
-    version = 5,
+    entities = [UrlData::class, CategoryModel::class, TrashItem::class, DomainCategoryEntity::class, ImportBatch::class],
+    version = 6,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
@@ -30,6 +31,8 @@ import java.util.concurrent.Executors
         AutoMigration(from = 3, to = 4),
         // 잠금 카테고리 (Category.isLocked DEFAULT 0)
         AutoMigration(from = 4, to = 5),
+        // 링크 가져오기 (BaseSaveUrl.importBatchId·metaState, ImportBatch 테이블)
+        AutoMigration(from = 5, to = 6),
     ]
 )
 @TypeConverters(value = [ListTypeConverter::class])
@@ -39,6 +42,7 @@ abstract class AppDatabase: RoomDatabase() {
     abstract fun categoryDao(): CategoryDao
     abstract fun trashDao(): TrashDao
     abstract fun domainCategoryDao(): DomainCategoryDao
+    abstract fun importDao(): ImportDao
 
     companion object {
         lateinit var INSTANCE: AppDatabase

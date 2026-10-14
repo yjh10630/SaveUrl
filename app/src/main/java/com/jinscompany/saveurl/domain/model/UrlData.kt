@@ -21,6 +21,10 @@ data class UrlData(
     @ColumnInfo(name = "isBookMark") var isBookMark: Boolean = false,
     @ColumnInfo(name = "isRead", defaultValue = "0") var isRead: Boolean = false,
     @ColumnInfo(name = "normalizedUrl", defaultValue = "") val normalizedUrl: String = "",
+    /** 링크 가져오기로 들어온 묶음 ([ImportBatch.id]). null = 직접 저장 (Room v6) */
+    @ColumnInfo(name = "importBatchId") val importBatchId: Long? = null,
+    /** 제목·썸네일 채우기 상태 ([MetaState]). 직접 저장한 링크는 0 (Room v6) */
+    @ColumnInfo(name = "metaState", defaultValue = "0") val metaState: Int = MetaState.DONE,
 ) {
     fun getDate(): String {
         val currentTime = Calendar.getInstance()
@@ -46,4 +50,18 @@ data class UrlData(
         }
     }
 
+}
+
+/** [UrlData.metaState] 값. 가져온 링크는 저장 뒤 LinkMetaFillWorker 가 제목·썸네일을 채운다 */
+object MetaState {
+    /** 다 채움 (직접 저장한 링크 포함) */
+    const val DONE = 0
+    /** 제목·썸네일 모두 기다리는 중 */
+    const val PENDING = 1
+    /** 제목은 있고(북마크·백업) 썸네일만 기다리는 중. 제목은 덮어쓰지 않는다 */
+    const val PENDING_IMAGE = 2
+    /** 가져오지 못함. 링크를 열면 다시 시도한다 */
+    const val FAILED = 3
+
+    fun isPending(state: Int): Boolean = state == PENDING || state == PENDING_IMAGE
 }

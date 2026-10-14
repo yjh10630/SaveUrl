@@ -44,7 +44,7 @@ class MigrationTest {
             close()
         }
 
-        val db = helper.runMigrationsAndValidate(testDb, 5, true)
+        val db = helper.runMigrationsAndValidate(testDb, 6, true)
         db.query("SELECT title, tagList, isBookMark, isRead, normalizedUrl FROM BaseSaveUrl").use { c ->
             assertTrue(c.moveToFirst())
             assertEquals("Test Title", c.getString(0))
@@ -75,6 +75,34 @@ class MigrationTest {
         db.query("SELECT COUNT(*) FROM Category WHERE isLocked = 0").use { c ->
             assertTrue(c.moveToFirst())
             assertEquals(2, c.getInt(0))
+        }
+        db.close()
+    }
+
+    /** 잠금 카테고리(v5) → 링크 가져오기(v6): 기존 링크는 직접 저장(묶음 없음) + 다 채움(metaState 0), 기록 테이블은 비어 있음 */
+    @Test
+    @Throws(IOException::class)
+    fun migrate5To6() {
+        helper.createDatabase(testDb, 5).apply {
+            execSQL("INSERT INTO BaseSaveUrl (url, imageUrl, siteName, title, description, tagList, addDate, category, isBookMark, isRead, normalizedUrl) VALUES ('https://a.com', '', '', '제목', '', '[]', 0, '쇼핑', 0, 0, 'https://a.com')")
+            execSQL("INSERT INTO Category (name, contentCnt, addDate, `order`, isEditable, isLocked) VALUES ('쇼핑', 0, 0, 1, 1, 1)")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(testDb, 6, true)
+        db.query("SELECT title, importBatchId, metaState FROM BaseSaveUrl").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("제목", c.getString(0))
+            assertTrue(c.isNull(1))
+            assertEquals(0, c.getInt(2))
+        }
+        db.query("SELECT isLocked FROM Category WHERE name = '쇼핑'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals(1, c.getInt(0))
+        }
+        db.query("SELECT COUNT(*) FROM ImportBatch").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals(0, c.getInt(0))
         }
         db.close()
     }
