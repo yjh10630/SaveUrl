@@ -6,7 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.jinscompany.saveurl.data.importer.ImportRepositoryImpl
 import com.jinscompany.saveurl.data.room.AppDatabase
-import com.jinscompany.saveurl.data.room.DomainCategoryEntity
+import com.jinscompany.saveurl.domain.model.AutoCategoryRule
 import com.jinscompany.saveurl.domain.importer.ImportCommitRequest
 import com.jinscompany.saveurl.domain.importer.ImportFormat
 import com.jinscompany.saveurl.domain.importer.ImportRecord
@@ -176,10 +176,11 @@ class ImportRepositoryTest {
         assertNotNull(db.categoryDao().get("개발"))
     }
 
-    /** 39번 독립 리뷰 R6: 백업이 기존 카테고리를 잠그는 건 다 넣은 뒤. 중간에 실패하면 기존 카테고리·학습값은 그대로 */
+    /** 39번 독립 리뷰 R6: 백업이 기존 카테고리를 잠그는 건 다 넣은 뒤. 중간에 실패하면 기존 카테고리·자동 분류 규칙은 그대로 */
     @Test
     fun failedBackupImportLeavesExistingCategoryUnlocked() = runBlocking {
-        db.domainCategoryDao().insert(DomainCategoryEntity(domain = "food.example.com", category = "맛집"))
+        val categoryId = db.categoryDao().get("맛집")!!.id
+        db.autoCategoryRuleDao().insert(AutoCategoryRule(matchType = "HOST", pattern = "food.example.com", categoryId = categoryId))
         var batchId = 0L
         val error = runCatching {
             repo.commit(
@@ -191,7 +192,7 @@ class ImportRepositoryTest {
         assertNotNull(error)
         repo.rollback(batchId)
         assertFalse(db.categoryDao().get("맛집")!!.isLocked)
-        assertNotNull(db.domainCategoryDao().get("food.example.com"))
+        assertNotNull(db.autoCategoryRuleDao().getByKey("HOST", "food.example.com"))
         assertEquals(1, db.baseSaveUrlDao().get().size)
     }
 

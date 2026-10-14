@@ -5,7 +5,7 @@ import android.content.Context
 import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.room.BaseSaveUrlDao
 import com.jinscompany.saveurl.data.room.CategoryDao
-import com.jinscompany.saveurl.data.room.DomainCategoryDao
+import com.jinscompany.saveurl.data.room.AutoCategoryRuleDao
 import com.jinscompany.saveurl.data.room.ImportDao
 import com.jinscompany.saveurl.data.room.TrashDao
 import com.jinscompany.saveurl.utils.ClipboardReader
@@ -60,8 +60,8 @@ class AppModule {
 
     @Singleton
     @Provides
-    fun provideDomainCategoryDao(appDatabase: AppDatabase): DomainCategoryDao =
-        appDatabase.domainCategoryDao()
+    fun provideAutoCategoryRuleDao(appDatabase: AppDatabase): AutoCategoryRuleDao =
+        appDatabase.autoCategoryRuleDao()
 
     @Singleton
     @Provides

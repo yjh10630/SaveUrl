@@ -49,6 +49,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -124,6 +125,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import com.jinscompany.saveurl.ui.tutorial.TutorialNews
+import com.jinscompany.saveurl.ui.tutorial.EntryCardContent
+import com.jinscompany.saveurl.domain.autocat.AutoCategoryNotice
+import com.jinscompany.saveurl.ui.autocat.RuleSheetEvent
+import com.jinscompany.saveurl.ui.autocat.RuleSheetHost
+import com.jinscompany.saveurl.ui.autocat.RuleSheetRequest
+import com.jinscompany.saveurl.ui.autocat.RuleSheetViewModel
+import com.jinscompany.saveurl.ui.navigation.navigateToAutoCategory
+import androidx.compose.material.icons.outlined.Bolt
 import com.jinscompany.saveurl.ui.tutorial.currentVisibleTutorialTopics
 import com.jinscompany.saveurl.ui.theme.AppTheme
 import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
@@ -163,6 +172,7 @@ fun MainListScreen(
     coroutineScope: CoroutineScope = rememberCoroutineScope()
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val isListPane = pane != null
     val snackBarHostState = remember { SnackbarHostState() }
 
@@ -179,12 +189,19 @@ fun MainListScreen(
     val metaFillProgress by viewModel.metaFillProgress.collectAsState()
     val metaFillCellular by viewModel.metaFillCellular.collectAsState()
     val tutorialBadgePrefs by viewModel.tutorialBadgePrefs.collectAsState()
+    val autoCategoryLaunchCard by viewModel.autoCategoryLaunchCard.collectAsState()
+    val autoCategoryCardShownThisRun by viewModel.autoCategoryCardShownThisRun.collectAsState()
     val visibleTutorialTopics = currentVisibleTutorialTopics()
-    val tutorialCard = TutorialNews.cardMode(
+    // 메인 상단 카드 자리는 하나: 자동 분류 첫 실행 카드 > 튜토리얼 새 기능 카드 > 튜토리얼 첫 실행 카드 (36번 §4.2).
+    // 자동 분류 카드가 이번 실행에 보였으면 닫아도 튜토리얼 카드는 다음 실행부터
+    val tutorialCard = if (autoCategoryCardShownThisRun) TutorialCardMode.Hidden else TutorialNews.cardMode(
         introCardVisible = tutorialCardVisible,
         newTopics = TutorialNews.newTopics(visibleTutorialTopics, tutorialBadgePrefs),
         dismissedVersionCode = tutorialBadgePrefs?.newCardDismissedVersionCode ?: 0,
     )
+    // 규칙을 고칠까요? 시트 (점검 스낵바 "고치기")
+    val ruleSheetViewModel: RuleSheetViewModel = hiltViewModel()
+    val autoCategoryNotice by viewModel.autoCategoryNotice.collectAsState()
 
     val mainListPagingData = when (val uiState = mainListUiState) {
         is MainListUiState.Success -> uiState.urlFlowState.collectAsLazyPagingItems()
@@ -201,6 +218,66 @@ fun MainListScreen(
         if (!isLockedUnlocked) {
             linkInfoDialog = null
             menuTargetId = null
+        }
+    }
+
+    // 저장 직후 자동 분류 스낵바 (점검 > 제안, 한 번에 하나). 받아 가면 비워서 두 번 뜨지 않는다
+    LaunchedEffect(autoCategoryNotice) {
+        if (autoCategoryNotice == null) return@LaunchedEffect
+        val notice = viewModel.takeAutoCategoryNotice() ?: return@LaunchedEffect
+        coroutineScope.launch {
+            snackBarHostState.currentSnackbarData?.dismiss()
+            when (notice) {
+                is AutoCategoryNotice.Suggest -> {
+                    val s = notice.suggestion
+                    val result = snackBarHostState.showSnackbar(
+                        message = resources.getString(R.string.autocat_suggest_msg, notice.siteName, s.count, s.categoryName),
+                        actionLabel = resources.getString(R.string.autocat_suggest_accept),
+                        withDismissAction = true,
+                        duration = SnackbarDuration.Long,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        val ruleId = viewModel.acceptSuggestion(s)
+                        val undo = snackBarHostState.showSnackbar(
+                            message = resources.getString(R.string.autocat_suggest_accepted, notice.siteName, s.categoryName),
+                            actionLabel = resources.getString(R.string.autocat_undo),
+                            duration = SnackbarDuration.Long,
+                        )
+                        if (undo == SnackbarResult.ActionPerformed) viewModel.undoAcceptedSuggestion(ruleId)
+                    }
+                }
+                is AutoCategoryNotice.Fix -> {
+                    val result = snackBarHostState.showSnackbar(
+                        message = resources.getString(R.string.autocat_fix_snackbar, notice.siteName, notice.overrides),
+                        actionLabel = resources.getString(R.string.autocat_fix_action),
+                        withDismissAction = true,
+                        duration = SnackbarDuration.Long,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) ruleSheetViewModel.open(RuleSheetRequest.Fix(notice.ruleId))
+                }
+            }
+        }
+    }
+    RuleSheetHost(ruleSheetViewModel) { event ->
+        when (event) {
+            is RuleSheetEvent.FixChanged -> coroutineScope.launch {
+                val undo = snackBarHostState.showSnackbar(
+                    message = resources.getString(R.string.autocat_fix_changed, event.categoryName),
+                    actionLabel = resources.getString(R.string.autocat_undo),
+                    duration = SnackbarDuration.Long,
+                )
+                if (undo == SnackbarResult.ActionPerformed) ruleSheetViewModel.undoCategoryChange(event.ruleId, event.previousCategoryId)
+            }
+            is RuleSheetEvent.Moved -> coroutineScope.launch {
+                val undo = snackBarHostState.showSnackbar(
+                    message = resources.getString(R.string.autocat_apply_done, event.result.count),
+                    actionLabel = resources.getString(R.string.autocat_undo),
+                    duration = SnackbarDuration.Long,
+                )
+                if (undo == SnackbarResult.ActionPerformed) ruleSheetViewModel.undoMove(event.result)
+            }
+            RuleSheetEvent.OpenSettings -> navController.navigateToAutoCategory(fromMain = true)
+            else -> Unit
         }
     }
 
@@ -429,6 +506,12 @@ fun MainListScreen(
             },
             onSaveClick = { viewModel.onIntent(GoToLinkInsertScreen("")) },
             onTutorialClick = { viewModel.onIntent(MainListIntent.OpenTutorial) },
+            autoCategoryLaunchCard = autoCategoryLaunchCard,
+            onAutoCategoryCardOpen = {
+                viewModel.finishAutoCategoryLaunchCard()
+                navController.navigateToAutoCategory(fromMain = true)
+            },
+            onAutoCategoryCardDismiss = { viewModel.finishAutoCategoryLaunchCard() },
             tutorialCard = tutorialCard,
             onTutorialCardDismiss = {
                 when (tutorialCard) {
@@ -475,6 +558,10 @@ fun MainListScreen(
     onSortChange: (String) -> Unit = {},
     onSaveClick: () -> Unit = {},
     onTutorialClick: () -> Unit = {},
+    /** 업데이트 후 첫 실행 자동 분류 카드 (제안 수, null = 숨김). 튜토리얼 카드보다 먼저 */
+    autoCategoryLaunchCard: Int? = null,
+    onAutoCategoryCardOpen: () -> Unit = {},
+    onAutoCategoryCardDismiss: () -> Unit = {},
     /** 맨 위 튜토리얼 카드: 첫 실행 안내(새로 설치, ✕ 전까지) 또는 새 기능 안내 */
     tutorialCard: TutorialCardMode = TutorialCardMode.Hidden,
     onTutorialCardDismiss: () -> Unit = {},
@@ -574,6 +661,9 @@ fun MainListScreen(
 
         if (isEmpty) {
             Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                if (autoCategoryLaunchCard != null) {
+                    AutoCategoryLaunchCard(count = autoCategoryLaunchCard, onOpen = onAutoCategoryCardOpen, onDismiss = onAutoCategoryCardDismiss)
+                }
                 if (tutorialCardVisible) {
                     TutorialEntryCard(onOpen = onTutorialClick, onDismiss = onTutorialCardDismiss, newCount = tutorialNewCount)
                 }
@@ -594,6 +684,16 @@ fun MainListScreen(
             // FAB 에 마지막 아이템이 가리지 않도록 하단 여백
             contentPadding = PaddingValues(bottom = 96.dp)
         ) {
+            if (autoCategoryLaunchCard != null) {
+                item(key = "autocat_launch_card", contentType = "tutorial_entry_card") {
+                    AutoCategoryLaunchCard(
+                        count = autoCategoryLaunchCard,
+                        onOpen = onAutoCategoryCardOpen,
+                        onDismiss = onAutoCategoryCardDismiss,
+                        modifier = Modifier.animateItem(),
+                    )
+                }
+            }
             if (tutorialCardVisible) {
                 item(key = "tutorial_entry_card", contentType = "tutorial_entry_card") {
                     TutorialEntryCard(
@@ -715,4 +815,21 @@ fun MainListScreenPreview() {
             categoryNames = listOf("개발", "뉴스"),
         )
     }
+}
+
+/** 업데이트 후 첫 실행 자동 분류 카드 (튜토리얼 카드 자리, 36번 §4.2) */
+@Composable
+private fun AutoCategoryLaunchCard(count: Int, onOpen: () -> Unit, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    TutorialEntryCard(
+        onOpen = onOpen,
+        onDismiss = onDismiss,
+        modifier = modifier,
+        content = EntryCardContent(
+            title = stringResource(R.string.autocat_launch_card_title, count),
+            body = stringResource(R.string.autocat_launch_card_body),
+            action = stringResource(R.string.autocat_launch_card_action),
+            icon = Icons.Outlined.Bolt,
+            dismissDescription = stringResource(R.string.autocat_launch_card_dismiss_cd),
+        ),
+    )
 }

@@ -37,6 +37,7 @@ import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MoveToInbox
 import androidx.compose.material.icons.outlined.Image
@@ -378,6 +379,7 @@ private fun topicIcon(id: String): ImageVector = when (id) {
     TutorialTopics.CLEAN -> Icons.Outlined.CleaningServices
     TutorialTopics.CATEGORY -> Icons.Outlined.Folder
     TutorialTopics.CATEGORY_LOCK -> Icons.Outlined.Lock
+    TutorialTopics.AUTO_CATEGORY -> Icons.Outlined.Bolt
     TutorialTopics.TAG -> Icons.AutoMirrored.Outlined.Label
     TutorialTopics.FAVORITE -> Icons.Outlined.StarOutline
     TutorialTopics.VIEW_MODE -> Icons.Outlined.ViewAgenda

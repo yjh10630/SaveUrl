@@ -12,6 +12,11 @@ import com.jinscompany.saveurl.domain.usecase.ObserveLockedCategoriesUseCase
 import com.jinscompany.saveurl.utils.PreferencesManager
 import com.jinscompany.saveurl.utils.RemoteFlags
 import com.jinscompany.saveurl.data.importer.ImportSourceOpener
+import com.jinscompany.saveurl.domain.lock.CategoryLockSession
+import com.jinscompany.saveurl.domain.repository.AutoCategoryRepository
+import com.jinscompany.saveurl.ui.autocat.AutoCategoryViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.combine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -24,10 +29,17 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/** 설정 "자동 분류" 줄 배지 */
+sealed interface AutoCategoryBadge {
+    data class Check(val count: Int) : AutoCategoryBadge
+    data class Suggest(val count: Int) : AutoCategoryBadge
+}
+
 sealed class AppSettingEffect {
     data class ShowToast(val message: String) : AppSettingEffect()
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class AppSettingViewModel @Inject constructor(
     private val exportCsvUseCase: ExportCsvUseCase,
@@ -35,10 +47,30 @@ class AppSettingViewModel @Inject constructor(
     observeLockedCategoriesUseCase: ObserveLockedCategoriesUseCase,
     @ApplicationContext private val context: Context,
     private val savedStateHandle: SavedStateHandle,
-    remoteFlags: RemoteFlags,
+    private val remoteFlags: RemoteFlags,
     preferencesManager: PreferencesManager,
     private val sourceOpener: ImportSourceOpener,
+    autoCategoryRepository: AutoCategoryRepository,
+    lockSession: CategoryLockSession,
 ) : ViewModel() {
+
+    /**
+     * 설정 "자동 분류" 줄의 배지 (36번 §5.1): 확인이 필요한 규칙이 있으면 "확인 n", 없고 제안이 있으면 "제안 n".
+     * 제안은 규칙이 바뀔 때마다 다시 계산한다 (DB 한 번 읽기 + 메모리 집계).
+     */
+    val autoCategoryBadge: StateFlow<AutoCategoryBadge?> = combine(
+        autoCategoryRepository.observeRules(),
+        lockSession.isUnlocked,
+        preferencesManager.autoCategoryEnabled,
+    ) { rules, unlocked, enabled -> Triple(rules, unlocked, enabled) }
+        .mapLatest { (rules, unlocked, enabled) ->
+            if (!enabled) return@mapLatest null
+            val check = AutoCategoryViewModel.visibleRules(rules, unlocked).needsFix.size
+            if (check > 0) return@mapLatest AutoCategoryBadge.Check(check)
+            val suggest = runCatching { autoCategoryRepository.suggestions(remoteFlags.autoCategoryThresholds).size }.getOrDefault(0)
+            if (suggest > 0) AutoCategoryBadge.Suggest(suggest) else null
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** 링크 가져오기 원격 스위치 (끄면 예전 "데이터 가져오기 (CSV)" 줄) */
     val importEnabled: StateFlow<Boolean> = remoteFlags.importEnabled

@@ -126,7 +126,7 @@ class ImportRepositoryImpl(
             onProgress(done, total)
         }
         // 3) 이미 있던 카테고리를 백업대로 잠그는 것은 링크를 다 넣은 뒤 완료 표시와 같은 트랜잭션에서 한다.
-        //    중간에 취소·실패하면 기존 카테고리와 자동 분류 학습값은 건드리지 않은 상태로 남는다 (39번 독립 리뷰 R6)
+        //    중간에 취소·실패하면 기존 카테고리는 건드리지 않은 상태로 남는다 (39번 독립 리뷰 R6)
         db.withTransaction {
             val categoryDao = db.categoryDao()
             val lockedNow = ArrayList<String>()
@@ -137,7 +137,6 @@ class ImportRepositoryImpl(
                     categoryDao.setLocked(name, true)
                     lockedNow.add(name)
                 }
-                db.domainCategoryDao().deleteByCategory(name)
             }
             importDao.getBatch(batchId)?.let {
                 importDao.updateBatch(it.copy(state = ImportBatchState.DONE, insertedCount = inserted, lockedCategories = lockedNow))
@@ -177,7 +176,7 @@ class ImportRepositoryImpl(
 
     /**
      * 이 가져오기가 만든 카테고리가 비었으면 지운다 (사용자가 직접 넣은 링크·휴지통 항목이 있으면 남김).
-     * 순서 재정렬과 학습값 정리는 카테고리 삭제(CategoryDBSourceImpl.delete)와 같다.
+     * 순서 재정렬과 자동 분류 규칙 정리는 카테고리 삭제(CategoryDBSourceImpl.delete)와 같다.
      */
     private suspend fun deleteIfEmpty(name: String): Boolean {
         val categoryDao = db.categoryDao()
@@ -185,7 +184,7 @@ class ImportRepositoryImpl(
         // 미분류는 이 가져오기가 만든 경우에만 여기로 온다 (createdCategories)
         if (!target.isEditable && target.name != CategoryModel.UNCATEGORIZED) return false
         if (importDao.countLinksInCategory(name) > 0 || importDao.countTrashInCategory(name) > 0) return false
-        db.domainCategoryDao().deleteByCategory(name)
+        db.autoCategoryRuleDao().deleteByCategoryId(target.id)
         categoryDao.delete(target)
         categoryDao.getCategoriesAfter(target.order).forEach { categoryDao.update(it.copy(order = it.order - 1)) }
         return true

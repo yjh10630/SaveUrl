@@ -99,13 +99,12 @@ class EditedLinkMergerTest {
                 mockk<CategoryRepository> { coEvery { get() } returns listOf(CategoryModel(name = "뉴스")) },
                 CategoryLockSession { 0L },
             ),
-            suggestCategoryUseCase = mockk(relaxed = true),
-            learnDomainCategoryUseCase = mockk(relaxed = true),
-            insertCategoryUseCase = mockk(relaxed = true),
             lockSession = CategoryLockSession { 0L },
             observeLockedCategoriesUseCase = mockk<ObserveLockedCategoriesUseCase> {
                 every { this@mockk.invoke() } returns MutableStateFlow(emptyList())
             },
+            autoCategorySaveFlow = disabledAutoCategory(),
+            autoCategoryRepository = emptyAutoCategoryRepository(),
         )
         vm.startCrawling(url)
         advanceUntilIdle()

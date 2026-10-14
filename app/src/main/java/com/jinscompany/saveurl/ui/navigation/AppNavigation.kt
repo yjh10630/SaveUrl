@@ -33,7 +33,12 @@ import com.jinscompany.saveurl.ui.importer.ImportViewModel
 import com.jinscompany.saveurl.ui.main.MainListScreen
 import com.jinscompany.saveurl.ui.main.home.HomePanel
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SAVE_LINK
+import com.jinscompany.saveurl.ui.autocat.AutoCategoryScreen
+import com.jinscompany.saveurl.ui.autocat.RuleSheetEvent
+import com.jinscompany.saveurl.ui.autocat.RuleSheetHost
+import com.jinscompany.saveurl.ui.autocat.RuleSheetViewModel
 import com.jinscompany.saveurl.ui.save_screen.InsertLinkScreen
+import com.jinscompany.saveurl.ui.save_screen.LinkSaveIntent
 import com.jinscompany.saveurl.ui.save_screen.LinkSaveUiEffect
 import com.jinscompany.saveurl.ui.save_screen.LinkSaveViewModel
 import com.jinscompany.saveurl.ui.search.SearchFilterPanel
@@ -45,6 +50,7 @@ import com.jinscompany.saveurl.ui.trash.TrashUiEffect
 import com.jinscompany.saveurl.ui.trash.TrashViewModel
 import com.jinscompany.saveurl.ui.tutorial.TutorialHomeScreen
 import com.jinscompany.saveurl.ui.tutorial.TutorialTopicScreen
+import com.jinscompany.saveurl.ui.tutorial.TutorialTopics
 import com.jinscompany.saveurl.ui.webview.StaticWebScreen
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterIsInstance
@@ -163,11 +169,21 @@ private fun AppNavHost(
             LaunchedEffect(Unit) {
                 viewModel.startInitialCrawling(url)
             }
+            // 규칙 만들기 시트 (저장 화면 "앞으로 항상", 36번 §2.3)
+            val ruleSheetViewModel = hiltViewModel<RuleSheetViewModel>()
             PaneContent(isTwoPane) {
                 InsertLinkScreen(
                     state = viewModel.uiState,
                     uiEffect = viewModel.uiEffect,
-                    event = { intent -> viewModel.onIntent(intent)}
+                    event = { intent -> viewModel.onIntent(intent)},
+                    openRuleSheet = { ruleSheetViewModel.open(it) },
+                    ruleSheetHost = {
+                        RuleSheetHost(ruleSheetViewModel) { event ->
+                            if (event is RuleSheetEvent.Created) {
+                                viewModel.onIntent(LinkSaveIntent.RuleCreated(event.ruleId, event.siteName, event.categoryName, event.move))
+                            }
+                        }
+                    },
                 )
             }
         }
@@ -227,6 +243,19 @@ private fun AppNavHost(
                     onClose = { navController.popBackStack() },
                     onOpenHistory = { navController.navigateToImportHistory() },
                     onViewInList = { navController.navigateToMainFromImport() },
+                )
+            }
+        }
+        // 설정 → 자동 분류 (36번 §5). 2분할에서는 설정 위 오른쪽 패널
+        composable(route = Navigation.Routes.AUTO_CATEGORY) {
+            PaneContent(isTwoPane) {
+                AutoCategoryScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenTutorial = {
+                        // 튜토리얼 홈 위에 주제를 연다 (주제 화면의 "목록으로"가 홈으로 가도록)
+                        navController.navigate(Navigation.Routes.TUTORIAL)
+                        navController.navigateToTutorialTopic(TutorialTopics.AUTO_CATEGORY)
+                    },
                 )
             }
         }
@@ -316,6 +345,8 @@ object Navigation {
         const val IMPORT = "import"
         /** 가져오기 기록 */
         const val IMPORT_HISTORY = "importHistory"
+        /** 설정 → 자동 분류 */
+        const val AUTO_CATEGORY = "autoCategory"
         /** TODO: 통신판매업 신고 후 billing 복원 시 다시 노출 (현재 NavHost 에 등록하지 않음) */
         const val SUPPORT = "supportScreen"
     }
@@ -426,6 +457,22 @@ fun NavController.navigateToSearch() {
 
 fun NavController.navigateToAppSetting() {
     navigate(route = "${Navigation.Routes.APP_SETTING}")
+}
+
+/**
+ * 설정 → 자동 분류 열기.
+ * - 설정 목록(폰)에서: 그대로 위에 / 2분할 설정 왼쪽 목록에서: [inSettingsPane] = true
+ * - 메인 첫 실행 카드·스낵바에서: [fromMain] = true → 설정을 열고 그 위에 (2분할이면 설정 오른쪽 패널)
+ */
+fun NavController.navigateToAutoCategory(inSettingsPane: Boolean = false, fromMain: Boolean = false) {
+    when {
+        inSettingsPane -> navigateInSettingsPane(Navigation.Routes.AUTO_CATEGORY)
+        fromMain -> {
+            navigate(Navigation.Routes.APP_SETTING) { popUpTo(Navigation.MAIN_ROUTE_PATTERN) { inclusive = false } }
+            navigate(Navigation.Routes.AUTO_CATEGORY)
+        }
+        else -> navigate(Navigation.Routes.AUTO_CATEGORY) { launchSingleTop = true }
+    }
 }
 
 fun NavController.navigateToTrash() {

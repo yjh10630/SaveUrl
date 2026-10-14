@@ -2,8 +2,6 @@ package com.jinscompany.saveurl.domain.usecase
 
 import android.net.Uri
 import androidx.paging.PagingSource
-import com.jinscompany.saveurl.data.room.DomainCategoryDao
-import com.jinscompany.saveurl.data.room.DomainCategoryEntity
 import com.jinscompany.saveurl.domain.lock.CategoryLockSession
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.FilterParams
@@ -141,31 +139,5 @@ class CategoryLockUseCaseTest {
         assertEquals(listOf("개발", "쇼핑"), useCase(includeLocked = true).map { it.name })
         session.unlock()
         assertEquals(listOf("개발", "쇼핑"), useCase().map { it.name })
-    }
-
-    @Test
-    fun `자동 추천은 잠금 카테고리를 내지 않는다`() = runTest {
-        val domainDao: DomainCategoryDao = mockk(relaxed = true)
-        coEvery { domainDao.get("shop.example.com") } returns DomainCategoryEntity(domain = "shop.example.com", category = "쇼핑")
-        coEvery { domainDao.get("dev.example.com") } returns DomainCategoryEntity(domain = "dev.example.com", category = "개발")
-        coEvery { categoryRepository.isLocked("쇼핑") } returns true
-        coEvery { categoryRepository.isLocked("개발") } returns false
-        val useCase = SuggestCategoryUseCase(domainDao, categoryRepository)
-
-        assertNull(useCase("https://shop.example.com/a", null, null))
-        assertEquals("개발", useCase("https://dev.example.com/a", null, null))
-    }
-
-    @Test
-    fun `잠금 카테고리로 저장한 링크는 도메인 학습을 하지 않는다`() = runTest {
-        val domainDao: DomainCategoryDao = mockk(relaxed = true)
-        coEvery { categoryRepository.isLocked("쇼핑") } returns true
-        coEvery { categoryRepository.isLocked("개발") } returns false
-        val useCase = LearnDomainCategoryUseCase(domainDao, categoryRepository)
-
-        useCase("https://shop.example.com/a", "쇼핑")
-        useCase("https://dev.example.com/a", "개발")
-        coVerify(exactly = 0) { domainDao.upsert("shop.example.com", any()) }
-        coVerify { domainDao.upsert("dev.example.com", "개발") }
     }
 }

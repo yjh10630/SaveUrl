@@ -13,6 +13,7 @@ import com.jinscompany.saveurl.domain.usecase.ObserveLockedCategoriesUseCase
 import com.jinscompany.saveurl.ui.FilterDefaults
 import com.jinscompany.saveurl.util.MainDispatcherRule
 import com.jinscompany.saveurl.utils.PreferencesManager
+import com.jinscompany.saveurl.domain.autocat.AutoCategoryNotices
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -66,6 +67,8 @@ class MainListViewModelRelockTest {
             metaFillScheduler = scheduler,
             remoteFlags = RemoteFlags(),
             mainListRequests = mainListRequests,
+            autoCategoryNotices = AutoCategoryNotices(),
+            autoCategoryRepository = mockk(relaxed = true),
         )
     }
 

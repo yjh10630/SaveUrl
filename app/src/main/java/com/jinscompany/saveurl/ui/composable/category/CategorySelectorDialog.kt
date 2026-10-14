@@ -71,6 +71,8 @@ fun CategorySelectorDialog(
     selectedItem: String,
     /** 잠금 카테고리. 세션이 닫혀 있으면 "잠금 카테고리에 저장…" 한 행으로 접고, 인증하면 같은 시트 안에서 펼친다 */
     lockedCategoryList: List<String> = emptyList(),
+    /** 헤더 설명 (기본 "하나만 선택할 수 있어요"). 규칙이 고른 상태면 "인스타그램 규칙이 '맛집'을 골랐어요" */
+    description: String? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -83,6 +85,7 @@ fun CategorySelectorDialog(
             categoryList = categoryList,
             lockedCategoryList = lockedCategoryList,
             isUnlocked = isUnlocked,
+            description = description,
             onOpenLocked = { openLocked(R.string.prompt_save_to_locked) {} },
             selected = selectItem,
             onSelect = { selectItem = it },
@@ -101,6 +104,7 @@ private fun CategorySelectorContent(
     categoryList: List<String>,
     lockedCategoryList: List<String> = emptyList(),
     isUnlocked: Boolean = false,
+    description: String? = null,
     onOpenLocked: () -> Unit = {},
     selected: String,
     onSelect: (String) -> Unit,
@@ -111,7 +115,7 @@ private fun CategorySelectorContent(
     Column(modifier = Modifier.fillMaxWidth()) {
         SheetHeader(
             title = "카테고리 선택",
-            description = "하나만 선택할 수 있어요",
+            description = description ?: "하나만 선택할 수 있어요",
             action = { TextAction("편집", onClick = onEdit) }
         )
         Spacer(modifier = Modifier.height(12.dp))

@@ -3,6 +3,8 @@ package com.jinscompany.saveurl.di
 import android.content.Context
 import com.jinscompany.saveurl.data.CategoryRepositoryImpl
 import com.jinscompany.saveurl.data.TrashRepositoryImpl
+import com.jinscompany.saveurl.data.autocat.AutoCategoryRepositoryImpl
+import com.jinscompany.saveurl.domain.repository.AutoCategoryRepository
 import com.jinscompany.saveurl.data.UrlRepositoryImpl
 import com.jinscompany.saveurl.data.importer.ContentResolverSourceOpener
 import com.jinscompany.saveurl.data.importer.ImportRepositoryImpl
@@ -64,4 +66,8 @@ class RepositoryModule {
     @Provides
     @Singleton
     fun provideImportSourceOpener(impl: ContentResolverSourceOpener): ImportSourceOpener = impl
+
+    @Provides
+    @Singleton
+    fun provideAutoCategoryRepository(impl: AutoCategoryRepositoryImpl): AutoCategoryRepository = impl
 }

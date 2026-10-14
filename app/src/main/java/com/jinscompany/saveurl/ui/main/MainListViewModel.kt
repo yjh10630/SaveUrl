@@ -42,6 +42,11 @@ import com.jinscompany.saveurl.domain.model.MetaFillProgress
 import com.jinscompany.saveurl.domain.repository.ImportRepository
 import com.jinscompany.saveurl.ui.importer.MainListRequests
 import com.jinscompany.saveurl.utils.RemoteFlags
+import com.jinscompany.saveurl.domain.autocat.AutoCategoryNotice
+import com.jinscompany.saveurl.domain.autocat.AutoCategoryNotices
+import com.jinscompany.saveurl.domain.autocat.RuleSuggestion
+import com.jinscompany.saveurl.domain.model.AutoRuleSource
+import com.jinscompany.saveurl.domain.repository.AutoCategoryRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -74,9 +79,25 @@ class MainListViewModel @Inject constructor(
     observeLockedCategoriesUseCase: ObserveLockedCategoriesUseCase,
     importRepository: ImportRepository,
     private val metaFillScheduler: MetaFillScheduler,
-    remoteFlags: RemoteFlags,
+    private val remoteFlags: RemoteFlags,
     private val mainListRequests: MainListRequests,
+    private val autoCategoryNotices: AutoCategoryNotices,
+    private val autoCategoryRepository: AutoCategoryRepository,
 ) : ViewModel() {
+
+    /** 저장 직후 자동 분류 스낵바 (화면이 [takeAutoCategoryNotice] 로 받아 간다) */
+    val autoCategoryNotice: StateFlow<AutoCategoryNotice?> = autoCategoryNotices.pending
+
+    fun takeAutoCategoryNotice(): AutoCategoryNotice? = autoCategoryNotices.take()
+
+    /**
+     * 업데이트 후 첫 실행 자동 분류 카드 (36번 §4.2): 이 기능 전부터 쓰던 사용자 + 제안이 1개 이상 + 아직 닫거나 누르지 않음.
+     * 값 = 제안 수. 이 실행에서 한 번 보였으면 튜토리얼 카드는 이 실행 동안 보이지 않는다.
+     */
+    private val _autoCategoryLaunchCard = MutableStateFlow<Int?>(null)
+    val autoCategoryLaunchCard: StateFlow<Int?> = _autoCategoryLaunchCard.asStateFlow()
+    private val _autoCategoryCardShownThisRun = MutableStateFlow(false)
+    val autoCategoryCardShownThisRun: StateFlow<Boolean> = _autoCategoryCardShownThisRun.asStateFlow()
 
     /** 링크 가져오기 원격 스위치 (빈 화면 버튼) */
     val importEnabled: StateFlow<Boolean> = remoteFlags.importEnabled
@@ -134,6 +155,39 @@ class MainListViewModel @Inject constructor(
         deleteExpiredTrash()
         loadCategories()
         observeLockState()
+        loadAutoCategoryLaunchCard()
+    }
+
+    private fun loadAutoCategoryLaunchCard() {
+        viewModelScope.launch {
+            runCatching {
+                if (!preferencesManager.autoCategoryEnabled.first()) return@runCatching
+                if (preferencesManager.autoCategoryLaunchCardDone.first()) return@runCatching
+                val baseline = preferencesManager.tutorialBadgePrefs.first().baselineVersionCode ?: return@runCatching
+                // 새로 설치한 사용자(기준 = 설치 버전)는 기록이 없으므로 카드 없음
+                if (baseline >= AUTO_CATEGORY_ADDED_VERSION_CODE) return@runCatching
+                val count = autoCategoryRepository.suggestions(remoteFlags.autoCategoryThresholds).size
+                if (count > 0) {
+                    _autoCategoryLaunchCard.value = count
+                    _autoCategoryCardShownThisRun.value = true
+                }
+            }
+        }
+    }
+
+    /** 첫 실행 카드 닫기·누르기: 다시 보이지 않는다 */
+    fun finishAutoCategoryLaunchCard() {
+        _autoCategoryLaunchCard.value = null
+        viewModelScope.launch { preferencesManager.setAutoCategoryLaunchCardDone() }
+    }
+
+    /** 제안 스낵바 "규칙 만들기" (1탭 수락). @return 규칙 id */
+    suspend fun acceptSuggestion(suggestion: RuleSuggestion): Long =
+        autoCategoryRepository.createOrActivate(suggestion.key, suggestion.categoryId, AutoRuleSource.SUGGESTION)
+
+    /** 수락 확인 스낵바 "되돌리기": 규칙 삭제 (거절로 남기지 않음) */
+    fun undoAcceptedSuggestion(ruleId: Long) {
+        viewModelScope.launch { autoCategoryRepository.delete(ruleId) }
     }
 
     private fun observeLockState() {
@@ -229,7 +283,10 @@ class MainListViewModel @Inject constructor(
                     _mainListEffect.emit(NavigateToResult(route = SEARCH))
                 }
                 MainListIntent.FetchCategoryData -> loadCategories()
-                MainListIntent.ReadClipboard -> clipboardReader.readUrl()?.let { clipboardUrlCheckToSnackBar(it) }
+                // 저장 직후 자동 분류 스낵바가 먼저다 (같은 진입에서 클립보드 스낵바는 띄우지 않음, 36번 §4.3)
+                MainListIntent.ReadClipboard -> if (!autoCategoryNotices.isRecentlyActive()) {
+                    clipboardReader.readUrl()?.let { clipboardUrlCheckToSnackBar(it) }
+                }
                 MainListIntent.RefreshOnResume -> loadCategories()
                 is MainListIntent.SelectTab -> {
                     if (_selectedTab.value != intent.tab) {
@@ -344,3 +401,6 @@ class MainListViewModel @Inject constructor(
         }
     }
 }
+
+/** 자동 분류가 처음 나가는 버전 (첫 실행 카드: 이 버전 전부터 쓰던 사용자만) */
+const val AUTO_CATEGORY_ADDED_VERSION_CODE = 40

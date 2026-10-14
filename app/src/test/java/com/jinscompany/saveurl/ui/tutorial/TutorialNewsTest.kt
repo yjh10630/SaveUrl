@@ -66,11 +66,11 @@ class TutorialNewsTest {
     }
 
     @Test
-    fun `2_1(40) 에서는 잠금 카테고리 주제만 기존 사용자에게 NEW, 40 에 새로 설치한 사용자에게는 없다`() {
+    fun `2_1(40) 에서는 자동 분류·잠금 카테고리 주제가 기존 사용자에게 NEW, 40 에 새로 설치한 사용자에게는 없다`() {
         listOf(38, 39).forEach { baseline ->
             val prefs = TutorialBadgePrefs(baselineVersionCode = baseline)
             assertEquals(
-                listOf(TutorialTopics.CATEGORY_LOCK),
+                listOf(TutorialTopics.AUTO_CATEGORY, TutorialTopics.CATEGORY_LOCK),
                 TutorialNews.newTopics(TutorialTopics.visible(isTwoPane = true), prefs).map { it.id }
             )
         }

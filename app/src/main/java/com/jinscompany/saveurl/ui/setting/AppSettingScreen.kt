@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
+import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.FileDownload
@@ -95,6 +96,7 @@ import com.jinscompany.saveurl.ui.tutorial.TutorialNews
 import com.jinscompany.saveurl.ui.tutorial.TutorialViewModel
 import com.jinscompany.saveurl.ui.tutorial.currentVisibleTutorialTopics
 import com.jinscompany.saveurl.ui.navigation.navigateToTrash
+import com.jinscompany.saveurl.ui.navigation.navigateToAutoCategory
 import com.jinscompany.saveurl.ui.navigation.navigateToImport
 import com.jinscompany.saveurl.ui.importer.ImportEntry
 import com.jinscompany.saveurl.ui.theme.AppDimens
@@ -107,7 +109,7 @@ import java.util.Date
 import java.util.Locale
 
 /** 2분할 설정에서 오른쪽 패널에 열 수 있는 하위 화면 (왼쪽 목록의 선택 행) */
-enum class SettingPaneRow { LOCKED_CATEGORIES, CATEGORY_EDIT, TRASH, IMPORT, TUTORIAL }
+enum class SettingPaneRow { LOCKED_CATEGORIES, CATEGORY_EDIT, AUTO_CATEGORY, TRASH, IMPORT, TUTORIAL }
 
 /**
  * 설정.
@@ -132,6 +134,7 @@ fun AppSettingScreen(
     val isFlexibleUpdatable by sharedViewModel.isFlexibleUpdatable.collectAsState()
 
     val lockedCategoryCount by settingViewModel.lockedCategoryCount.collectAsState()
+    val autoCategoryBadge by settingViewModel.autoCategoryBadge.collectAsState()
     val importEnabled by settingViewModel.importEnabled.collectAsState()
     val importNew by settingViewModel.importNew.collectAsState()
     val resources = LocalResources.current
@@ -247,6 +250,15 @@ fun AppSettingScreen(
                 if (intent.resolveActivity(context.packageManager) != null)
                     context.startActivity(intent)
             },
+            autoCategoryBadge = when (val badge = autoCategoryBadge) {
+                is AutoCategoryBadge.Check -> stringResource(R.string.autocat_setting_badge_check, badge.count)
+                is AutoCategoryBadge.Suggest -> stringResource(R.string.autocat_setting_badge_suggest, badge.count)
+                null -> null
+            },
+            autoCategoryClick = {
+                if (isListPane) navController.navigateToAutoCategory(inSettingsPane = true)
+                else navController.navigateToAutoCategory()
+            },
             trashClick = {
                 if (isListPane) navController.navigateInSettingsPane(Navigation.Routes.TRASH)
                 else navController.navigateToTrash()
@@ -267,6 +279,7 @@ fun AppSettingScreen(
                 Navigation.Routes.EDIT_CATEGORY ->
                     if (categoryPaneFromLockedRow) SettingPaneRow.LOCKED_CATEGORIES else SettingPaneRow.CATEGORY_EDIT
                 Navigation.Routes.TRASH -> SettingPaneRow.TRASH
+                Navigation.Routes.AUTO_CATEGORY -> SettingPaneRow.AUTO_CATEGORY
                 Navigation.Routes.IMPORT, Navigation.Routes.IMPORT_HISTORY -> SettingPaneRow.IMPORT
                 Navigation.Routes.TUTORIAL, Navigation.Routes.TUTORIAL_TOPIC -> SettingPaneRow.TUTORIAL
                 else -> null
@@ -310,6 +323,9 @@ fun AppSettingScreen(
     importEnabled: Boolean = true,
     importNew: Boolean = false,
     importClick: () -> Unit = {},
+    /** 자동 분류 ("확인 n" / "제안 n" 배지) */
+    autoCategoryBadge: String? = null,
+    autoCategoryClick: () -> Unit = {},
 ) {
     val colors = AppTheme.colors
     LazyColumn(
@@ -391,6 +407,16 @@ fun AppSettingScreen(
                     selected = selectedRow == SettingPaneRow.CATEGORY_EDIT,
                 )
             }
+        }
+        // 카테고리 편집(2분할) 바로 아래, 휴지통 위 (36번 §5.1)
+        item {
+            SettingRow(
+                icon = Icons.Outlined.Bolt,
+                label = stringResource(R.string.autocat_setting_row),
+                onClick = autoCategoryClick,
+                selected = selectedRow == SettingPaneRow.AUTO_CATEGORY,
+                badge = autoCategoryBadge,
+            )
         }
         item { SettingRow(icon = Icons.Outlined.Delete, label = "휴지통", onClick = trashClick, selected = selectedRow == SettingPaneRow.TRASH) }
         item { SettingRow(icon = Icons.Outlined.FileDownload, label = "데이터 백업 (CSV)", onClick = exportCsvClick) }

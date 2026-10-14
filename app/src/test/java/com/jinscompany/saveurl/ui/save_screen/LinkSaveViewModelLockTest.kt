@@ -8,7 +8,6 @@ import com.jinscompany.saveurl.domain.usecase.ObserveLockedCategoriesUseCase
 import com.jinscompany.saveurl.domain.usecase.ParseUrlUseCase
 import com.jinscompany.saveurl.domain.usecase.SaveResult
 import com.jinscompany.saveurl.domain.usecase.SaveUrlUseCase
-import com.jinscompany.saveurl.domain.usecase.SuggestCategoryUseCase
 import com.jinscompany.saveurl.ui.FilterDefaults
 import com.jinscompany.saveurl.util.MainDispatcherRule
 import io.mockk.coEvery
@@ -37,13 +36,11 @@ class LinkSaveViewModelLockTest {
     private val lockSession = CategoryLockSession { 0L }
     private val findUrlDataUseCase: FindUrlDataUseCase = mockk()
     private val parseUrlUseCase: ParseUrlUseCase = mockk()
-    private val suggestCategoryUseCase: SuggestCategoryUseCase = mockk()
     private val saveUrlUseCase: SaveUrlUseCase = mockk()
 
     private fun viewModel(existing: UrlData?): LinkSaveViewModel {
         coEvery { findUrlDataUseCase(any()) } returns existing
         coEvery { parseUrlUseCase(any()) } returns UrlData(url = url, title = "새로 읽은 제목")
-        coEvery { suggestCategoryUseCase(any(), any(), any()) } returns null
         val observeLocked: ObserveLockedCategoriesUseCase = mockk {
             every { this@mockk.invoke() } returns MutableStateFlow(listOf("쇼핑"))
         }
@@ -53,11 +50,10 @@ class LinkSaveViewModelLockTest {
             findUrlDataUseCase = findUrlDataUseCase,
             parseUrlUseCase = parseUrlUseCase,
             getCategoriesUseCase = mockk(relaxed = true),
-            suggestCategoryUseCase = suggestCategoryUseCase,
-            learnDomainCategoryUseCase = mockk(relaxed = true),
-            insertCategoryUseCase = mockk(relaxed = true),
             lockSession = lockSession,
             observeLockedCategoriesUseCase = observeLocked,
+            autoCategorySaveFlow = disabledAutoCategory(),
+            autoCategoryRepository = emptyAutoCategoryRepository(),
         )
     }
 

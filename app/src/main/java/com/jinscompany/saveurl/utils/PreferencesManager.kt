@@ -49,6 +49,12 @@ class PreferencesManager @Inject constructor(
     /** 가져온 링크 미리보기 채우기: 멈춤 / 모바일 데이터에서도 채우기 (기본 끔) */
     private val META_FILL_PAUSED = booleanPreferencesKey("meta_fill_paused")
     private val META_FILL_CELLULAR = booleanPreferencesKey("meta_fill_cellular")
+    /** 자동 분류 사용 (마스터 스위치, 기본 켬. 36번 §5.2) */
+    private val AUTOCAT_ENABLED = booleanPreferencesKey("autocat_enabled")
+    /** 저장 후 제안 스낵바를 마지막으로 띄운 날 (yyyyMMdd, 하루 1번) */
+    private val AUTOCAT_LAST_SUGGEST_DAY = intPreferencesKey("autocat_last_suggest_day")
+    /** 업데이트 후 첫 실행 제안 카드를 닫았거나 눌렀음 */
+    private val AUTOCAT_LAUNCH_CARD_DONE = booleanPreferencesKey("autocat_launch_card_done")
 
     val autoDeleteEnabled: Flow<Boolean> = context.dataStore.data
         .map { it[TRASH_ENABLE] ?: true }
@@ -193,5 +199,32 @@ class PreferencesManager @Inject constructor(
             prefs[FLEXIBLE_UPDATE_DECLINED_VERSION] = decline.versionCode
             prefs[FLEXIBLE_UPDATE_DECLINED_AT] = decline.declinedAtMillis
         }
+    }
+
+    val autoCategoryEnabled: Flow<Boolean> = context.dataStore.data.map { it[AUTOCAT_ENABLED] ?: true }
+
+    suspend fun setAutoCategoryEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[AUTOCAT_ENABLED] = enabled }
+    }
+
+    /**
+     * 오늘([day], yyyyMMdd) 제안 스낵바를 아직 띄우지 않았으면 오늘로 기록하고 true.
+     * 읽기와 쓰기를 한 트랜잭션으로 해서 같은 날 두 번 뜨지 않게 한다.
+     */
+    suspend fun claimAutoCategorySuggestDay(day: Int): Boolean {
+        var claimed = false
+        context.dataStore.edit { prefs ->
+            if (prefs[AUTOCAT_LAST_SUGGEST_DAY] != day) {
+                prefs[AUTOCAT_LAST_SUGGEST_DAY] = day
+                claimed = true
+            }
+        }
+        return claimed
+    }
+
+    val autoCategoryLaunchCardDone: Flow<Boolean> = context.dataStore.data.map { it[AUTOCAT_LAUNCH_CARD_DONE] ?: false }
+
+    suspend fun setAutoCategoryLaunchCardDone() {
+        context.dataStore.edit { it[AUTOCAT_LAUNCH_CARD_DONE] = true }
     }
 }
