@@ -18,8 +18,6 @@ import com.jinscompany.saveurl.domain.usecase.ParseUrlUseCase
 import com.jinscompany.saveurl.domain.usecase.SaveUrlUseCase
 import com.jinscompany.saveurl.domain.usecase.SaveResult
 import com.jinscompany.saveurl.domain.usecase.UpdateUrlUseCase
-import com.google.firebase.crashlytics.ktx.crashlytics
-import com.google.firebase.ktx.Firebase
 import com.jinscompany.saveurl.ui.FilterDefaults
 import com.jinscompany.saveurl.ui.autocat.RuleSheetRequest
 import com.jinscompany.saveurl.utils.extractUrlFromText
@@ -35,6 +33,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.jinscompany.saveurl.utils.CrashReporter
 
 @HiltViewModel
 class LinkSaveViewModel @Inject constructor(
@@ -381,7 +380,7 @@ class LinkSaveViewModel @Inject constructor(
                     // 잠금 카테고리에 저장했으면 기록하지 않는다: 점검 시트 최근 기록에 잠금 카테고리가 남지 않게 (40번 독립 리뷰 R12)
                     appliedRuleId = state.appliedRule?.ruleId?.takeUnless { ruleActionTaken || urlData.category in state.lockedCategoryNames },
                 )
-            }.onFailure { if (it is CancellationException) throw it else Firebase.crashlytics.recordException(it) }
+            }.onFailure { if (it is CancellationException) throw it else CrashReporter.record(it) }
         }
         _uiEffect.emit(LinkSaveUiEffect.GotoNextScreen())
     }
@@ -507,7 +506,7 @@ class LinkSaveViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Firebase.crashlytics.recordException(e)
+                CrashReporter.record(e)
                 _uiEffect.emit(LinkSaveUiEffect.StartCrawling(url))
             }
         }

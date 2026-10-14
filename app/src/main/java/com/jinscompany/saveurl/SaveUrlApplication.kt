@@ -12,6 +12,7 @@ import com.jinscompany.saveurl.domain.lock.CategoryLockSession
 import com.jinscompany.saveurl.domain.importer.ImportCommitRunner
 import com.jinscompany.saveurl.domain.importer.MetaFillScheduler
 import com.jinscompany.saveurl.utils.CmLog
+import com.jinscompany.saveurl.utils.CrashReporter
 import com.jinscompany.saveurl.utils.ThemeMigrationRunner
 import com.jinscompany.saveurl.utils.globalCoroutineExceptionHandler
 import com.jinscompany.saveurl.utils.isDebuggable
@@ -54,6 +55,8 @@ class SaveUrlApplication: Application(), ImageLoaderFactory {
         val hadPriorData = ThemeMigrationRunner.snapshotPriorData(this)
         super.onCreate()
         DEBUG = isDebuggable(this)
+        // release: 앱 종료 오류도 메시지(링크 주소 등) 없이 보낸다. debug 는 원래 메시지를 보도록 그대로 둔다
+        if (!DEBUG) CrashReporter.installUncaughtHandler()
         themeMigrationRunner.start(hadPriorData)
         // 업데이트 전 저장된 링크의 normalizedUrl 채우기 / 정규화 규칙 변경 시 재계산 (IO 스레드, 시작을 막지 않음)
         normalizedUrlBackfillRunner.start()

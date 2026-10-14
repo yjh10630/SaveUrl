@@ -5,8 +5,6 @@ import android.os.Build
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import com.google.firebase.crashlytics.ktx.crashlytics
-import com.google.firebase.ktx.Firebase
 import com.jinscompany.saveurl.data.source.linkpreview.HtmlMetaExtractor
 import com.jinscompany.saveurl.data.source.linkpreview.JsoupHttpGetter
 import com.jinscompany.saveurl.data.source.linkpreview.OkHttpGetter
@@ -23,6 +21,7 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
+import com.jinscompany.saveurl.utils.CrashReporter
 
 class UrlParserSourceImpl @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -55,7 +54,7 @@ class UrlParserSourceImpl @Inject constructor(
                 log = { CmLog.d("LinkPreview $it") },
             ).fetch(url)
         } catch (e: Exception) {
-            Firebase.crashlytics.recordException(e)
+            CrashReporter.record(e)
             null
         }
         if (meta == null || !meta.hasTitle) {

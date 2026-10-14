@@ -2,8 +2,6 @@ package com.jinscompany.saveurl.data
 
 import androidx.paging.PagingSource
 import androidx.room.withTransaction
-import com.google.firebase.crashlytics.ktx.crashlytics
-import com.google.firebase.ktx.Firebase
 import com.jinscompany.saveurl.SaveUrlApplication.Companion.DEBUG
 import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.room.TrashDao
@@ -16,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import com.jinscompany.saveurl.utils.CrashReporter
 
 class TrashRepositoryImpl @Inject constructor(
     private val trashDao: TrashDao,
@@ -77,7 +76,7 @@ class TrashRepositoryImpl @Inject constructor(
                 false
             }
         } catch (e: Exception) {
-            Firebase.crashlytics.recordException(e)
+            CrashReporter.record(e)
             return@withContext false
         }
 

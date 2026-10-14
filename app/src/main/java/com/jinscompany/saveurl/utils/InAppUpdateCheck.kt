@@ -156,7 +156,7 @@ class InAppUpdateCheck(
             .continueWithTask { remoteConfig.fetch(fetchIntervalSeconds) }
             .continueWithTask { fetch ->
                 // fetch 실패(오프라인, 서버 제한)여도 이전에 받은 값을 쓰도록 activate 는 항상 시도
-                if (!fetch.isSuccessful) log("remote config fetch failed: ${fetch.exception?.message}")
+                if (!fetch.isSuccessful) log("remote config fetch failed: ${fetch.exception?.javaClass?.simpleName}")
                 remoteConfig.activate()
             }
             .addOnCompleteListener(activity) {
@@ -332,7 +332,7 @@ class InAppUpdateCheck(
         val fullMessage = if (errorCode != null) "$message (errorCode=$errorCode)" else message
         CmLog.e("$fullMessage ${e?.message ?: ""}")
         Firebase.crashlytics.log("InAppUpdate: $fullMessage")
-        Firebase.crashlytics.recordException(InAppUpdateException(fullMessage, e))
+        CrashReporter.record(InAppUpdateException(fullMessage, e), safeDetail = fullMessage)
     }
 
     private class InAppUpdateException(message: String, cause: Throwable?) : Exception(message, cause)

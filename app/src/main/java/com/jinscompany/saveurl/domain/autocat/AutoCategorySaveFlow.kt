@@ -4,8 +4,6 @@ import com.jinscompany.saveurl.domain.model.AutoRuleWithCategory
 import com.jinscompany.saveurl.domain.repository.AutoCategoryRepository
 import com.jinscompany.saveurl.utils.PreferencesManager
 import com.jinscompany.saveurl.utils.RemoteFlags
-import com.google.firebase.crashlytics.ktx.crashlytics
-import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +15,7 @@ import java.util.Calendar
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.jinscompany.saveurl.utils.CrashReporter
 
 /** 저장 직후 메인 목록에 띄울 자동 분류 스낵바 (한 번에 하나: 점검 > 제안, 36번 §2.5-4) */
 sealed interface AutoCategoryNotice {
@@ -101,7 +100,7 @@ class AutoCategorySaveFlow @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                runCatching { Firebase.crashlytics.recordException(e) }
+                CrashReporter.record(e)
             } finally {
                 notices.endWork()
             }

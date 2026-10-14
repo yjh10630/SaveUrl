@@ -53,8 +53,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.google.firebase.crashlytics.ktx.crashlytics
-import com.google.firebase.ktx.Firebase
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.ui.FilterDefaults
 import com.jinscompany.saveurl.ui.composable.LinkUrlCrawlerHidden
@@ -218,7 +216,6 @@ fun InsertLinkScreen(
                 onError = {
                     event.invoke(LinkSaveIntent.WebViewCrawlerDataResult())
                     startCrawlerUrl = ""
-                    Firebase.crashlytics.log("Crawling Error Url > $startCrawlerUrl")
                 }
             )
         }

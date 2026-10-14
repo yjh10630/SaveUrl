@@ -2,8 +2,6 @@ package com.jinscompany.saveurl.ui.autocat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.crashlytics.ktx.crashlytics
-import com.google.firebase.ktx.Firebase
 import com.jinscompany.saveurl.domain.autocat.AutoCategoryKeys
 import com.jinscompany.saveurl.domain.autocat.AutoRuleStats
 import com.jinscompany.saveurl.domain.autocat.RuleSuggestion
@@ -27,6 +25,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.jinscompany.saveurl.utils.CrashReporter
 
 /** 설정 → 자동 분류 화면에서 보여 줄 규칙 목록 */
 data class AutoCategoryRules(
@@ -92,7 +91,7 @@ class AutoCategoryViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 // 계산 실패: 제안 구역을 숨긴다 (사용자 문구 없음, §5.4)
-                Firebase.crashlytics.recordException(e)
+                CrashReporter.record(e)
                 _suggestions.value = emptyList()
             }
         }
