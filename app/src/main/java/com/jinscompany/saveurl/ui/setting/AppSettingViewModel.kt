@@ -9,6 +9,10 @@ import com.jinscompany.saveurl.R
 import com.jinscompany.saveurl.domain.usecase.ExportCsvUseCase
 import com.jinscompany.saveurl.domain.usecase.ImportCsvUseCase
 import com.jinscompany.saveurl.domain.usecase.ObserveLockedCategoriesUseCase
+import com.jinscompany.saveurl.utils.PreferencesManager
+import com.jinscompany.saveurl.utils.RemoteFlags
+import com.jinscompany.saveurl.data.importer.ImportSourceOpener
+import kotlinx.coroutines.flow.combine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -31,7 +35,22 @@ class AppSettingViewModel @Inject constructor(
     observeLockedCategoriesUseCase: ObserveLockedCategoriesUseCase,
     @ApplicationContext private val context: Context,
     private val savedStateHandle: SavedStateHandle,
+    remoteFlags: RemoteFlags,
+    preferencesManager: PreferencesManager,
+    private val sourceOpener: ImportSourceOpener,
 ) : ViewModel() {
+
+    /** 링크 가져오기 원격 스위치 (끄면 예전 "데이터 가져오기 (CSV)" 줄) */
+    val importEnabled: StateFlow<Boolean> = remoteFlags.importEnabled
+
+    /**
+     * 설정 "링크 가져오기" 줄의 NEW: 이 기능 전부터 쓰던 사용자에게만, 가져오기 홈을 한 번 열 때까지 (34번 §S1).
+     * 판단 기준은 튜토리얼 NEW 와 같은 기준 versionCode.
+     */
+    val importNew: StateFlow<Boolean> = combine(preferencesManager.importEntrySeen, preferencesManager.tutorialBadgePrefs) { seen, prefs ->
+        val baseline = prefs.baselineVersionCode
+        !seen && baseline != null && baseline < IMPORT_ADDED_VERSION_CODE
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /**
      * 백업 시트가 열려 있는지, "잠금 카테고리도 포함"을 고르고 인증을 마쳤는지.
@@ -67,20 +86,30 @@ class AppSettingViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 예전 CSV 가져오기 (원격 스위치가 꺼졌을 때). 잠금 카테고리에 들어간 개수는 알리지 않는다
+     * (닫힌 상태에서 잠금 카테고리 정보를 드러내지 않음)
+     */
     fun importCsv(uri: Uri) {
         viewModelScope.launch {
             try {
-                val result = importCsvUseCase(uri)
-                val message = if (result.lockedCount > 0) {
-                    context.getString(R.string.csv_import_with_locked, result.count, result.lockedCount)
-                } else "${result.count}개 항목을 가져왔습니다."
+                val (name, size) = sourceOpener.describe(uri)
+                val result = importCsvUseCase(name, size) { sourceOpener.open(uri) }
+                val message = if (result.skipped > 0) {
+                    context.getString(R.string.csv_import_result_skipped, fmt(result.inserted), fmt(result.skipped))
+                } else context.getString(R.string.csv_import_result, fmt(result.inserted))
                 _effect.emit(AppSettingEffect.ShowToast(message))
             } catch (e: Exception) {
-                _effect.emit(AppSettingEffect.ShowToast("가져오기 실패: ${e.message}"))
+                _effect.emit(AppSettingEffect.ShowToast(context.getString(R.string.csv_import_failed)))
             }
         }
     }
+
+    private fun fmt(n: Int): String = java.text.NumberFormat.getInstance(java.util.Locale.KOREA).format(n)
 }
+
+/** 링크 가져오기가 처음 나가는 버전 (튜토리얼 주제 addedInVersionCode 와 같음) */
+const val IMPORT_ADDED_VERSION_CODE = 40
 
 private const val KEY_SHOW_CSV_EXPORT_SHEET = "show_csv_export_sheet"
 private const val KEY_EXPORT_INCLUDE_LOCKED = "export_include_locked"

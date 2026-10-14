@@ -26,6 +26,10 @@ import androidx.navigation.navArgument
 import com.jinscompany.saveurl.ui.adaptive.LocalWindowLayout
 import com.jinscompany.saveurl.ui.adaptive.TwoPaneLayout
 import com.jinscompany.saveurl.ui.add_category.EditCategoryScreen
+import com.jinscompany.saveurl.ui.importer.ImportEntry
+import com.jinscompany.saveurl.ui.importer.ImportHistoryScreen
+import com.jinscompany.saveurl.ui.importer.ImportScreen
+import com.jinscompany.saveurl.ui.importer.ImportViewModel
 import com.jinscompany.saveurl.ui.main.MainListScreen
 import com.jinscompany.saveurl.ui.main.home.HomePanel
 import com.jinscompany.saveurl.ui.navigation.Navigation.Routes.SAVE_LINK
@@ -205,6 +209,32 @@ private fun AppNavHost(
                 })
             }
         }
+        // 링크 가져오기 (34번): 홈 → 읽는 중 → 미리보기 → 완료가 한 라우트 안의 단계다 (ImportViewModel 이 들고 있음).
+        // 2분할에서는 오른쪽 패널 (설정에서 열면 왼쪽 "링크 가져오기" 행 선택, 공유로 열면 왼쪽 메인 목록)
+        composable(
+            route = "${Navigation.Routes.IMPORT}?${ImportViewModel.ARG_ENTRY}={${ImportViewModel.ARG_ENTRY}}",
+            arguments = listOf(
+                navArgument(ImportViewModel.ARG_ENTRY) {
+                    type = NavType.StringType
+                    defaultValue = ImportEntry.SETTINGS.name
+                },
+            )
+        ) {
+            val viewModel = hiltViewModel<ImportViewModel>()
+            PaneContent(isTwoPane) {
+                ImportScreen(
+                    viewModel = viewModel,
+                    onClose = { navController.popBackStack() },
+                    onOpenHistory = { navController.navigateToImportHistory() },
+                    onViewInList = { navController.navigateToMainFromImport() },
+                )
+            }
+        }
+        composable(route = Navigation.Routes.IMPORT_HISTORY) {
+            PaneContent(isTwoPane) {
+                ImportHistoryScreen(onBack = { navController.popBackStack() })
+            }
+        }
         // 사용 방법(앱 안 튜토리얼): 홈(주제 목록) → 주제 상세. 2분할에서는 오른쪽 패널 안에서 바뀐다.
         composable(route = Navigation.Routes.TUTORIAL) {
             PaneContent(isTwoPane) {
@@ -282,6 +312,10 @@ object Navigation {
         const val TUTORIAL = "tutorial"
         /** 앱 안 튜토리얼 주제 상세 (인자 topicId) */
         const val TUTORIAL_TOPIC = "tutorialTopic"
+        /** 링크 가져오기 (인자 entry = ImportEntry) */
+        const val IMPORT = "import"
+        /** 가져오기 기록 */
+        const val IMPORT_HISTORY = "importHistory"
         /** TODO: 통신판매업 신고 후 billing 복원 시 다시 노출 (현재 NavHost 에 등록하지 않음) */
         const val SUPPORT = "supportScreen"
     }
@@ -349,6 +383,36 @@ fun NavController.navigateToSaveLink(url: String? = null, replaceRightPane: Bool
         navigate(route) { popUpTo(Navigation.MAIN_ROUTE_PATTERN) { inclusive = false } }
     } else {
         navigate(route)
+    }
+}
+
+/**
+ * 링크 가져오기 열기.
+ * - 설정(2분할 왼쪽 목록)에서: [inSettingsPane] = true → 설정 위 오른쪽 패널에
+ * - 메인 빈 화면·공유: [replaceRightPane] = true(2분할) → 메인 위에 열린 오른쪽 패널을 닫고 그 자리에
+ */
+fun NavController.navigateToImport(entry: ImportEntry, replaceRightPane: Boolean = false, inSettingsPane: Boolean = false) {
+    val route = "${Navigation.Routes.IMPORT}?${ImportViewModel.ARG_ENTRY}=${entry.name}"
+    when {
+        inSettingsPane -> navigateInSettingsPane(route)
+        replaceRightPane -> navigate(route) { popUpTo(Navigation.MAIN_ROUTE_PATTERN) { inclusive = false } }
+        else -> navigate(route) { launchSingleTop = true }
+    }
+}
+
+fun NavController.navigateToImportHistory(replaceRightPane: Boolean = false) {
+    if (replaceRightPane) {
+        navigate(Navigation.Routes.IMPORT_HISTORY) { popUpTo(Navigation.MAIN_ROUTE_PATTERN) { inclusive = false } }
+    } else {
+        navigate(Navigation.Routes.IMPORT_HISTORY) { launchSingleTop = true }
+    }
+}
+
+/** 가져오기 완료 [목록에서 보기]: 가져오기·설정을 닫고 메인으로 (보여 줄 카테고리는 MainListRequests 로 넘긴다) */
+fun NavController.navigateToMainFromImport() {
+    navigate(Navigation.MAIN_ROUTE_PATTERN.replace("{scrollToTop}", "true")) {
+        popUpTo(Navigation.MAIN_ROUTE_PATTERN) { inclusive = true }
+        launchSingleTop = true
     }
 }
 

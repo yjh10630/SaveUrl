@@ -1,31 +1,46 @@
 package com.jinscompany.saveurl.domain.usecase
 
-import android.content.Context
-import android.net.Uri
-import com.jinscompany.saveurl.domain.repository.CategoryRepository
-import com.jinscompany.saveurl.domain.repository.UrlRepository
-import com.jinscompany.saveurl.utils.CsvBackupManager
-import dagger.hilt.android.qualifiers.ApplicationContext
+import com.jinscompany.saveurl.domain.importer.ImportFailure
+import com.jinscompany.saveurl.domain.importer.ImportFileReader
+import com.jinscompany.saveurl.domain.importer.ImportPlanner
+import com.jinscompany.saveurl.domain.importer.MetaFillScheduler
+import com.jinscompany.saveurl.domain.repository.ImportRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.InputStream
 import javax.inject.Inject
 
-/** [count] = 가져온 항목 수, [lockedCount] = 그중 잠금 카테고리에 들어간 항목 수 */
-data class CsvImportResult(val count: Int, val lockedCount: Int)
+/** [inserted] = 넣은 링크 수, [skipped] = 이미 있어서 건너뛴 수 */
+data class CsvImportResult(val inserted: Int, val skipped: Int)
 
+/**
+ * 예전 "데이터 가져오기 (CSV)" 줄 (원격 스위치 import_enabled 가 꺼졌을 때만 보임).
+ * 링크 가져오기와 같은 경로로 읽고 넣는다 (34번): 같은 링크는 건너뛰고(중복 생성 없음), 카테고리 행을 만들고,
+ * 백업의 잠금 카테고리는 잠그며, 묶음으로 남겨 가져오기 기록에서 되돌릴 수 있다 (31번 §2.9 의 세 문제).
+ * 기본값: 백업의 카테고리 그대로 / 원래 날짜.
+ */
 class ImportCsvUseCase @Inject constructor(
-    @ApplicationContext private val context: Context,
-    private val repository: UrlRepository,
-    private val categoryRepository: CategoryRepository,
+    private val repository: ImportRepository,
+    private val metaFillScheduler: MetaFillScheduler,
 ) {
-    suspend operator fun invoke(uri: Uri): CsvImportResult {
-        val rows = CsvBackupManager.import(context, uri)
-        if (rows.isEmpty()) return CsvImportResult(0, 0)
-        // 백업 때 잠금 카테고리였던 카테고리는 잠근다 (없으면 잠금 카테고리로 만듦, 잠그는 쪽으로만 반영)
-        val lockedNames = rows.filter { it.categoryLocked }.mapNotNull { it.data.category }.toSet()
-        if (lockedNames.isNotEmpty()) categoryRepository.lockOrCreate(lockedNames)
-        // id=0으로 초기화해서 새 행으로 insert (기존 데이터와 충돌 방지)
-        val resetItems = rows.map { it.data.copy(id = 0) }
-        repository.saveUrlDataList(resetItems)
-        val lockedCount = if (lockedNames.isEmpty()) 0 else resetItems.count { it.category in lockedNames }
-        return CsvImportResult(count = resetItems.size, lockedCount = lockedCount)
+    /** @throws ImportFailure 읽을 수 없는 파일 */
+    suspend operator fun invoke(fileName: String, fileSize: Long?, open: () -> InputStream?): CsvImportResult {
+        val outcome = withContext(Dispatchers.IO) {
+            val stream = open() ?: throw ImportFailure(com.jinscompany.saveurl.domain.importer.ImportError.IO)
+            stream.use { ImportFileReader().read(fileName, fileSize, it) }
+        }
+        val existing = repository.existingNormalizedKeys()
+        val preview = ImportPlanner.buildPreview(outcome.sources, existing, label = fileName, truncated = outcome.truncated)
+        val request = ImportPlanner.buildRequest(preview, ImportPlanner.defaultSelection(preview), now = System.currentTimeMillis())
+        if (request.records.isEmpty()) return CsvImportResult(inserted = 0, skipped = preview.counts.existing)
+        var batchId: Long? = null
+        val result = try {
+            repository.commit(request, onBatchCreated = { batchId = it }, onProgress = { _, _ -> })
+        } catch (e: Exception) {
+            batchId?.let { repository.rollback(it) }
+            throw e
+        }
+        if (result.inserted > 0) metaFillScheduler.schedule()
+        return CsvImportResult(inserted = result.inserted, skipped = preview.counts.existing + result.skippedAtCommit)
     }
 }

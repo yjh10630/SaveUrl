@@ -56,6 +56,19 @@ import com.jinscompany.saveurl.ui.theme.isDarkTheme
 import com.jinscompany.saveurl.utils.CmLog
 import com.jinscompany.saveurl.utils.InAppUpdateCheck
 import com.jinscompany.saveurl.utils.extractUrlFromText
+import com.jinscompany.saveurl.utils.RemoteFlags
+import com.jinscompany.saveurl.utils.UrlNormalizer
+import com.jinscompany.saveurl.domain.importer.KakaoChatParser
+import com.jinscompany.saveurl.domain.importer.UrlExtractor
+import com.jinscompany.saveurl.ui.importer.ImportEntry
+import com.jinscompany.saveurl.ui.importer.ImportShare
+import com.jinscompany.saveurl.ui.importer.ImportShareInbox
+import com.jinscompany.saveurl.ui.navigation.navigateToImport
+import com.jinscompany.saveurl.ui.tutorial.LocalTutorialFeatureFlags
+import com.jinscompany.saveurl.ui.tutorial.TutorialFeatureFlags
+import android.net.Uri
+import androidx.core.content.IntentCompat
+import androidx.navigation.NavHostController
 import com.jinscompany.saveurl.utils.openPlayStorePage
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -70,6 +83,12 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var lockPromptBroker: LockPromptBroker
+
+    @Inject
+    lateinit var remoteFlags: RemoteFlags
+
+    @Inject
+    lateinit var importShareInbox: ImportShareInbox
 
     /** 잠금 카테고리 인증 프롬프트. onCreate 에서 만들어야 회전·폴드 뒤 새 Activity 가 진행 중인 프롬프트의 결과를 받는다 */
     private lateinit var lockPrompt: BiometricPrompt
@@ -110,6 +129,7 @@ class MainActivity : FragmentActivity() {
             flexibleLauncher = flexibleLauncher,
             sharedViewModel = sharedViewModel,
             isRecreated = savedInstanceState != null,
+            onRemoteConfigActivated = { remoteFlags.refresh() },
         )
         setupBackPressedHandler()
         setupLockPrompt()
@@ -127,18 +147,10 @@ class MainActivity : FragmentActivity() {
             val context = LocalContext.current
             val activity = context as? Activity
 
-            // 공유 Intent 확인
+            // 공유 Intent 확인 (34번 §2.1 분기 순서: 파일 → 링크 여러 개·카톡 형식 글 → 링크 1개)
             LaunchedEffect(Unit) {
                 if (!isFreshLaunch) return@LaunchedEffect
-                val intent = activity?.intent
-                if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
-                    val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
-                    val realUrl = extractUrlFromText(sharedText ?: "")
-                    CmLog.d("sharedText > ${sharedText}\nrealUrl > ${realUrl}")
-                    if (!realUrl.isNullOrEmpty()) {
-                        navController.navigateToSaveLink(url = realUrl)
-                    }
-                }
+                handleShareIntent(activity?.intent ?: return@LaunchedEffect, navController)
             }
 
             val themeMode by sharedViewModel.themeMode.collectAsState()
@@ -183,12 +195,18 @@ class MainActivity : FragmentActivity() {
 
             // 창 폭에 따른 화면 구성(한 화면/2분할). AppNavigation 이 2분할 레이아웃을 고르고, 각 화면·시트가 읽어 모양을 바꾼다.
             val windowLayout = currentWindowLayout()
+            // 튜토리얼 주제의 원격 스위치 (import_enabled). 값이 바뀌면 새 객체로 넘겨 주제 목록을 다시 거른다
+            val importEnabled by remoteFlags.importEnabled.collectAsState()
+            val tutorialFlags = remember(importEnabled) {
+                TutorialFeatureFlags { key -> if (key == RemoteFlags.KEY_IMPORT_ENABLED) importEnabled else false }
+            }
 
             SaveUrlTheme(darkTheme = isDark) {
                 CompositionLocalProvider(
                     LocalWindowLayout provides windowLayout,
                     LocalCategoryLockSession provides categoryLockSession,
                     LocalLockPromptBroker provides lockPromptBroker,
+                    LocalTutorialFeatureFlags provides tutorialFlags,
                 ) {
                     Scaffold(
                         // 각 화면 바닥의 광고 배너(약 50dp)를 가리지 않도록 그 위에 띄운다
@@ -213,6 +231,46 @@ class MainActivity : FragmentActivity() {
                         )
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * 공유로 들어온 것:
+     * 1. 파일(EXTRA_STREAM, SEND_MULTIPLE) → 링크 가져오기
+     * 2. 글에 링크가 2개 이상이거나 앞 8줄이 카톡 대화 형식 → 링크 가져오기 미리보기
+     * 3. 링크 1개 → 지금처럼 저장 화면
+     * 공유 글 내용은 로그에 남기지 않는다 (대화일 수 있음).
+     */
+    private fun handleShareIntent(intent: Intent, navController: NavHostController) {
+        val importEnabled = remoteFlags.importEnabled.value
+        when (intent.action) {
+            Intent.ACTION_SEND_MULTIPLE -> {
+                val uris = IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java).orEmpty()
+                if (importEnabled && uris.isNotEmpty()) {
+                    importShareInbox.put(ImportShare.Files(uris))
+                    navController.navigateToImport(ImportEntry.SHARE, replaceRightPane = true)
+                }
+            }
+            Intent.ACTION_SEND -> {
+                val stream = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
+                if (importEnabled && stream != null) {
+                    importShareInbox.put(ImportShare.Files(listOf(stream)))
+                    navController.navigateToImport(ImportEntry.SHARE, replaceRightPane = true)
+                    return
+                }
+                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT).orEmpty()
+                if (sharedText.isEmpty()) return
+                val distinctUrls = UrlExtractor.extractAll(sharedText).map { UrlNormalizer.normalize(it) }.distinct()
+                val looksLikeChat = KakaoChatParser.looksLikeKakao(sharedText.lineSequence().take(8).toList())
+                if (importEnabled && (distinctUrls.size >= 2 || (looksLikeChat && distinctUrls.isNotEmpty()))) {
+                    CmLog.d("share → import (urls=${distinctUrls.size}, chat=$looksLikeChat)")
+                    importShareInbox.put(ImportShare.Text(sharedText))
+                    navController.navigateToImport(ImportEntry.SHARE, replaceRightPane = true)
+                    return
+                }
+                val realUrl = extractUrlFromText(sharedText)
+                if (!realUrl.isNullOrEmpty()) navController.navigateToSaveLink(url = realUrl)
             }
         }
     }

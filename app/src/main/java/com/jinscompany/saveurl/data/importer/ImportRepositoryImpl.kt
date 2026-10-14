@@ -88,7 +88,8 @@ class ImportRepositoryImpl(
                 if (existing.isEditable && !existing.isLocked) categoryDao.setLocked(name, true)
                 db.domainCategoryDao().deleteByCategory(name)
             }
-            if (request.records.any { it.category == null }) ensureUncategorized()
+            // 미분류 행이 없어서 이번에 만들었으면 기록해 둔다 (취소·되돌리기 때 비었으면 지워 "가져오기 전과 같게")
+            if (request.records.any { it.category == null } && ensureUncategorized()) made.add(CategoryModel.UNCATEGORIZED)
             importDao.getBatch(batchId)?.let { importDao.updateBatch(it.copy(createdCategories = made)) }
             made
         }
@@ -159,7 +160,8 @@ class ImportRepositoryImpl(
     private suspend fun deleteIfEmpty(name: String): Boolean {
         val categoryDao = db.categoryDao()
         val target = categoryDao.get(name) ?: return false
-        if (!target.isEditable || target.name == CategoryModel.UNCATEGORIZED) return false
+        // 미분류는 이 가져오기가 만든 경우에만 여기로 온다 (createdCategories)
+        if (!target.isEditable && target.name != CategoryModel.UNCATEGORIZED) return false
         if (importDao.countLinksInCategory(name) > 0 || importDao.countTrashInCategory(name) > 0) return false
         db.domainCategoryDao().deleteByCategory(name)
         categoryDao.delete(target)
@@ -167,16 +169,18 @@ class ImportRepositoryImpl(
         return true
     }
 
-    /** "미분류" 카테고리 행 (편집 불가). 없으면 만든다 (CSV 의 고아 카테고리 문제와 같은 원인 방지) */
-    private suspend fun ensureUncategorized() {
+    /** "미분류" 카테고리 행 (편집 불가). 없으면 만든다 (CSV 의 고아 카테고리 문제와 같은 원인 방지). 만들었으면 true */
+    private suspend fun ensureUncategorized(): Boolean {
         val categoryDao = db.categoryDao()
         val existing = categoryDao.get(CategoryModel.UNCATEGORIZED)
         if (existing == null) {
             val order = (categoryDao.getMaxOrder() ?: 0) + 1
             categoryDao.insert(CategoryModel(name = CategoryModel.UNCATEGORIZED, order = order, isEditable = false))
+            return true
         } else if (existing.isEditable) {
             categoryDao.update(existing.copy(isEditable = false))
         }
+        return false
     }
 
     override fun observeHistory(): Flow<List<ImportBatchSummary>> =

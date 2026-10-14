@@ -49,6 +49,8 @@ class InAppUpdateCheck(
     private val flexibleLauncher: ActivityResultLauncher<IntentSenderRequest>,
     private val sharedViewModel: SharedViewModel,
     isRecreated: Boolean,
+    /** Remote Config 를 활성화한 뒤 (기능 스위치 다시 읽기: RemoteFlags.refresh) */
+    private val onRemoteConfigActivated: () -> Unit = {},
 ) {
     private val remoteConfig = Firebase.remoteConfig
     private val appUpdateManager = AppUpdateManagerFactory.create(activity)
@@ -143,7 +145,7 @@ class InAppUpdateCheck(
         remoteConfig.setConfigSettingsAsync(
             remoteConfigSettings { minimumFetchIntervalInSeconds = RC_FETCH_INTERVAL_SECONDS }
         ),
-        remoteConfig.setDefaultsAsync(mapOf(AppInfoParser.KEY_REMOTE_CONFIG to AppInfoParser.DEFAULT_JSON)),
+        remoteConfig.setDefaultsAsync(mapOf(AppInfoParser.KEY_REMOTE_CONFIG to AppInfoParser.DEFAULT_JSON) + RemoteFlags.DEFAULTS),
     ).also { remoteConfigReady = it }
 
     private fun fetchAndCheck(fetchIntervalSeconds: Long) {
@@ -158,6 +160,7 @@ class InAppUpdateCheck(
                 remoteConfig.activate()
             }
             .addOnCompleteListener(activity) {
+                onRemoteConfigActivated()
                 val appInfo = readAppInfo()
                 val requiredType = appInfo?.let {
                     InAppUpdatePolicy.requiredUpdateType(BuildConfig.VERSION_CODE, it.minVersion, it.latestVersion)

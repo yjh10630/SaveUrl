@@ -11,6 +11,8 @@
             <action android:name="android.intent.action.SENDTO" />
             <data android:scheme="*" />
         </intent>
+        <!-- 링크 가져오기 안내의 "카톡 열기" (설치되어 있을 때만 보임) -->
+        <package android:name="com.kakao.talk" />
     </queries>
 
     <application
@@ -35,10 +37,22 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- 링크 공유(text/plain) + 링크 가져오기: 카톡 대화 .txt/.zip, 북마크 .html, 백업 .csv (34번 §2.1) -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="text/plain" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-zip-compressed" />
+                <data android:mimeType="application/json" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-zip-compressed" />
+                <data android:mimeType="application/json" />
             </intent-filter>
         </activity>
         <meta-data

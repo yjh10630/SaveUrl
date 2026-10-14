@@ -4,7 +4,9 @@ import android.content.Context
 import com.jinscompany.saveurl.data.CategoryRepositoryImpl
 import com.jinscompany.saveurl.data.TrashRepositoryImpl
 import com.jinscompany.saveurl.data.UrlRepositoryImpl
+import com.jinscompany.saveurl.data.importer.ContentResolverSourceOpener
 import com.jinscompany.saveurl.data.importer.ImportRepositoryImpl
+import com.jinscompany.saveurl.data.importer.ImportSourceOpener
 import com.jinscompany.saveurl.data.meta.WorkMetaFillScheduler
 import com.jinscompany.saveurl.domain.importer.MetaFillScheduler
 import com.jinscompany.saveurl.data.room.ImportDao
@@ -58,4 +60,8 @@ class RepositoryModule {
     @Provides
     @Singleton
     fun provideMetaFillScheduler(impl: WorkMetaFillScheduler): MetaFillScheduler = impl
+
+    @Provides
+    @Singleton
+    fun provideImportSourceOpener(impl: ContentResolverSourceOpener): ImportSourceOpener = impl
 }

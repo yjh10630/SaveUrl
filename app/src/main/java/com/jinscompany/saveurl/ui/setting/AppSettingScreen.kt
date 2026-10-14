@@ -33,6 +33,7 @@ import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.MoveToInbox
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.ViewAgenda
@@ -94,6 +95,8 @@ import com.jinscompany.saveurl.ui.tutorial.TutorialNews
 import com.jinscompany.saveurl.ui.tutorial.TutorialViewModel
 import com.jinscompany.saveurl.ui.tutorial.currentVisibleTutorialTopics
 import com.jinscompany.saveurl.ui.navigation.navigateToTrash
+import com.jinscompany.saveurl.ui.navigation.navigateToImport
+import com.jinscompany.saveurl.ui.importer.ImportEntry
 import com.jinscompany.saveurl.ui.theme.AppDimens
 import com.jinscompany.saveurl.ui.theme.AppTheme
 import com.jinscompany.saveurl.ui.theme.SaveUrlTheme
@@ -104,7 +107,7 @@ import java.util.Date
 import java.util.Locale
 
 /** 2분할 설정에서 오른쪽 패널에 열 수 있는 하위 화면 (왼쪽 목록의 선택 행) */
-enum class SettingPaneRow { LOCKED_CATEGORIES, CATEGORY_EDIT, TRASH, TUTORIAL }
+enum class SettingPaneRow { LOCKED_CATEGORIES, CATEGORY_EDIT, TRASH, IMPORT, TUTORIAL }
 
 /**
  * 설정.
@@ -129,6 +132,8 @@ fun AppSettingScreen(
     val isFlexibleUpdatable by sharedViewModel.isFlexibleUpdatable.collectAsState()
 
     val lockedCategoryCount by settingViewModel.lockedCategoryCount.collectAsState()
+    val importEnabled by settingViewModel.importEnabled.collectAsState()
+    val importNew by settingViewModel.importNew.collectAsState()
     val resources = LocalResources.current
     // 시트 표시 여부와 "포함" 선택값은 ViewModel(SavedStateHandle)에 둔다 (38번 리뷰 2번)
     val showCsvExportSheet by settingViewModel.showCsvExportSheet.collectAsState()
@@ -214,6 +219,12 @@ fun AppSettingScreen(
             importCsvClick = {
                 importLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "*/*"))
             },
+            importEnabled = importEnabled,
+            importNew = importNew,
+            importClick = {
+                if (isListPane) navController.navigateToImport(ImportEntry.SETTINGS, inSettingsPane = true)
+                else navController.navigateToImport(ImportEntry.SETTINGS)
+            },
             shareMyApp = {
                 val sendIntent = Intent().apply {
                     action = Intent.ACTION_SEND
@@ -256,6 +267,7 @@ fun AppSettingScreen(
                 Navigation.Routes.EDIT_CATEGORY ->
                     if (categoryPaneFromLockedRow) SettingPaneRow.LOCKED_CATEGORIES else SettingPaneRow.CATEGORY_EDIT
                 Navigation.Routes.TRASH -> SettingPaneRow.TRASH
+                Navigation.Routes.IMPORT, Navigation.Routes.IMPORT_HISTORY -> SettingPaneRow.IMPORT
                 Navigation.Routes.TUTORIAL, Navigation.Routes.TUTORIAL_TOPIC -> SettingPaneRow.TUTORIAL
                 else -> null
             },
@@ -294,6 +306,10 @@ fun AppSettingScreen(
     /** 잠금 카테고리 개수 ("데이터" 섹션의 "잠금 카테고리" 행 값) */
     lockedCategoryCount: Int = 0,
     lockedCategoriesClick: () -> Unit = {},
+    /** 링크 가져오기 (원격 스위치가 꺼지면 예전 CSV 가져오기 줄) */
+    importEnabled: Boolean = true,
+    importNew: Boolean = false,
+    importClick: () -> Unit = {},
 ) {
     val colors = AppTheme.colors
     LazyColumn(
@@ -378,7 +394,20 @@ fun AppSettingScreen(
         }
         item { SettingRow(icon = Icons.Outlined.Delete, label = "휴지통", onClick = trashClick, selected = selectedRow == SettingPaneRow.TRASH) }
         item { SettingRow(icon = Icons.Outlined.FileDownload, label = "데이터 백업 (CSV)", onClick = exportCsvClick) }
-        item { SettingRow(icon = Icons.Outlined.FileUpload, label = "데이터 가져오기 (CSV)", onClick = importCsvClick) }
+        if (importEnabled) {
+            item {
+                SettingRow(
+                    icon = Icons.Outlined.MoveToInbox,
+                    label = stringResource(R.string.import_setting_title),
+                    subtitle = stringResource(R.string.import_setting_subtitle),
+                    onClick = importClick,
+                    selected = selectedRow == SettingPaneRow.IMPORT,
+                    badge = if (importNew) stringResource(R.string.tutorial_new_badge) else null,
+                )
+            }
+        } else {
+            item { SettingRow(icon = Icons.Outlined.FileUpload, label = "데이터 가져오기 (CSV)", onClick = importCsvClick) }
+        }
 
         // 앱 정보
         item { SectionLabel("앱 정보") }
@@ -447,7 +476,7 @@ private fun Modifier.selectedSettingRow(): Modifier {
 }
 
 @Composable
-private fun RowIconLabel(icon: ImageVector, label: String, modifier: Modifier = Modifier, selected: Boolean = false) {
+private fun RowIconLabel(icon: ImageVector, label: String, modifier: Modifier = Modifier, selected: Boolean = false, subtitle: String? = null) {
     val colors = AppTheme.colors
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         Icon(
@@ -457,13 +486,23 @@ private fun RowIconLabel(icon: ImageVector, label: String, modifier: Modifier = 
             modifier = Modifier.size(22.dp)
         )
         Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
-            fontWeight = if (selected) FontWeight.SemiBold else null,
-            color = if (selected) colors.accent else colors.textPrimary,
-            maxLines = 1,
-        )
+        Column {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
+                fontWeight = if (selected) FontWeight.SemiBold else null,
+                color = if (selected) colors.accent else colors.textPrimary,
+                maxLines = 1,
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }
 
@@ -477,9 +516,11 @@ private fun SettingRow(
     badge: String? = null,
     /** 오른쪽 화살표 앞 회색 값 (예: "2개") */
     value: String? = null,
+    /** 제목 아래 회색 한 줄 (예: "카톡 대화 · 북마크 · 백업 파일") */
+    subtitle: String? = null,
 ) {
     SettingRowContainer(onClick = onClick, selected = selected) {
-        RowIconLabel(icon = icon, label = label, modifier = Modifier.weight(1f), selected = selected)
+        RowIconLabel(icon = icon, label = label, modifier = Modifier.weight(1f), selected = selected, subtitle = subtitle)
         if (value != null) {
             Text(
                 text = value,
