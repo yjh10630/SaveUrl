@@ -16,5 +16,7 @@ data class TrashItem(
     @ColumnInfo(name = "addDate") val addDate: Long,
     @ColumnInfo(name = "category") val category: String,
     @ColumnInfo(name = "isBookMark") val isBookMark: Boolean,
-    @ColumnInfo(name = "deleteDate") val deleteDate: Long = System.currentTimeMillis()
+    @ColumnInfo(name = "deleteDate") val deleteDate: Long = System.currentTimeMillis(),
+    /** 휴지통으로 갈 때의 읽음 값. 복원하면 그대로 돌려준다 (Room v8. 기존 행은 1 = 읽음) */
+    @ColumnInfo(name = "isRead", defaultValue = "1") val isRead: Boolean = true,
 )

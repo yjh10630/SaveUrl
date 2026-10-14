@@ -131,6 +131,33 @@ class MigrationTest {
         db.close()
     }
 
+    /**
+     * 7→8 (42번 §3.3): LinkReminder 테이블, BaseSaveUrl.revisitShownAt, Trash.isRead DEFAULT 1 (기존 휴지통 행은 읽음).
+     * 가져온 링크(백업 복원 제외)는 읽음으로 맞추고, 직접 저장한 링크와 백업 복원 링크의 읽음 값은 그대로 둔다.
+     */
+    @Test
+    @Throws(IOException::class)
+    fun migrate7To8() {
+        helper.createDatabase(testDb, 7).apply {
+            execSQL("INSERT INTO ImportBatch (id, source, label, createdAt, requestedCount, insertedCount, createdCategories, lockedCategories, state) VALUES (1, 'kakao', '방', 0, 1, 1, '[]', '[]', 0)")
+            execSQL("INSERT INTO ImportBatch (id, source, label, createdAt, requestedCount, insertedCount, createdCategories, lockedCategories, state) VALUES (2, 'backup', '백업', 0, 1, 1, '[]', '[]', 0)")
+            execSQL("INSERT INTO BaseSaveUrl (id, url, imageUrl, siteName, title, description, tagList, addDate, category, isBookMark, isRead, normalizedUrl, metaState) VALUES (1, 'https://direct.com', '', '', '직접', '', '[]', 0, '전체', 0, 0, 'https://direct.com', 0)")
+            execSQL("INSERT INTO BaseSaveUrl (id, url, imageUrl, siteName, title, description, tagList, addDate, category, isBookMark, isRead, normalizedUrl, importBatchId, metaState) VALUES (2, 'https://kakao.com', '', '', '카톡', '', '[]', 0, '전체', 0, 0, 'https://kakao.com', 1, 0)")
+            execSQL("INSERT INTO BaseSaveUrl (id, url, imageUrl, siteName, title, description, tagList, addDate, category, isBookMark, isRead, normalizedUrl, importBatchId, metaState) VALUES (3, 'https://backup.com', '', '', '백업', '', '[]', 0, '전체', 0, 0, 'https://backup.com', 2, 0)")
+            execSQL("INSERT INTO Trash (id, url, imageUrl, siteName, title, description, tagList, addDate, category, isBookMark, deleteDate) VALUES (9, 'https://t.com', '', '', 't', '', '[]', 0, '전체', 0, 0)")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(testDb, 8, true)
+        db.query("SELECT id, isRead, revisitShownAt FROM BaseSaveUrl ORDER BY id").use { c ->
+            val rows = buildList { while (c.moveToNext()) add(Triple(c.getInt(0), c.getInt(1), c.isNull(2))) }
+            assertEquals(listOf(Triple(1, 0, true), Triple(2, 1, true), Triple(3, 0, true)), rows)
+        }
+        db.query("SELECT isRead FROM Trash WHERE id = 9").use { c -> assertTrue(c.moveToFirst()); assertEquals(1, c.getInt(0)) }
+        db.query("SELECT COUNT(*) FROM LinkReminder").use { c -> assertTrue(c.moveToFirst()); assertEquals(0, c.getInt(0)) }
+        db.close()
+    }
+
     @Test
     fun smokeTestDaoOnCurrentVersion() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext

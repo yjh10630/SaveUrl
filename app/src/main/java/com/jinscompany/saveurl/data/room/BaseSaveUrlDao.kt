@@ -53,6 +53,65 @@ interface BaseSaveUrlDao {
     @Query("SELECT * FROM basesaveurl WHERE category IN (:categories) AND siteName IN (:siteNames) AND ${LockSql.VISIBLE} ORDER BY addDate ASC")
     fun getTargetCategoryUrlDataOldestBySites(categories: List<String>, siteNames: List<String>, includeLocked: Boolean): PagingSource<Int, UrlData>
 
+    /**
+     * 안 읽음 탭 (42번 §1.5). 안 읽은 링크 + 이번 탭 진입 뒤 연 링크([keepIds], 연 링크가 눈앞에서 바로 사라지지 않게).
+     * 카테고리("전체"/"북마크"/이름)·사이트·정렬은 다른 탭과 같은 규칙이고, 태그는 지금처럼 ViewModel 이 메모리에서 거른다.
+     */
+    @Query("SELECT * FROM basesaveurl WHERE (isRead = 0 OR id IN (:keepIds)) " +
+            "AND (:allCategories = 1 OR (:onlyBookmark = 1 AND isBookMark = 1) OR category IN (:categories)) " +
+            "AND (:allSites = 1 OR siteName IN (:siteNames)) AND ${LockSql.VISIBLE} " +
+            "ORDER BY CASE WHEN :oldest = 1 THEN addDate END ASC, addDate DESC")
+    fun getUnread(
+        keepIds: List<Int>,
+        allCategories: Boolean,
+        onlyBookmark: Boolean,
+        categories: List<String>,
+        allSites: Boolean,
+        siteNames: List<String>,
+        oldest: Boolean,
+        includeLocked: Boolean,
+    ): PagingSource<Int, UrlData>
+
+    /** 안 읽음 탭 숫자. "전체"와 같이 잠금 카테고리는 세션과 관계없이 세지 않는다 */
+    @Query("SELECT COUNT(*) FROM BaseSaveUrl WHERE isRead = 0 AND ${LockSql.NOT_LOCKED}")
+    fun observeUnreadCount(): Flow<Int>
+
+    @Query("UPDATE BaseSaveUrl SET isRead = :read WHERE id = :id")
+    suspend fun setRead(id: Int, read: Boolean): Int
+
+    @Query("SELECT * FROM BaseSaveUrl WHERE id = :id")
+    suspend fun getById(id: Int): UrlData?
+
+    /** 링크가 잠금 카테고리에 있는지 (그 순간의 Category 기준) */
+    @Query("SELECT COUNT(*) FROM BaseSaveUrl WHERE id = :id AND NOT ${LockSql.NOT_LOCKED}")
+    suspend fun isLocked(id: Int): Int
+
+    // ---- 다시 볼 링크 카드 (42번 §5.2) ----
+    /**
+     * 후보: 안 읽음 + [maxAddDate] 이전 저장 + 잠금 아님(세션과 무관) + 예약 없음 + [shownBefore] 이후로 카드에 안 보임. 오래된 순 [limit] 개
+     */
+    @Query("SELECT * FROM BaseSaveUrl WHERE isRead = 0 AND addDate <= :maxAddDate AND ${LockSql.NOT_LOCKED} " +
+            "AND url IS NOT NULL AND url != '' AND id NOT IN (SELECT linkId FROM LinkReminder) " +
+            "AND (revisitShownAt IS NULL OR revisitShownAt < :shownBefore) ORDER BY addDate ASC LIMIT :limit")
+    suspend fun getRevisitCandidates(maxAddDate: Long, shownBefore: Long, limit: Int): List<UrlData>
+
+    @Query("UPDATE BaseSaveUrl SET revisitShownAt = :at WHERE id = :id")
+    suspend fun setRevisitShownAt(id: Int, at: Long)
+
+    /** 잠금 카테고리가 아닌 링크 수 (카드 조건 "링크 10개 이상") */
+    @Query("SELECT COUNT(*) FROM BaseSaveUrl WHERE ${LockSql.NOT_LOCKED}")
+    suspend fun countNotLocked(): Int
+
+    // ---- 주간 정리 (42번 §4). 가져온 링크와 잠금 카테고리는 세지 않는다 ----
+    @Query("SELECT COUNT(*) FROM BaseSaveUrl WHERE importBatchId IS NULL AND addDate >= :since AND ${LockSql.NOT_LOCKED}")
+    suspend fun countSavedSince(since: Long): Int
+
+    @Query("SELECT COUNT(*) FROM BaseSaveUrl WHERE importBatchId IS NULL AND isRead = 0 AND ${LockSql.NOT_LOCKED}")
+    suspend fun countUnreadDirect(): Int
+
+    @Query("SELECT COUNT(*) FROM BaseSaveUrl WHERE importBatchId IS NULL AND ${LockSql.NOT_LOCKED}")
+    suspend fun countDirect(): Int
+
     /** 잠금과 관계없이 전체 (테스트·내부용). 화면·내보내기는 [getAll] 을 쓴다 */
     @Query("SELECT * FROM basesaveurl ORDER BY addDate DESC")
     suspend fun get(): List<UrlData>

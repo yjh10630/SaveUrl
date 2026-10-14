@@ -7,6 +7,7 @@ import com.jinscompany.saveurl.data.room.BaseSaveUrlDao
 import com.jinscompany.saveurl.data.room.CategoryDao
 import com.jinscompany.saveurl.data.room.AutoCategoryRuleDao
 import com.jinscompany.saveurl.data.room.ImportDao
+import com.jinscompany.saveurl.data.room.LinkReminderDao
 import com.jinscompany.saveurl.data.room.TrashDao
 import com.jinscompany.saveurl.utils.ClipboardReader
 import com.jinscompany.saveurl.utils.ClipboardReaderImpl
@@ -66,4 +67,8 @@ class AppModule {
     @Singleton
     @Provides
     fun provideImportDao(appDatabase: AppDatabase): ImportDao = appDatabase.importDao()
+
+    @Singleton
+    @Provides
+    fun provideLinkReminderDao(appDatabase: AppDatabase): LinkReminderDao = appDatabase.linkReminderDao()
 }
