@@ -48,6 +48,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,7 +88,7 @@ import com.jinscompany.saveurl.ui.composable.AdBannerBar
 import com.jinscompany.saveurl.ui.navigation.navigateToTutorial
 import com.jinscompany.saveurl.ui.navigation.navigateToEditCategory
 import com.jinscompany.saveurl.ui.lock.LockAuthResult
-import com.jinscompany.saveurl.ui.lock.rememberLockAuthenticator
+import com.jinscompany.saveurl.ui.lock.rememberLockAuthRequest
 import com.jinscompany.saveurl.ui.tutorial.NewPill
 import com.jinscompany.saveurl.ui.tutorial.TutorialNews
 import com.jinscompany.saveurl.ui.tutorial.TutorialViewModel
@@ -128,11 +129,11 @@ fun AppSettingScreen(
     val isFlexibleUpdatable by sharedViewModel.isFlexibleUpdatable.collectAsState()
 
     val lockedCategoryCount by settingViewModel.lockedCategoryCount.collectAsState()
-    val authenticator = rememberLockAuthenticator()
     val resources = LocalResources.current
-    var showCsvExportSheet by remember { mutableStateOf(false) }
+    // Activity 가 다시 만들어져도(파일 선택 화면에 다녀오는 동안 회전·폴드·프로세스 회수) 남아야 한다 (38번 리뷰 2번)
+    var showCsvExportSheet by rememberSaveable { mutableStateOf(false) }
     // 백업 시트에서 "잠금 카테고리도 포함"을 고르고 인증을 마쳤는지 (파일 선택 결과를 받을 때 쓴다)
-    var exportIncludeLocked by remember { mutableStateOf(false) }
+    var exportIncludeLocked by rememberSaveable { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
@@ -141,6 +142,18 @@ fun AppSettingScreen(
         exportIncludeLocked = includeLocked
         val dateStr = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         exportLauncher.launch("savelink_backup_$dateStr.csv")
+    }
+    // 인증 결과는 지금 컴포지션에서 받으므로, 인증 중에 Activity 가 다시 만들어져도 현재 런처로 파일 선택을 연다 (38번 리뷰 1번).
+    // 백업만 하고 세션은 열지 않는다 (37번 기획서 1.3)
+    val csvIncludeLockedAuth = rememberLockAuthRequest { result, _ ->
+        when (result) {
+            LockAuthResult.Success, LockAuthResult.PassedWithoutCredential -> {
+                showCsvExportSheet = false
+                launchExport(true)
+            }
+            LockAuthResult.Error -> Toast.makeText(context, R.string.lock_unavailable_retry, Toast.LENGTH_SHORT).show()
+            else -> Unit
+        }
     }
     if (showCsvExportSheet) {
         CsvExportSheet(
@@ -151,20 +164,11 @@ fun AppSettingScreen(
                     launchExport(false)
                 } else {
                     // 체크를 켜는 순간이 아니라 [파일 만들기]에서 인증. 취소하면 시트에 머문다
-                    authenticator.authenticate(
+                    csvIncludeLockedAuth.authenticate(
                         title = resources.getString(R.string.prompt_csv_include_locked),
                         subtitle = resources.getString(R.string.prompt_csv_include_locked_subtitle),
                         allowWithoutCredential = true,
-                    ) { result ->
-                        when (result) {
-                            LockAuthResult.Success, LockAuthResult.PassedWithoutCredential -> {
-                                showCsvExportSheet = false
-                                launchExport(true)
-                            }
-                            LockAuthResult.Error -> Toast.makeText(context, R.string.lock_unavailable_retry, Toast.LENGTH_SHORT).show()
-                            else -> Unit
-                        }
-                    }
+                    )
                 }
             },
         )

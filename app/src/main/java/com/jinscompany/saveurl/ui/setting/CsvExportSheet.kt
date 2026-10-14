@@ -20,7 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,7 +45,7 @@ import com.jinscompany.saveurl.ui.theme.AppTheme
 @Composable
 fun CsvExportSheet(onDismiss: () -> Unit, onConfirm: (includeLocked: Boolean) -> Unit) {
     val colors = AppTheme.colors
-    var includeLocked by remember { mutableStateOf(false) }
+    var includeLocked by rememberSaveable { mutableStateOf(false) }
     AppBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.fillMaxWidth()) {
             SheetHeader(

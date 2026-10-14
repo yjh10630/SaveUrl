@@ -53,6 +53,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -88,7 +89,7 @@ import com.jinscompany.saveurl.ui.lock.LocalCategoryLockSession
 import com.jinscompany.saveurl.ui.lock.LockAuthResult
 import com.jinscompany.saveurl.ui.lock.NeedDeviceLockSheet
 import com.jinscompany.saveurl.ui.lock.hasDeviceCredential
-import com.jinscompany.saveurl.ui.lock.rememberLockAuthenticator
+import com.jinscompany.saveurl.ui.lock.rememberLockAuthRequest
 import com.jinscompany.saveurl.ui.lock.rememberOpenLockedCategories
 import com.jinscompany.saveurl.ui.theme.AppDimens
 import com.jinscompany.saveurl.ui.theme.AppTheme
@@ -106,11 +107,10 @@ fun EditCategoryScreen(navController: NavHostController) {
     val context = LocalContext.current
     val resources = LocalResources.current
     val session = LocalCategoryLockSession.current
-    val authenticator = rememberLockAuthenticator()
     val openLocked = rememberOpenLockedCategories()
     val isUnlocked by viewModel.isUnlocked.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    var showNeedDeviceLock by remember { mutableStateOf(false) }
+    var showNeedDeviceLock by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.onIntent(EditCategoryIntent.Load)
@@ -130,44 +130,52 @@ fun EditCategoryScreen(navController: NavHostController) {
     }
     if (showNeedDeviceLock) NeedDeviceLockSheet(onDismiss = { showNeedDeviceLock = false })
 
+    // 결과와 함께 카테고리 이름(payload)을 돌려받으므로, 인증 중에 Activity 가 다시 만들어져도 그 카테고리에 적용된다
+    val unlockCategoryAuth = rememberLockAuthRequest { result, name ->
+        if (name == null) return@rememberLockAuthRequest
+        when (result) {
+            LockAuthResult.Success -> viewModel.onIntent(EditCategoryIntent.SetLocked(name, false))
+            LockAuthResult.PassedWithoutCredential -> {
+                Toast.makeText(context, R.string.lock_opened_without_auth, Toast.LENGTH_SHORT).show()
+                viewModel.onIntent(EditCategoryIntent.SetLocked(name, false))
+            }
+            LockAuthResult.Error -> Toast.makeText(context, R.string.lock_unavailable_retry, Toast.LENGTH_SHORT).show()
+            else -> Unit
+        }
+    }
+    val lockCategoryAuth = rememberLockAuthRequest { result, name ->
+        if (name == null) return@rememberLockAuthRequest
+        when (result) {
+            LockAuthResult.Success -> {
+                session.unlock()
+                viewModel.onIntent(EditCategoryIntent.SetLocked(name, true))
+            }
+            LockAuthResult.NoCredential -> showNeedDeviceLock = true
+            LockAuthResult.Error -> Toast.makeText(context, R.string.lock_unavailable_retry, Toast.LENGTH_SHORT).show()
+            else -> Unit
+        }
+    }
+
     // 37번 기획서 4.3: 잠그기는 세션이 열려 있으면 바로, 아니면 인증 후 잠그고 세션을 연다. 풀기는 항상 인증
     val onToggleLock: (CategoryModel) -> Unit = { item ->
         if (item.isLocked) {
-            authenticator.authenticate(
+            unlockCategoryAuth.authenticate(
                 title = resources.getString(R.string.prompt_unlock_category, item.name),
                 subtitle = resources.getString(R.string.prompt_identity_subtitle),
                 allowWithoutCredential = true,
-            ) { result ->
-                when (result) {
-                    LockAuthResult.Success -> viewModel.onIntent(EditCategoryIntent.SetLocked(item.name, false))
-                    LockAuthResult.PassedWithoutCredential -> {
-                        Toast.makeText(context, R.string.lock_opened_without_auth, Toast.LENGTH_SHORT).show()
-                        viewModel.onIntent(EditCategoryIntent.SetLocked(item.name, false))
-                    }
-                    LockAuthResult.Error -> Toast.makeText(context, R.string.lock_unavailable_retry, Toast.LENGTH_SHORT).show()
-                    else -> Unit
-                }
-            }
+                payload = item.name,
+            )
         } else if (!context.hasDeviceCredential()) {
             showNeedDeviceLock = true
         } else if (session.isUnlocked.value) {
             viewModel.onIntent(EditCategoryIntent.SetLocked(item.name, true))
         } else {
-            authenticator.authenticate(
+            lockCategoryAuth.authenticate(
                 title = resources.getString(R.string.prompt_lock_category, item.name),
                 subtitle = resources.getString(R.string.prompt_identity_subtitle),
                 allowWithoutCredential = false,
-            ) { result ->
-                when (result) {
-                    LockAuthResult.Success -> {
-                        session.unlock()
-                        viewModel.onIntent(EditCategoryIntent.SetLocked(item.name, true))
-                    }
-                    LockAuthResult.NoCredential -> showNeedDeviceLock = true
-                    LockAuthResult.Error -> Toast.makeText(context, R.string.lock_unavailable_retry, Toast.LENGTH_SHORT).show()
-                    else -> Unit
-                }
-            }
+                payload = item.name,
+            )
         }
     }
 

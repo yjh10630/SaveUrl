@@ -11,6 +11,8 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -40,6 +42,9 @@ import androidx.navigation.compose.rememberNavController
 import com.jinscompany.saveurl.R
 import com.jinscompany.saveurl.domain.lock.CategoryLockSession
 import com.jinscompany.saveurl.ui.lock.LocalCategoryLockSession
+import com.jinscompany.saveurl.ui.lock.LocalLockPromptBroker
+import com.jinscompany.saveurl.ui.lock.LockPromptBroker
+import com.jinscompany.saveurl.ui.lock.toPromptInfo
 import com.jinscompany.saveurl.ui.adaptive.LocalWindowLayout
 import com.jinscompany.saveurl.ui.composable.ForceUpdateDialog
 import com.jinscompany.saveurl.ui.adaptive.currentWindowLayout
@@ -62,6 +67,16 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var categoryLockSession: CategoryLockSession
+
+    @Inject
+    lateinit var lockPromptBroker: LockPromptBroker
+
+    /** 잠금 카테고리 인증 프롬프트. onCreate 에서 만들어야 회전·폴드 뒤 새 Activity 가 진행 중인 프롬프트의 결과를 받는다 */
+    private lateinit var lockPrompt: BiometricPrompt
+    private val showLockPrompt: (LockPromptBroker.Request) -> Unit = { request ->
+        runCatching { lockPrompt.authenticate(request.toPromptInfo()) }
+            .onFailure { lockPromptBroker.onPromptError(LockPromptBroker.ERROR_SHOW_FAILED) }
+    }
 
     private val sharedViewModel by viewModels<SharedViewModel>()
     private lateinit var inAppUpdateCheck: InAppUpdateCheck
@@ -97,6 +112,7 @@ class MainActivity : FragmentActivity() {
             isRecreated = savedInstanceState != null,
         )
         setupBackPressedHandler()
+        setupLockPrompt()
         hideFromRecentsWhileLockedCategoriesOpen()
 
         // 첫 프레임은 시스템 설정 기준으로 시스템 바를 맞추고, 테마가 정해지면 아래 DisposableEffect 에서 다시 적용
@@ -172,6 +188,7 @@ class MainActivity : FragmentActivity() {
                 CompositionLocalProvider(
                     LocalWindowLayout provides windowLayout,
                     LocalCategoryLockSession provides categoryLockSession,
+                    LocalLockPromptBroker provides lockPromptBroker,
                 ) {
                     Scaffold(
                         // 각 화면 바닥의 광고 배너(약 50dp)를 가리지 않도록 그 위에 띄운다
@@ -212,6 +229,24 @@ class MainActivity : FragmentActivity() {
             .onFailure { CmLog.e("setApplicationNightMode failed: ${it.message}") }
     }
 
+    private fun setupLockPrompt() {
+        lockPrompt = BiometricPrompt(
+            this,
+            ContextCompat.getMainExecutor(this),
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    lockPromptBroker.onPromptSucceeded()
+                }
+
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    lockPromptBroker.onPromptError(errorCode)
+                }
+                // onAuthenticationFailed(지문 불일치)는 프롬프트가 계속 떠 있으므로 따로 처리하지 않는다
+            }
+        )
+        lockPromptBroker.attach(showLockPrompt)
+    }
+
     /**
      * 잠금 카테고리 세션이 열린 동안만 최근 앱 화면에서 내용을 가린다 (잠긴 링크가 화면에 있을 수 있는 유일한 때).
      * API 33+: 최근 앱 미리보기만 끈다(스크린샷은 됨). 32 이하: FLAG_SECURE (그동안 스크린샷도 막힘).
@@ -237,6 +272,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        lockPromptBroker.detach(showLockPrompt)
         inAppUpdateCheck.unregisterListener()
     }
 
