@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,8 +44,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,10 +57,15 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import kotlinx.coroutines.flow.first
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jinscompany.saveurl.R
@@ -200,8 +208,9 @@ fun MainTabRow(selectedTab: MainTab, onTabSelect: (MainTab) -> Unit) {
 
 /**
  * 카테고리 칩 한 줄 + 끝의 필터(tune) 버튼.
- * 잠금 카테고리(37번 기획서 5.1, §19): 잠금 카테고리가 있으면([showLockToggle]) 줄 끝에 자물쇠 아이콘 칩 하나.
- * 닫혀 있으면 🔒(이름·개수 없음, 누르면 인증 후 열기), 열려 있으면 [lockedChips](자물쇠 붙은 칩) 뒤에 🔓(누르면 바로 다시 잠금).
+ * 잠금 카테고리(37번 기획서 5.1, §19): 잠금 카테고리가 있으면([showLockToggle]) 일반 칩 뒤에 자물쇠 아이콘 칩 하나.
+ * 닫혀 있으면 🔒(이름·개수 없음, 누르면 인증 후 열기), 열려 있으면 🔓(누르면 바로 다시 잠금) 뒤에 [lockedChips](자물쇠 붙은 칩).
+ * 토글이 잠금 칩들 **앞**에 있어 열고 닫아도 자리가 같다. 열리면 토글이 보이도록 스크롤한다.
  * 잠금 카테고리 칩을 길게 누르면 [onLockedChipLongClick] (다시 잠글까요?).
  */
 @Composable
@@ -222,16 +231,33 @@ fun CategoryChipRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 12.dp, bottom = 4.dp),
+            // 칩 줄이 48dp(터치 영역)라 위아래 여백을 그만큼 줄여 칩 위치는 예전과 같게 둔다
+            .padding(top = 5.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 칩 행은 필터 버튼 앞에서 끝나야 한다: 영역 밖으로 그려지지 않게 clipToBounds 하고,
         // 오른쪽 끝을 배경색으로 페이드해 칩이 버튼 밑으로 들어가 보이지 않게 한다 (1단계 겹침 버그 수정).
         Box(modifier = Modifier.weight(1f).clipToBounds()) {
+            val listState = rememberLazyListState()
+            // 열리면 🔓 와 잠금 칩이 보이게: 잠금 칩이 배치된 뒤의 레이아웃을 보고,
+            // 토글이 잘려 있거나 마지막 잠금 칩이 페이드·필터 버튼에 가려지면 토글을 줄 맨 앞으로 스크롤
+            LaunchedEffect(lockOpen, showLockToggle, lockedChips.size) {
+                if (!lockOpen || !showLockToggle || lockedChips.isEmpty()) return@LaunchedEffect
+                val toggleIndex = chips.size
+                val lastIndex = toggleIndex + lockedChips.size
+                val info = snapshotFlow { listState.layoutInfo }.first { it.totalItemsCount > lastIndex }
+                val visibleEnd = info.viewportEndOffset - info.afterContentPadding
+                val toggleShown = info.visibleItemsInfo.any { it.index == toggleIndex && it.offset >= info.viewportStartOffset }
+                val lastShown = info.visibleItemsInfo.any { it.index == lastIndex && it.offset + it.size <= visibleEnd }
+                if (!toggleShown || !lastShown) listState.animateScrollToItem(toggleIndex)
+            }
             LazyRow(
-                modifier = Modifier.fillMaxWidth(),
+                state = listState,
+                // 자물쇠 칩의 48dp 터치 영역이 들어가도록 줄 높이를 고정 (칩 모양은 34dp 그대로)
+                modifier = Modifier.fillMaxWidth().height(48.dp),
                 contentPadding = PaddingValues(start = AppDimens.Gutter, end = 28.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 items(chips, key = { it }) { name ->
                     CategoryChip(
@@ -239,6 +265,12 @@ fun CategoryChipRow(
                         isSelected = name in selected,
                         onClick = { onCategoryClick(name) }
                     )
+                }
+                if (showLockToggle) {
+                    // 잠금 칩들 앞이라 열고 닫아도 인덱스가 같고 아이콘만 바뀐다
+                    item(key = "lock_toggle") {
+                        LockToggleChip(open = lockOpen, onClick = if (lockOpen) onRelockClick else onLockedEntryClick)
+                    }
                 }
                 items(lockedChips, key = { "locked:$it" }) { name ->
                     CategoryChip(
@@ -248,12 +280,6 @@ fun CategoryChipRow(
                         locked = true,
                         onLongClick = onLockedChipLongClick,
                     )
-                }
-                if (showLockToggle) {
-                    // 같은 키라 열고 닫을 때 자리가 그대로이고 아이콘만 바뀐다
-                    item(key = "lock_toggle") {
-                        LockToggleChip(open = lockOpen, onClick = if (lockOpen) onRelockClick else onLockedEntryClick)
-                    }
                 }
             }
             Box(
@@ -351,26 +377,41 @@ private fun CategoryChip(
 @Composable
 private fun LockToggleChip(open: Boolean, onClick: () -> Unit) {
     val colors = AppTheme.colors
-    val description = stringResource(if (open) R.string.chip_relock_cd else R.string.chip_locked_cd)
+    // TalkBack: "잠금 카테고리, 열림/잠김, 버튼, 두 번 탭하여 다시 잠그기/열기". 상태가 바뀌면 바로 읽는다
+    val label = stringResource(R.string.lock_toggle_cd)
+    val state = stringResource(if (open) R.string.lock_toggle_state_open else R.string.lock_toggle_state_locked)
+    val action = stringResource(if (open) R.string.lock_toggle_action_relock else R.string.lock_toggle_action_open)
     val background by animateColorAsState(if (open) colors.accentTint else colors.surface, label = "lockChipBg")
     val tint by animateColorAsState(if (open) colors.accent else colors.textSecondary, label = "lockChipTint")
+    // 바깥 48dp 가 터치 영역, 안쪽 44×34dp 가 보이는 칩
     Box(
         modifier = Modifier
-            .height(34.dp)
-            .width(44.dp)
+            .size(48.dp)
             .clip(CircleShape)
-            .background(background)
-            .clickable(onClick = singleClick { onClick() }, onClickLabel = description)
-            .semantics { contentDescription = description },
+            .clickable(role = Role.Button, onClickLabel = action, onClick = singleClick { onClick() })
+            .semantics {
+                contentDescription = label
+                stateDescription = state
+                liveRegion = LiveRegionMode.Polite
+            },
         contentAlignment = Alignment.Center
     ) {
-        Crossfade(targetState = open, label = "lockChipIcon") { isOpen ->
-            Icon(
-                imageVector = if (isOpen) Icons.Outlined.LockOpen else Icons.Outlined.Lock,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(16.dp),
-            )
+        Box(
+            modifier = Modifier
+                .height(34.dp)
+                .width(44.dp)
+                .clip(CircleShape)
+                .background(background),
+            contentAlignment = Alignment.Center
+        ) {
+            Crossfade(targetState = open, label = "lockChipIcon") { isOpen ->
+                Icon(
+                    imageVector = if (isOpen) Icons.Outlined.LockOpen else Icons.Outlined.Lock,
+                    contentDescription = null,
+                    tint = tint,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
         }
     }
 }

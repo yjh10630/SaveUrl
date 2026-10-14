@@ -13,8 +13,12 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -64,6 +68,37 @@ class EditCategoryLockIntroTest {
         vm.onIntent(EditCategoryIntent.SetLocked("여행", true))
         advanceUntilIdle()
         assertFalse(vm.showLockIntro.value)
+    }
+
+    @Test
+    fun `첫 잠금에는 스낵바 대신 안내만, 두 번째 잠금부터는 스낵바`() = runTest {
+        val vm = viewModel()
+        val effects = mutableListOf<EditCategoryEffect>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.effect.toList(effects) }
+
+        vm.onIntent(EditCategoryIntent.SetLocked("맛집", true))
+        advanceUntilIdle()
+        assertTrue(vm.showLockIntro.value)
+        assertTrue(effects.isEmpty())
+
+        vm.onIntent(EditCategoryIntent.DismissLockIntro)
+        vm.onIntent(EditCategoryIntent.SetLocked("여행", true))
+        advanceUntilIdle()
+        assertEquals(listOf<EditCategoryEffect>(EditCategoryEffect.LockChanged("여행", true)), effects)
+    }
+
+    @Test
+    fun `잠그기에 실패하면 안내도 스낵바도 없다`() = runTest {
+        coEvery { setLocked.invoke(any(), any()) } returns false
+        val vm = viewModel()
+        val effects = mutableListOf<EditCategoryEffect>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.effect.toList(effects) }
+
+        vm.onIntent(EditCategoryIntent.SetLocked("맛집", true))
+        advanceUntilIdle()
+        assertFalse(vm.showLockIntro.value)
+        assertTrue(effects.isEmpty())
+        coVerify(exactly = 0) { prefs.setLockIntroSeen() }
     }
 
     @Test

@@ -292,8 +292,12 @@
     <string name="category_locked_delete_title">잠금 카테고리를 삭제할까요?</string>
     <string name="category_locked_delete_body">이 카테고리의 링크 %d개가 미분류로 옮겨지고 더 이상 잠기지 않아요.</string>
     <string name="lock_limits_note">잠금은 옆 사람이 내 링크를 보지 못하게 하는 기능이에요. 저장된 링크를 암호화하지는 않아요.</string>
-    <string name="chip_locked_cd">잠금 카테고리 열기</string>
     <string name="chip_relock_cd">잠금 카테고리 다시 잠그기</string>
+    <string name="lock_toggle_cd">잠금 카테고리</string>
+    <string name="lock_toggle_state_open">열림</string>
+    <string name="lock_toggle_state_locked">잠김</string>
+    <string name="lock_toggle_action_open">열기</string>
+    <string name="lock_toggle_action_relock">다시 잠그기</string>
     <string name="relock_dialog_title">다시 잠글까요?</string>
     <string name="relock_dialog_confirm">잠그기</string>
     <string name="lock_intro_title">잠근 링크는 나만 볼 수 있어요</string>
@@ -318,7 +322,7 @@
     <string name="tut_category_lock_body">카테고리를 잠그면 그 카테고리 링크가 **전체·검색·통계**에서 보이지 않아요. 지문이나 휴대폰 화면 잠금으로 확인해야 열려서, 따로 외울 비밀번호가 없어요. 링크는 이 폰에만 저장돼서 저희도 볼 수 없어요.</string>
     <string name="tut_category_lock_step1">설정 › 잠금 카테고리(또는 카테고리 편집)에서 카테고리 옆 자물쇠를 눌러요.</string>
     <string name="tut_category_lock_step2">카테고리 줄 맨 끝의 자물쇠 칩을 눌러 확인하면 잠금 카테고리가 보여요.</string>
-    <string name="tut_category_lock_step3">다 봤으면 칩 줄 끝의 **열린 자물쇠**를 눌러 다시 잠가요. 잠금 카테고리 칩을 길게 눌러도 돼요. 앱을 나가고 1분이 지나도 다시 잠겨요.</string>
+    <string name="tut_category_lock_step3">다 봤으면 잠금 카테고리 칩 앞의 **열린 자물쇠**를 눌러 다시 잠가요. 잠금 카테고리 칩을 길게 눌러도 돼요. 앱을 나가고 1분이 지나도 다시 잠겨요.</string>
     <string name="tut_category_lock_tip">잠금은 옆 사람이 보지 못하게 하는 기능이에요. 링크를 암호화하지는 않아서, 휴대폰 화면 잠금을 아는 사람은 열 수 있어요.</string>
 
     <!-- 링크 가져오기 (34번 기획서 6장) -->

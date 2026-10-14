@@ -22,7 +22,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -76,7 +78,8 @@ class EditCategoryViewModel @Inject constructor(
             is EditCategoryIntent.SetLocked -> setLocked(intent.name, intent.locked)
             EditCategoryIntent.DismissLockIntro -> {
                 _showLockIntro.value = false
-                viewModelScope.launch { preferencesManager.setLockIntroSeen() }
+                // [확인] 직후 화면을 나가 viewModelScope 가 취소돼도 "봤음" 쓰기는 끝까지 (41번 독립 리뷰 D7)
+                viewModelScope.launch { withContext(NonCancellable) { preferencesManager.setLockIntroSeen() } }
             }
         }
     }
