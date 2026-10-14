@@ -4,7 +4,6 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
@@ -88,6 +87,7 @@ import com.jinscompany.saveurl.ui.composable.AdBannerBar
 import com.jinscompany.saveurl.ui.navigation.navigateToTutorial
 import com.jinscompany.saveurl.ui.navigation.navigateToEditCategory
 import com.jinscompany.saveurl.ui.lock.LockAuthResult
+import com.jinscompany.saveurl.ui.composable.rememberStableActivityResultLauncher
 import com.jinscompany.saveurl.ui.lock.rememberLockAuthRequest
 import com.jinscompany.saveurl.ui.tutorial.NewPill
 import com.jinscompany.saveurl.ui.tutorial.TutorialNews
@@ -130,25 +130,25 @@ fun AppSettingScreen(
 
     val lockedCategoryCount by settingViewModel.lockedCategoryCount.collectAsState()
     val resources = LocalResources.current
-    // Activity 가 다시 만들어져도(파일 선택 화면에 다녀오는 동안 회전·폴드·프로세스 회수) 남아야 한다 (38번 리뷰 2번)
-    var showCsvExportSheet by rememberSaveable { mutableStateOf(false) }
-    // 백업 시트에서 "잠금 카테고리도 포함"을 고르고 인증을 마쳤는지 (파일 선택 결과를 받을 때 쓴다)
-    var exportIncludeLocked by rememberSaveable { mutableStateOf(false) }
+    // 시트 표시 여부와 "포함" 선택값은 ViewModel(SavedStateHandle)에 둔다 (38번 리뷰 2번)
+    val showCsvExportSheet by settingViewModel.showCsvExportSheet.collectAsState()
 
-    val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("text/csv")
-    ) { uri -> uri?.let { settingViewModel.exportCsv(it, includeLocked = exportIncludeLocked) } }
+    // 파일 선택 화면에 다녀오는 동안 한 화면 ↔ 2분할이 바뀌어도 결과를 받도록 고정 키로 등록한다
+    val exportLauncher = rememberStableActivityResultLauncher(
+        key = "setting_csv_export",
+        contract = ActivityResultContracts.CreateDocument("text/csv"),
+    ) { uri -> uri?.let { settingViewModel.exportCsv(it, includeLocked = settingViewModel.exportIncludeLocked) } }
     val launchExport: (Boolean) -> Unit = { includeLocked ->
-        exportIncludeLocked = includeLocked
+        settingViewModel.exportIncludeLocked = includeLocked
         val dateStr = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         exportLauncher.launch("savelink_backup_$dateStr.csv")
     }
     // 인증 결과는 지금 컴포지션에서 받으므로, 인증 중에 Activity 가 다시 만들어져도 현재 런처로 파일 선택을 연다 (38번 리뷰 1번).
     // 백업만 하고 세션은 열지 않는다 (37번 기획서 1.3)
-    val csvIncludeLockedAuth = rememberLockAuthRequest { result, _ ->
+    val csvIncludeLockedAuth = rememberLockAuthRequest("setting_csv_include_locked") { result, _ ->
         when (result) {
             LockAuthResult.Success, LockAuthResult.PassedWithoutCredential -> {
-                showCsvExportSheet = false
+                settingViewModel.setShowCsvExportSheet(false)
                 launchExport(true)
             }
             LockAuthResult.Error -> Toast.makeText(context, R.string.lock_unavailable_retry, Toast.LENGTH_SHORT).show()
@@ -157,10 +157,10 @@ fun AppSettingScreen(
     }
     if (showCsvExportSheet) {
         CsvExportSheet(
-            onDismiss = { showCsvExportSheet = false },
+            onDismiss = { settingViewModel.setShowCsvExportSheet(false) },
             onConfirm = { includeLocked ->
                 if (!includeLocked) {
-                    showCsvExportSheet = false
+                    settingViewModel.setShowCsvExportSheet(false)
                     launchExport(false)
                 } else {
                     // 체크를 켜는 순간이 아니라 [파일 만들기]에서 인증. 취소하면 시트에 머문다
@@ -177,8 +177,9 @@ fun AppSettingScreen(
     // 2분할: "잠금 카테고리"와 "카테고리 편집" 행은 같은 화면을 열므로, 누른 행에 선택 표시를 한다 (37번 기획서 2장)
     var categoryPaneFromLockedRow by rememberSaveable { mutableStateOf(false) }
 
-    val importLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
+    val importLauncher = rememberStableActivityResultLauncher(
+        key = "setting_csv_import",
+        contract = ActivityResultContracts.OpenDocument(),
     ) { uri -> uri?.let { settingViewModel.importCsv(it) } }
 
     LaunchedEffect(Unit) {
@@ -202,7 +203,7 @@ fun AppSettingScreen(
             },
             exportCsvClick = {
                 // 잠금 카테고리가 있으면 포함 여부를 먼저 묻는다 (기본 미포함)
-                if (lockedCategoryCount > 0) showCsvExportSheet = true else launchExport(false)
+                if (lockedCategoryCount > 0) settingViewModel.setShowCsvExportSheet(true) else launchExport(false)
             },
             lockedCategoryCount = lockedCategoryCount,
             lockedCategoriesClick = {

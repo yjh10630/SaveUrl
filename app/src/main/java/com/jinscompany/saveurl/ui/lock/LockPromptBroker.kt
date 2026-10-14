@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.ui.lock
 
+import android.os.SystemClock
 import androidx.biometric.BiometricPrompt
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,11 +14,15 @@ import javax.inject.Singleton
  *
  * 프롬프트가 떠 있는 동안 회전·폴드로 Activity 가 다시 만들어져도 프롬프트는 남는다. 그래서
  * - BiometricPrompt 는 [MainActivity] 가 onCreate 에서 한 번 만들고 [presenter] 로 등록한다 (새 Activity 가 콜백을 이어받음).
- * - 결과는 요청 화면의 람다로 바로 부르지 않고 [deliveries] 에 남긴다. 화면은 rememberSaveable 키로 자기 결과를 꺼내 쓴다.
- *   (예전 컴포지션의 런처·상태를 건드리지 않고 지금 컴포지션에서 처리)
+ * - 결과는 요청 화면의 람다로 바로 부르지 않고 [deliveries] 에 남긴다. 화면은 호출 위치마다 정한 고정 키로 자기 결과를 꺼내 쓴다.
+ *   (예전 컴포지션의 런처·상태를 건드리지 않고 지금 컴포지션에서 처리. 회전으로 한 화면 ↔ 2분할이 바뀌면 컴포지션 구조가
+ *   달라져 rememberSaveable 값이 돌아오지 않으므로 키는 고정 문자열을 쓴다)
+ * - 받을 화면이 없어 남은 결과는 [MAX_DELIVERY_AGE_MS] 가 지나면 버린다 (나중에 그 화면을 열었을 때 뒤늦게 적용되지 않게)
  */
 @Singleton
-class LockPromptBroker @Inject constructor() {
+class LockPromptBroker(private val elapsedRealtime: () -> Long) {
+
+    @Inject constructor() : this({ SystemClock.elapsedRealtime() })
 
     private var nextId = 0L
 
@@ -35,6 +40,7 @@ class LockPromptBroker @Inject constructor() {
         val payload: String?,
         val result: LockAuthResult,
         val id: Long,
+        val postedAt: Long,
     )
 
     /** 지금 프롬프트를 띄울 수 있는 Activity (MainActivity 가 onCreate 에서 등록, onDestroy 에서 해제) */
@@ -55,6 +61,8 @@ class LockPromptBroker @Inject constructor() {
     }
 
     fun request(request: Request) {
+        // 같은 키에 남아 있던 예전 결과는 버린다
+        _deliveries.update { list -> list.filterNot { it.key == request.key } }
         val show = presenter
         if (show == null) {
             post(request, LockAuthResult.Error)
@@ -80,16 +88,19 @@ class LockPromptBroker @Inject constructor() {
 
     /** 화면 잠금이 없어 프롬프트 없이 끝나는 경우 등, 같은 경로로 결과를 넘긴다 */
     fun post(request: Request, result: LockAuthResult) {
-        val delivery = Delivery(request.key, request.payload, result, nextId++)
+        val delivery = Delivery(request.key, request.payload, result, nextId++, elapsedRealtime())
         _deliveries.update { it + delivery }
     }
 
-    fun consume(delivery: Delivery) {
+    /** [delivery] 를 목록에서 뺀다. 너무 오래된 결과면 false (적용하지 않음) */
+    fun consume(delivery: Delivery): Boolean {
         _deliveries.update { list -> list.filterNot { it.id == delivery.id } }
+        return elapsedRealtime() - delivery.postedAt <= MAX_DELIVERY_AGE_MS
     }
 
     companion object {
         const val ERROR_SHOW_FAILED = -1
+        const val MAX_DELIVERY_AGE_MS = 30_000L
 
         fun mapError(errorCode: Int, allowWithoutCredential: Boolean): LockAuthResult = when (errorCode) {
             BiometricPrompt.ERROR_USER_CANCELED,

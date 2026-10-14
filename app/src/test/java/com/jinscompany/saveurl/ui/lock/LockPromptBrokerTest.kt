@@ -2,12 +2,14 @@ package com.jinscompany.saveurl.ui.lock
 
 import androidx.biometric.BiometricPrompt
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LockPromptBrokerTest {
 
-    private val broker = LockPromptBroker()
+    private var now = 1_000L
+    private val broker = LockPromptBroker { now }
     private val shown = mutableListOf<LockPromptBroker.Request>()
     private val presenter: (LockPromptBroker.Request) -> Unit = { shown += it }
 
@@ -24,7 +26,7 @@ class LockPromptBrokerTest {
         assertEquals("a", delivery.key)
         assertEquals("쇼핑", delivery.payload)
         assertEquals(LockAuthResult.Success, delivery.result)
-        broker.consume(delivery)
+        assertTrue(broker.consume(delivery))
         assertTrue(broker.deliveries.value.isEmpty())
     }
 
@@ -86,5 +88,28 @@ class LockPromptBrokerTest {
         broker.request(request(allow = false))
         broker.onPromptError(BiometricPrompt.ERROR_NO_DEVICE_CREDENTIAL)
         assertEquals(LockAuthResult.NoCredential, broker.deliveries.value.single().result)
+    }
+
+    @Test
+    fun `받을 화면이 없어 오래 남은 결과는 꺼내도 적용하지 않는다`() {
+        broker.attach(presenter)
+        broker.request(request(key = "edit_category_lock", payload = "쇼핑"))
+        broker.onPromptSucceeded()
+        now += LockPromptBroker.MAX_DELIVERY_AGE_MS + 1
+
+        val delivery = broker.deliveries.value.single()
+        assertFalse(broker.consume(delivery))
+        assertTrue(broker.deliveries.value.isEmpty())
+    }
+
+    @Test
+    fun `같은 키로 다시 요청하면 남아 있던 예전 결과는 버린다`() {
+        broker.attach(presenter)
+        broker.request(request(key = "a"))
+        broker.onPromptError(BiometricPrompt.ERROR_USER_CANCELED)
+        broker.request(request(key = "a"))
+        assertTrue(broker.deliveries.value.isEmpty())
+        broker.onPromptSucceeded()
+        assertEquals(LockAuthResult.Success, broker.deliveries.value.single().result)
     }
 }

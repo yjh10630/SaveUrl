@@ -76,7 +76,7 @@ fun CategorySelectorDialog(
     val scope = rememberCoroutineScope()
     var selectItem by remember { mutableStateOf(selectedItem) }
     val isUnlocked by LocalCategoryLockSession.current.isUnlocked.collectAsState()
-    val openLocked = rememberOpenLockedCategories()
+    val openLocked = rememberOpenLockedCategories("category_selector_open")
 
     AppBottomSheet(onDismissRequest = { dismiss.invoke(selectItem) }, sheetState = sheetState, dialogWidth = 400.dp) {
         CategorySelectorContent(

@@ -112,7 +112,7 @@ private fun SearchScreenStateful(
     val filterOptions = viewModel.filterList
     val searchResult = viewModel.searchResultFlow?.collectAsLazyPagingItems()
     val showIncludeLocked by viewModel.showIncludeLocked.collectAsState()
-    val openLocked = rememberOpenLockedCategories()
+    val openLocked = rememberOpenLockedCategories("search_open")
 
     LaunchedEffect(isListPane) {
         viewModel.setFilterEnabled(isListPane)

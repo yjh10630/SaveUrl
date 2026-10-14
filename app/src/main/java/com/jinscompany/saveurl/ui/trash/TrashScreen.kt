@@ -100,7 +100,7 @@ fun TrashScreen(
     var showAlert by remember { mutableStateOf<TrashViewModel.AlertDataModel?>(null) }
     var showMenuAlert by remember { mutableStateOf<SimpleMenuModel?>(null) }
     val snackBarHostState = remember { SnackbarHostState() }
-    val openLocked = rememberOpenLockedCategories()
+    val openLocked = rememberOpenLockedCategories("trash_open")
     LaunchedEffect(Unit) {
         uiEffect.filterNotIsInstance<TrashUiEffect.GotoNextScreen>().collectLatest { effect ->
             when (effect) {

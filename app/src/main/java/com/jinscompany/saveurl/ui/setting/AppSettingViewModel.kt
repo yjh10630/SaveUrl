@@ -2,6 +2,7 @@ package com.jinscompany.saveurl.ui.setting
 
 import android.content.Context
 import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jinscompany.saveurl.R
@@ -29,7 +30,22 @@ class AppSettingViewModel @Inject constructor(
     private val importCsvUseCase: ImportCsvUseCase,
     observeLockedCategoriesUseCase: ObserveLockedCategoriesUseCase,
     @ApplicationContext private val context: Context,
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
+
+    /**
+     * 백업 시트가 열려 있는지, "잠금 카테고리도 포함"을 고르고 인증을 마쳤는지.
+     * 파일 선택 화면에 다녀오는 동안 Activity 가 다시 만들어지거나(회전·폴드·프로세스 회수) 한 화면 ↔ 2분할이 바뀌어도
+     * 남아야 하므로 SavedStateHandle 에 둔다 (38번 리뷰 2번. 화면의 rememberSaveable 은 구성이 바뀌면 돌아오지 않음)
+     */
+    val showCsvExportSheet: StateFlow<Boolean> = savedStateHandle.getStateFlow(KEY_SHOW_CSV_EXPORT_SHEET, false)
+    var exportIncludeLocked: Boolean
+        get() = savedStateHandle[KEY_EXPORT_INCLUDE_LOCKED] ?: false
+        set(value) { savedStateHandle[KEY_EXPORT_INCLUDE_LOCKED] = value }
+
+    fun setShowCsvExportSheet(show: Boolean) {
+        savedStateHandle[KEY_SHOW_CSV_EXPORT_SHEET] = show
+    }
 
     /** 잠금 카테고리 개수 (설정 "잠금 카테고리" 행, 백업 시트 표시 여부) */
     val lockedCategoryCount: StateFlow<Int> = observeLockedCategoriesUseCase()
@@ -65,3 +81,6 @@ class AppSettingViewModel @Inject constructor(
         }
     }
 }
+
+private const val KEY_SHOW_CSV_EXPORT_SHEET = "show_csv_export_sheet"
+private const val KEY_EXPORT_INCLUDE_LOCKED = "export_include_locked"

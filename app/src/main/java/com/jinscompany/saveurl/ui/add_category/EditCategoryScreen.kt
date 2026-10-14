@@ -107,7 +107,7 @@ fun EditCategoryScreen(navController: NavHostController) {
     val context = LocalContext.current
     val resources = LocalResources.current
     val session = LocalCategoryLockSession.current
-    val openLocked = rememberOpenLockedCategories()
+    val openLocked = rememberOpenLockedCategories("edit_category_open")
     val isUnlocked by viewModel.isUnlocked.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showNeedDeviceLock by rememberSaveable { mutableStateOf(false) }
@@ -131,7 +131,7 @@ fun EditCategoryScreen(navController: NavHostController) {
     if (showNeedDeviceLock) NeedDeviceLockSheet(onDismiss = { showNeedDeviceLock = false })
 
     // 결과와 함께 카테고리 이름(payload)을 돌려받으므로, 인증 중에 Activity 가 다시 만들어져도 그 카테고리에 적용된다
-    val unlockCategoryAuth = rememberLockAuthRequest { result, name ->
+    val unlockCategoryAuth = rememberLockAuthRequest("edit_category_unlock") { result, name ->
         if (name == null) return@rememberLockAuthRequest
         when (result) {
             LockAuthResult.Success -> viewModel.onIntent(EditCategoryIntent.SetLocked(name, false))
@@ -143,7 +143,7 @@ fun EditCategoryScreen(navController: NavHostController) {
             else -> Unit
         }
     }
-    val lockCategoryAuth = rememberLockAuthRequest { result, name ->
+    val lockCategoryAuth = rememberLockAuthRequest("edit_category_lock") { result, name ->
         if (name == null) return@rememberLockAuthRequest
         when (result) {
             LockAuthResult.Success -> {

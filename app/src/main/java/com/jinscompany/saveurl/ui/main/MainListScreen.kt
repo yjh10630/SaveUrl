@@ -155,7 +155,7 @@ fun MainListScreen(
     val categoryNames by viewModel.categoryNames.collectAsState()
     val lockedCategoryNames by viewModel.lockedCategoryNames.collectAsState()
     val isLockedUnlocked by viewModel.isUnlocked.collectAsState()
-    val openLockedCategories = rememberOpenLockedCategories()
+    val openLockedCategories = rememberOpenLockedCategories("main_open")
     val viewMode by sharedViewModel.listViewMode.collectAsState()
     val tutorialCardVisible by viewModel.tutorialCardVisible.collectAsState()
     val tutorialBadgePrefs by viewModel.tutorialBadgePrefs.collectAsState()

@@ -14,13 +14,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import com.jinscompany.saveurl.R
 import com.jinscompany.saveurl.domain.lock.CategoryLockSession
-import java.util.UUID
 
 /** 잠금 카테고리 세션 (MainActivity 가 Hilt 싱글톤을 넣어 준다) */
 val LocalCategoryLockSession = staticCompositionLocalOf<CategoryLockSession> {
@@ -92,19 +90,18 @@ class LockAuthRequester internal constructor(
 
 /**
  * 인증 요청 만들기. 프롬프트가 떠 있는 동안 회전·폴드로 Activity 가 다시 만들어지면, 결과는 예전 화면이 아니라
- * 다시 만들어진 화면의 [onResult] 로 온다 (키를 rememberSaveable 로 보존. 38번 리뷰 1번).
+ * 다시 만들어진 화면의 [onResult] 로 온다 (38번 리뷰 1번).
+ * [key] 는 호출 위치마다 다른 고정 문자열 (한 화면 ↔ 2분할이 바뀌어도 같은 값이어야 결과를 이어받는다).
  */
 @Composable
-fun rememberLockAuthRequest(onResult: (result: LockAuthResult, payload: String?) -> Unit): LockAuthRequester {
+fun rememberLockAuthRequest(key: String, onResult: (result: LockAuthResult, payload: String?) -> Unit): LockAuthRequester {
     val context = LocalContext.current
     val broker = LocalLockPromptBroker.current
-    val key = rememberSaveable { UUID.randomUUID().toString() }
     val currentOnResult by rememberUpdatedState(onResult)
     LaunchedEffect(broker, key) {
         broker.deliveries.collect { deliveries ->
             deliveries.filter { it.key == key }.forEach { delivery ->
-                broker.consume(delivery)
-                currentOnResult(delivery.result, delivery.payload)
+                if (broker.consume(delivery)) currentOnResult(delivery.result, delivery.payload)
             }
         }
     }
@@ -117,12 +114,12 @@ fun rememberLockAuthRequest(onResult: (result: LockAuthResult, payload: String?)
  * 인증 중에 Activity 가 다시 만들어지면 세션은 열리지만 onOpened(예전 화면의 동작)는 부르지 않는다.
  */
 @Composable
-fun rememberOpenLockedCategories(): (titleRes: Int, onOpened: () -> Unit) -> Unit {
+fun rememberOpenLockedCategories(key: String): (titleRes: Int, onOpened: () -> Unit) -> Unit {
     val context = LocalContext.current
     val resources = LocalResources.current
     val session = LocalCategoryLockSession.current
     val pendingOnOpened = remember { arrayOfNulls<() -> Unit>(1) }
-    val requester = rememberLockAuthRequest { result, _ ->
+    val requester = rememberLockAuthRequest(key) { result, _ ->
         val onOpened = pendingOnOpened[0]
         pendingOnOpened[0] = null
         when (result) {
