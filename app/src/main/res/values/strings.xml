@@ -306,7 +306,8 @@
     <string name="home_locked_not_counted">잠금 카테고리는 여기에서 세지 않아요</string>
     <string name="trash_show_locked">잠금 카테고리 항목 보기</string>
     <string name="csv_export_title">백업 파일 만들기</string>
-    <string name="csv_export_desc">링크를 CSV 파일로 저장해요</string>
+    <string name="csv_export_desc">링크를 CSV 파일로 저장해요. 폰을 바꾸거나 앱을 다시 설치할 땐 이 파일로 옮겨요.</string>
+    <string name="setting_backup_subtitle">폰을 바꿀 땐 이 파일로 옮겨요</string>
     <string name="csv_include_locked">잠금 카테고리도 포함</string>
     <string name="csv_include_locked_warn">CSV 파일은 잠기지 않아요. 파일을 연 사람은 누구나 내용을 볼 수 있어요. 포함하려면 지문이나 화면 잠금으로 확인해요.</string>
     <string name="csv_export_confirm">파일 만들기</string>

@@ -419,7 +419,13 @@ fun AppSettingScreen(
             )
         }
         item { SettingRow(icon = Icons.Outlined.Delete, label = "휴지통", onClick = trashClick, selected = selectedRow == SettingPaneRow.TRASH) }
-        item { SettingRow(icon = Icons.Outlined.FileDownload, label = "데이터 백업 (CSV)", onClick = exportCsvClick) }
+        // 클라우드 백업을 껐으므로(링크는 이 폰에만) 폰을 바꿀 땐 이 파일로 옮겨야 한다는 걸 행에서 바로 알린다
+        item {
+            SettingRow(
+                icon = Icons.Outlined.FileDownload, label = "데이터 백업 (CSV)", onClick = exportCsvClick,
+                subtitle = stringResource(R.string.setting_backup_subtitle),
+            )
+        }
         if (importEnabled) {
             item {
                 SettingRow(
