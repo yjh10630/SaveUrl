@@ -190,9 +190,9 @@ dependencies {
 
     implementation("androidx.core:core-splashscreen:1.0.1")
     // 잠금 카테고리: 지문·얼굴 또는 휴대폰 화면 잠금으로 확인 (앱 전용 PIN 없음)
-    implementation("androidx.biometric:biometric:1.1.0")
+    implementation(libs.androidx.biometric)
     // 앱 전체가 백그라운드로 간 시각 (잠금 카테고리 1분 뒤 다시 잠그기)
-    implementation("androidx.lifecycle:lifecycle-process:2.8.7")
+    implementation(libs.androidx.lifecycle.process)
     implementation("com.google.android.material:material:1.12.0")
 
     implementation("androidx.datastore:datastore-preferences:1.1.6")
