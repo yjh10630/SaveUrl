@@ -803,8 +803,8 @@
     <string name="quick_save_done_locked">✓ 잠금 카테고리에 저장했어요</string>
     <string name="quick_save_view_in_app">앱에서 보기</string>
     <string name="quick_save_already_title">이미 저장한 링크예요</string>
-    <string name="quick_save_already_category">\'%1$s\' 카테고리 · %2$s에 저장</string>
-    <string name="quick_save_already_date">%1$s에 저장</string>
+    <string name="quick_save_already_category">\'%1$s\' 카테고리 · %2$s 저장</string>
+    <string name="quick_save_already_date">%1$s 저장</string>
     <string name="quick_save_already_hidden">이미 저장된 링크예요</string>
     <string name="quick_save_close">닫기</string>
     <string name="quick_save_edit">수정하기</string>
