@@ -1,5 +1,6 @@
 package com.jinscompany.saveurl.ui.tutorial
 
+import com.jinscompany.saveurl.utils.RemoteFlags
 import com.jinscompany.saveurl.utils.tutorialUrl
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -10,9 +11,24 @@ import org.junit.Test
 class TutorialContentTest {
 
     @Test
-    fun `전체 주제는 15개이고 id 가 겹치지 않는다`() {
-        assertEquals(15, TutorialTopics.all.size)
-        assertEquals(15, TutorialTopics.all.map { it.id }.toSet().size)
+    fun `전체 주제는 16개이고 id 가 겹치지 않는다`() {
+        assertEquals(16, TutorialTopics.all.size)
+        assertEquals(16, TutorialTopics.all.map { it.id }.toSet().size)
+    }
+
+    @Test
+    fun `링크 가져오기 주제 - 원격 스위치가 켜져야 보이고, 시작하기 그룹 직접 저장 다음`() {
+        val on = TutorialFeatureFlags { it == RemoteFlags.KEY_IMPORT_ENABLED }
+        val phoneOn = TutorialTopics.visible(isTwoPane = false, flags = on)
+        val wideOn = TutorialTopics.visible(isTwoPane = true, flags = on)
+        assertEquals(15, phoneOn.size)
+        assertEquals(16, wideOn.size)
+        assertEquals(TutorialTopics.IMPORT, TutorialTopics.next(phoneOn, TutorialTopics.DIRECT)?.id)
+        assertEquals(3, TutorialTopics.position(phoneOn, TutorialTopics.IMPORT))
+        assertEquals(TutorialGroup.START, TutorialTopics.find(TutorialTopics.IMPORT)?.group)
+        // 꺼지면 숨고 다음 주제가 이어진다
+        assertFalse(TutorialTopics.visible(isTwoPane = false).any { it.id == TutorialTopics.IMPORT })
+        assertEquals(TutorialTopics.AUTOFILL, TutorialTopics.next(TutorialTopics.visible(isTwoPane = false), TutorialTopics.DIRECT)?.id)
     }
 
     @Test
@@ -26,11 +42,15 @@ class TutorialContentTest {
     }
 
     @Test
-    fun `2분할 주제만 TwoPaneOnly 이고 나머지는 Always, 2_0_0 주제는 addedInVersionCode 가 없다`() {
+    fun `2분할 주제는 TwoPaneOnly, 가져오기는 원격 스위치, 나머지는 Always, 2_0_0 주제는 addedInVersionCode 가 없다`() {
         TutorialTopics.all.forEach { topic ->
-            val expected = if (topic.id == TutorialTopics.TWO_PANE) TutorialAvailability.TwoPaneOnly else TutorialAvailability.Always
+            val expected = when (topic.id) {
+                TutorialTopics.TWO_PANE -> TutorialAvailability.TwoPaneOnly
+                TutorialTopics.IMPORT -> TutorialAvailability.Flag(RemoteFlags.KEY_IMPORT_ENABLED)
+                else -> TutorialAvailability.Always
+            }
             assertEquals(topic.id, expected, topic.availability)
-            if (topic.id == TutorialTopics.CATEGORY_LOCK) assertEquals(40, topic.addedInVersionCode)
+            if (topic.id == TutorialTopics.CATEGORY_LOCK || topic.id == TutorialTopics.IMPORT) assertEquals(40, topic.addedInVersionCode)
             else assertNull(topic.id, topic.addedInVersionCode)
         }
     }

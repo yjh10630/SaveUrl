@@ -3,6 +3,7 @@ package com.jinscompany.saveurl.ui.tutorial
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import com.jinscompany.saveurl.R
+import com.jinscompany.saveurl.utils.RemoteFlags
 import com.jinscompany.saveurl.utils.tutorialUrl
 
 /**
@@ -101,6 +102,7 @@ sealed interface TutorialAvailability {
 object TutorialTopics {
     const val SHARE = "share"
     const val DIRECT = "direct"
+    const val IMPORT = "import"
     const val AUTOFILL = "autofill"
     const val CLEAN = "clean_duplicate"
     const val CATEGORY = "category"
@@ -129,6 +131,16 @@ object TutorialTopics {
             titleRes = R.string.tut_direct_title, subtitleRes = R.string.tut_direct_subtitle, bodyRes = R.string.tut_direct_body,
             stepRes = listOf(R.string.tut_direct_step1, R.string.tut_direct_step2, R.string.tut_direct_step3),
             imageRows = listOf(listOf(TutorialImage(R.drawable.tut_direct_light, R.drawable.tut_direct_dark, R.string.tut_direct_image_cd))),
+        ),
+        // 2.1 (versionCode 40): 링크 가져오기. 원격 스위치 import_enabled 가 꺼지면 숨는다 (34번 7장).
+        // 스크린샷은 실제 미리보기 화면 캡처 후 추가
+        TutorialTopic(
+            id = IMPORT, group = TutorialGroup.START,
+            titleRes = R.string.tut_import_title, subtitleRes = R.string.tut_import_subtitle, bodyRes = R.string.tut_import_body,
+            stepRes = listOf(R.string.tut_import_step1, R.string.tut_import_step2, R.string.tut_import_step3),
+            tipRes = R.string.tut_import_tip,
+            availability = TutorialAvailability.Flag(RemoteFlags.KEY_IMPORT_ENABLED),
+            addedInVersionCode = 40,
         ),
         TutorialTopic(
             id = AUTOFILL, group = TutorialGroup.START,

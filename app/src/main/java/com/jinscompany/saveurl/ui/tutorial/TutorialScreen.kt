@@ -38,6 +38,7 @@ import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.MoveToInbox
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Link
@@ -372,6 +373,7 @@ fun NewPill(text: String = stringResource(R.string.tutorial_new_badge), modifier
 private fun topicIcon(id: String): ImageVector = when (id) {
     TutorialTopics.SHARE -> Icons.Outlined.Share
     TutorialTopics.DIRECT -> Icons.Outlined.Add
+    TutorialTopics.IMPORT -> Icons.Outlined.MoveToInbox
     TutorialTopics.AUTOFILL -> Icons.Outlined.Image
     TutorialTopics.CLEAN -> Icons.Outlined.CleaningServices
     TutorialTopics.CATEGORY -> Icons.Outlined.Folder
