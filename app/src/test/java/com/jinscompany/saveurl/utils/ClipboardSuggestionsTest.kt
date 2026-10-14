@@ -18,6 +18,7 @@ class ClipboardSuggestionsTest {
         var key: String? = null
         override suspend fun lastShownKey(): String? = key
         override suspend fun setLastShownKey(key: String) { this.key = key }
+        override suspend fun salt(): String = "test-salt"
     }
 
     private val now = 1_800_000_000_000L

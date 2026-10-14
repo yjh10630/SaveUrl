@@ -7,6 +7,8 @@ import javax.inject.Inject
 interface ClipboardSeenStore {
     suspend fun lastShownKey(): String?
     suspend fun setLastShownKey(key: String)
+    /** 설치마다 한 번 만든 무작위 값. 해시에 붙여 파일만으로 "어떤 URL 을 복사했는지" 대입해 볼 수 없게 한다 (45번 독립 리뷰 R9) */
+    suspend fun salt(): String
 }
 
 /**
@@ -26,13 +28,14 @@ class ClipboardSuggestions @Inject constructor(
     suspend fun candidate(): ClipboardLink? {
         val link = runCatching { reader.readLink() }.getOrNull() ?: return null
         if (!isFresh(link, now())) return null
-        if (runCatching { store.lastShownKey() }.getOrNull() == keyOf(link)) return null
+        val salt = runCatching { store.salt() }.getOrDefault("")
+        if (runCatching { store.lastShownKey() }.getOrNull() == keyOf(link, salt)) return null
         return link
     }
 
     /** 제안을 실제로 보였음 → 같은 복사본은 다시 제안하지 않는다 */
     suspend fun markShown(link: ClipboardLink) {
-        runCatching { store.setLastShownKey(keyOf(link)) }
+        runCatching { store.setLastShownKey(keyOf(link, store.salt())) }
     }
 
     companion object {
@@ -44,7 +47,7 @@ class ClipboardSuggestions @Inject constructor(
             return now - copiedAt <= MAX_AGE_MS
         }
 
-        fun keyOf(link: ClipboardLink): String = "${link.copiedAt ?: 0}:${sha256(link.url).take(16)}"
+        fun keyOf(link: ClipboardLink, salt: String): String = "${link.copiedAt ?: 0}:${sha256(salt + link.url).take(16)}"
 
         private fun sha256(text: String): String =
             MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }

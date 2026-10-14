@@ -61,6 +61,8 @@ class PreferencesManager @Inject constructor(
     private val LEGACY_TUTORIAL_LINK_REMOVED = booleanPreferencesKey("legacy_tutorial_link_removed")
     /** 마지막으로 제안한 클립보드 복사본 "복사 시각:URL 해시" (URL 은 두지 않음, 44번 §18) */
     private val CLIPBOARD_LAST_SHOWN = stringPreferencesKey("clipboard_last_shown")
+    /** 클립보드 표시 해시에 붙이는 설치별 무작위 값 (45번 독립 리뷰 R9) */
+    private val CLIPBOARD_SALT = stringPreferencesKey("clipboard_salt")
     // ---- 다시 보게 만들기 (42번 §3.4) ----
     /** 알림 권한 사전 안내 시트를 한 번이라도 보였는지 (API 33+) */
     private val NOTIF_PERMISSION_ASKED = booleanPreferencesKey("notif_permission_asked")
@@ -229,6 +231,16 @@ class PreferencesManager @Inject constructor(
     val lockIntroSeen: Flow<Boolean> = context.dataStore.data.map { it[LOCK_INTRO_SEEN] ?: false }
 
     suspend fun clipboardLastShownKey(): String? = context.dataStore.data.first()[CLIPBOARD_LAST_SHOWN]
+
+    /** 없으면 한 번 만들어 둔다 (기기 밖으로 나가지 않음: 클라우드 백업 꺼짐) */
+    suspend fun clipboardSalt(): String {
+        context.dataStore.data.first()[CLIPBOARD_SALT]?.let { return it }
+        var salt = ""
+        context.dataStore.edit { prefs ->
+            salt = prefs[CLIPBOARD_SALT] ?: java.util.UUID.randomUUID().toString().also { prefs[CLIPBOARD_SALT] = it }
+        }
+        return salt
+    }
 
     suspend fun setClipboardLastShownKey(key: String) {
         context.dataStore.edit { it[CLIPBOARD_LAST_SHOWN] = key }

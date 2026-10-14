@@ -51,6 +51,7 @@ class AppModule {
         object : com.jinscompany.saveurl.utils.ClipboardSeenStore {
             override suspend fun lastShownKey(): String? = preferencesManager.clipboardLastShownKey()
             override suspend fun setLastShownKey(key: String) = preferencesManager.setClipboardLastShownKey(key)
+            override suspend fun salt(): String = preferencesManager.clipboardSalt()
         }
 
     @Singleton

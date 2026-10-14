@@ -72,6 +72,9 @@ class SaveUrlApplication: Application(), ImageLoaderFactory {
         if (!DEBUG) CrashReporter.installUncaughtHandler()
         super.onCreate()
         themeMigrationRunner.start(hadPriorData)
+        // 2.0.0 까지 첫 실행에 넣던 튜토리얼 링크 항목을 한 번만 지운다 (튜토리얼은 설정 > 사용 방법으로 옮겨 감).
+        // 첫 화면(테마 값)은 이 정리를 기다린다 (SharedViewModel, 45번 R8)
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch { legacyTutorialLinkCleanup.run() }
         // 업데이트 전 저장된 링크의 normalizedUrl 채우기 / 정규화 규칙 변경 시 재계산 (IO 스레드, 시작을 막지 않음)
         normalizedUrlBackfillRunner.start()
         // 가져온 링크 중 미리보기를 못 채운 것이 있으면 이어서 채운다 (이미 예약돼 있으면 그대로)
@@ -83,8 +86,6 @@ class SaveUrlApplication: Application(), ImageLoaderFactory {
         // 알람은 하나만 다시 걸어 가볍다. 이미 뜬 링크 알림은 잠금·이동·삭제 뒤 정리한다 (리뷰 R4)
         val revisitScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + globalCoroutineExceptionHandler)
         revisitScope.launch { revisitRepository.syncAll() }
-        // 2.0.0 까지 첫 실행에 넣던 튜토리얼 링크 항목을 한 번만 지운다 (튜토리얼은 설정 > 사용 방법으로 옮겨 감)
-        revisitScope.launch { legacyTutorialLinkCleanup.run() }
         revisitRepository.startNotificationGuard(revisitScope)
         // 잠금 카테고리: 앱 전체가 나간 시각을 적고, 1분 넘게 지나 돌아오면 다시 잠근다 (회전·접기는 프로세스 이벤트가 아님)
         ProcessLifecycleOwner.get().lifecycle.addObserver(LifecycleEventObserver { _, event ->
