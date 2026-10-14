@@ -44,6 +44,11 @@ class PreferencesManager @Inject constructor(
     /** 권장(FLEXIBLE) 업데이트 동의 창에서 "나중에" 를 누른 버전(versionCode)과 시각. 3일 동안 다시 묻지 않는 데 쓴다 */
     private val FLEXIBLE_UPDATE_DECLINED_VERSION = intPreferencesKey("flexible_update_declined_version")
     private val FLEXIBLE_UPDATE_DECLINED_AT = longPreferencesKey("flexible_update_declined_at")
+    /** 설정 "링크 가져오기" 의 NEW: 가져오기 홈을 한 번 열면 true */
+    private val IMPORT_ENTRY_SEEN = booleanPreferencesKey("import_entry_seen")
+    /** 가져온 링크 미리보기 채우기: 멈춤 / 모바일 데이터에서도 채우기 (기본 끔) */
+    private val META_FILL_PAUSED = booleanPreferencesKey("meta_fill_paused")
+    private val META_FILL_CELLULAR = booleanPreferencesKey("meta_fill_cellular")
 
     val autoDeleteEnabled: Flow<Boolean> = context.dataStore.data
         .map { it[TRASH_ENABLE] ?: true }
@@ -157,6 +162,23 @@ class PreferencesManager @Inject constructor(
 
     suspend fun setNormalizedUrlVersion(version: Int) {
         context.dataStore.edit { it[NORMALIZED_URL_VERSION] = version }
+    }
+
+    val importEntrySeen: Flow<Boolean> = context.dataStore.data.map { it[IMPORT_ENTRY_SEEN] ?: false }
+
+    suspend fun setImportEntrySeen() {
+        context.dataStore.edit { it[IMPORT_ENTRY_SEEN] = true }
+    }
+
+    val metaFillPaused: Flow<Boolean> = context.dataStore.data.map { it[META_FILL_PAUSED] ?: false }
+    val metaFillCellular: Flow<Boolean> = context.dataStore.data.map { it[META_FILL_CELLULAR] ?: false }
+
+    suspend fun setMetaFillPaused(paused: Boolean) {
+        context.dataStore.edit { it[META_FILL_PAUSED] = paused }
+    }
+
+    suspend fun setMetaFillCellular(allowed: Boolean) {
+        context.dataStore.edit { it[META_FILL_CELLULAR] = allowed }
     }
 
     suspend fun getFlexibleUpdateDecline(): FlexibleDecline? {

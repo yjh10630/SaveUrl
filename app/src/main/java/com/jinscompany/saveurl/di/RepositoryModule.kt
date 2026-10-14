@@ -4,6 +4,11 @@ import android.content.Context
 import com.jinscompany.saveurl.data.CategoryRepositoryImpl
 import com.jinscompany.saveurl.data.TrashRepositoryImpl
 import com.jinscompany.saveurl.data.UrlRepositoryImpl
+import com.jinscompany.saveurl.data.importer.ImportRepositoryImpl
+import com.jinscompany.saveurl.data.meta.WorkMetaFillScheduler
+import com.jinscompany.saveurl.domain.importer.MetaFillScheduler
+import com.jinscompany.saveurl.data.room.ImportDao
+import com.jinscompany.saveurl.domain.repository.ImportRepository
 import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.room.TrashDao
 import com.jinscompany.saveurl.data.source.CategoryDBSource
@@ -44,4 +49,13 @@ class RepositoryModule {
         db: AppDatabase,
         preferencesManager: PreferencesManager
     ): TrashRepository = TrashRepositoryImpl(trashDao, db, preferencesManager)
+
+    @Provides
+    @Singleton
+    fun provideImportRepository(db: AppDatabase, importDao: ImportDao): ImportRepository =
+        ImportRepositoryImpl(db, importDao)
+
+    @Provides
+    @Singleton
+    fun provideMetaFillScheduler(impl: WorkMetaFillScheduler): MetaFillScheduler = impl
 }

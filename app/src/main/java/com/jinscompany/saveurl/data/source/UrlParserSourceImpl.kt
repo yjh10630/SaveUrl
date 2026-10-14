@@ -10,6 +10,7 @@ import com.google.firebase.ktx.Firebase
 import com.jinscompany.saveurl.data.source.linkpreview.HtmlMetaExtractor
 import com.jinscompany.saveurl.data.source.linkpreview.JsoupHttpGetter
 import com.jinscompany.saveurl.data.source.linkpreview.OkHttpGetter
+import com.jinscompany.saveurl.data.source.linkpreview.LinkMeta
 import com.jinscompany.saveurl.data.source.linkpreview.LinkPreviewFetcher
 import com.jinscompany.saveurl.data.source.linkpreview.WebViewHtml
 import com.jinscompany.saveurl.domain.model.UrlData
@@ -62,6 +63,21 @@ class UrlParserSourceImpl @Inject constructor(
             return@withContext UrlData(url = meta?.url ?: url, siteName = meta?.siteName.orEmpty(), title = "", description = url)
         }
         meta.toUrlData()
+    }
+
+    override suspend fun fetchMeta(url: String, budgetMs: Long): LinkMeta? = withContext(Dispatchers.IO) {
+        val ctx = coroutineContext
+        try {
+            LinkPreviewFetcher(
+                http = httpGetter,
+                fallbackHttp = fallbackHttpGetter,
+                deviceUserAgent = { deviceUserAgent },
+                totalBudgetMs = budgetMs,
+                isCancelled = { !ctx.isActive },
+            ).fetch(url)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     override suspend fun webViewGetHtml(url: String): UrlData = withContext(Dispatchers.Main) {

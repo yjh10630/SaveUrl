@@ -193,6 +193,8 @@ dependencies {
     implementation(libs.androidx.biometric)
     // 앱 전체가 백그라운드로 간 시각 (잠금 카테고리 1분 뒤 다시 잠그기)
     implementation(libs.androidx.lifecycle.process)
+    // 링크 가져오기: 가져온 링크의 제목·썸네일을 Wi-Fi 에서 천천히 채운다
+    implementation(libs.androidx.work.runtime.ktx)
     implementation("com.google.android.material:material:1.12.0")
 
     implementation("androidx.datastore:datastore-preferences:1.1.6")
