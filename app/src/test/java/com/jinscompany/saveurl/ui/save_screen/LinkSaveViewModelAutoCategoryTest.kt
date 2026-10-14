@@ -71,12 +71,14 @@ class LinkSaveViewModelAutoCategoryTest {
         coEvery { this@mockk.match(any()) } answers { AutoCategoryMatcher.match(firstArg<String?>(), rules) { it.rule } }
     }
 
+    private var lockedNames = emptyList<String>()
+
     private fun viewModel(existing: UrlData? = null, parsed: (String) -> UrlData = { UrlData(url = it, title = "제목") }): LinkSaveViewModel {
         coEvery { findUrlDataUseCase(any()) } answers { existing?.takeIf { it.url == firstArg() } }
         coEvery { parseUrlUseCase(any()) } answers { parsed(firstArg()) }
         coEvery { saveUrlUseCase(any(), any()) } answers { SaveResult.Success(firstArg()) }
         val categoryRepository: CategoryRepository = mockk { coEvery { get() } answers { categoryList } }
-        val observeLocked: ObserveLockedCategoriesUseCase = mockk { every { this@mockk.invoke() } returns MutableStateFlow(emptyList()) }
+        val observeLocked: ObserveLockedCategoriesUseCase = mockk { every { this@mockk.invoke() } returns MutableStateFlow(lockedNames) }
         return LinkSaveViewModel(
             saveUrlUseCase = saveUrlUseCase,
             updateUrlUseCase = mockk(relaxed = true),
@@ -301,5 +303,52 @@ class LinkSaveViewModelAutoCategoryTest {
         advanceUntilIdle()
         assertEquals(AutoCatRow.Hidden, vm.uiState.value.autoCatRow)
         assertNull(vm.uiState.value.appliedRule)
+    }
+
+    @Test
+    fun `사용자가 고른 뒤 다른 사이트 URL 로 바꾸면 옛 규칙 칩·기록이 남지 않는다 (R7)`() = runTest {
+        val vm = viewModel()
+        vm.startCrawling("https://instagram.com/p/1")
+        advanceUntilIdle()
+        vm.onIntent(LinkSaveIntent.CategorySelectedItem("여행"))
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.autoCatRow is AutoCatRow.Override)
+        vm.startCrawling("https://www.10000recipe.com/recipe/1")
+        advanceUntilIdle()
+        // 고른 값은 그대로, 비교 기준 규칙은 새 URL 것 (없음) → "앞으로 항상" 버튼
+        assertEquals("여행", vm.uiState.value.categoryName)
+        assertNull(vm.uiState.value.appliedRule)
+        assertEquals(AutoCatRow.MakeRule("10000recipe.com", "여행"), vm.uiState.value.autoCatRow)
+        vm.onIntent(LinkSaveIntent.SaveLink)
+        advanceUntilIdle()
+        verify { saveFlow.afterSaveInBackground(any(), "여행", 2, null) }
+    }
+
+    @Test
+    fun `저장된 링크를 보다가 다른 URL 로 바꾸면 그 링크의 카테고리를 들고 가지 않는다 (R10)`() = runTest {
+        val stored = UrlData(url = "https://instagram.com/p/1", title = "제목", category = "여행")
+        val vm = viewModel(existing = stored)
+        vm.startCrawling("https://instagram.com/p/1")
+        advanceUntilIdle()
+        assertEquals(CategorySource.STORED, vm.uiState.value.categorySource)
+        vm.startCrawling("https://www.10000recipe.com/recipe/1")
+        advanceUntilIdle()
+        assertEquals(FilterDefaults.CATEGORY_ALL, vm.uiState.value.categoryName)
+        assertEquals(CategorySource.NONE, vm.uiState.value.categorySource)
+    }
+
+    @Test
+    fun `잠금 카테고리를 고르면 규칙도 바꾸기 칩이 없고, 저장해도 규칙 기록에 남지 않는다 (R12)`() = runTest {
+        categoryList = categories + CategoryModel(id = 4, name = "비밀", isLocked = true)
+        lockedNames = listOf("비밀")
+        val vm = viewModel()
+        vm.startCrawling("https://instagram.com/p/1")
+        advanceUntilIdle()
+        vm.onIntent(LinkSaveIntent.CategorySelectedItem("비밀"))
+        advanceUntilIdle()
+        assertEquals(AutoCatRow.Override("Instagram", "맛집", null), vm.uiState.value.autoCatRow)
+        vm.onIntent(LinkSaveIntent.SaveLink)
+        advanceUntilIdle()
+        verify { saveFlow.afterSaveInBackground(any(), "비밀", 4, null) }
     }
 }

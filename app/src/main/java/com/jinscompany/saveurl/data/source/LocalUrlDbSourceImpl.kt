@@ -74,17 +74,22 @@ class LocalUrlDbSourceImpl @Inject constructor(
     override suspend fun saveLocalDBUrl(data: UrlData) = withContext(Dispatchers.IO) {
         return@withContext try {
             db.withTransaction {
-                baseSaveUrlDao.insert(data.withNormalizedUrl())
                 val categoryName = data.category ?: FilterDefaults.CATEGORY_ALL
-                // 자동 추천(도메인/키워드) 카테고리는 아직 DB 에 없을 수 있음
-                // 링크는 이미 insert 되었으므로 false 를 반환하면 저장 화면이 멈추고 재시도 시 중복 다이얼로그가 뜸
-                // -> 카테고리를 함께 생성 (링크 수는 조회 시 BaseSaveUrl 에서 집계하므로 contentCnt 는 갱신하지 않음)
-                if (categoryName.isNotEmpty() && categoryName != FilterDefaults.CATEGORY_ALL &&
+                // 저장 화면이 확인한 뒤 다른 화면(2분할)에서 카테고리를 지웠으면 "선택 안 함"으로 넣는다.
+                // 예전처럼 같은 이름으로 다시 만들면 지운 카테고리가 새 id 로 살아난다 (40번 독립 리뷰 R11).
+                // '미분류'는 기본 카테고리라 없으면 만든다 (링크 수는 조회 시 집계하므로 contentCnt 는 갱신하지 않음)
+                val missing = categoryName.isNotEmpty() && categoryName != FilterDefaults.CATEGORY_ALL &&
                     categoryDao.get(categoryName) == null
-                ) {
-                    val orderMaxCnt = categoryDao.getMaxOrder() ?: 0
-                    categoryDao.insert(CategoryModel(name = categoryName, order = orderMaxCnt + 1))
+                val toInsert = when {
+                    !missing -> data
+                    categoryName == CategoryModel.UNCATEGORIZED -> {
+                        val orderMaxCnt = categoryDao.getMaxOrder() ?: 0
+                        categoryDao.insert(CategoryModel(name = categoryName, order = orderMaxCnt + 1, isEditable = false))
+                        data
+                    }
+                    else -> data.copy(category = FilterDefaults.CATEGORY_ALL)
                 }
+                baseSaveUrlDao.insert(toInsert.withNormalizedUrl())
                 true
             }
         } catch (e: Exception) {

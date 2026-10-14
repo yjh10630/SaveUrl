@@ -234,4 +234,24 @@ class AutoCategoryRepositoryTest {
         assertNotNull(repo.findByKey(fresh))
     }
 
+    @Test
+    fun savingIntoDeletedCategoryStoresUnfiledInsteadOfRecreating() = runBlocking {
+        // 40번 독립 리뷰 R11
+        val source = com.jinscompany.saveurl.data.source.LocalUrlDbSourceImpl(db.baseSaveUrlDao(), db.categoryDao(), db, db.trashDao())
+        assertTrue(source.saveLocalDBUrl(UrlData(url = "https://x.com/1", category = "지운 카테고리")))
+        assertNull(db.categoryDao().get("지운 카테고리"))
+        assertEquals("전체", db.baseSaveUrlDao().get("https://x.com/1")!!.category)
+    }
+
+    @Test
+    fun reservedCategoryNamesAreRejected() = runBlocking {
+        // 40번 독립 리뷰 R15
+        val source = CategoryDBSourceImpl(db.categoryDao(), db)
+        assertTrue(!source.update("레시피", "전체"))
+        assertTrue(!source.update("레시피", "북마크"))
+        assertTrue(!source.update("레시피", CategoryModel.UNCATEGORIZED))
+        assertTrue(!source.insert(CategoryModel(name = "전체")))
+        assertNotNull(db.categoryDao().get("레시피"))
+        assertNull(db.categoryDao().get("전체"))
+    }
 }

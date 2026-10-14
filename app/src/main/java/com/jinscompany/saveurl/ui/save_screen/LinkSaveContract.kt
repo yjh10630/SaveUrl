@@ -91,7 +91,11 @@ data class LinkSaveUiState (
             CategorySource.RULE -> applied?.let { AutoCatRow.Auto(it.siteName) } ?: AutoCatRow.Hidden
             CategorySource.USER -> when {
                 applied != null && categoryName == applied.categoryName -> AutoCatRow.Auto(applied.siteName)
-                applied != null -> AutoCatRow.Override(applied.siteName, applied.categoryName, categoryName.takeIf { isRealCategory(it) })
+                // 잠금 카테고리로는 규칙을 만들거나 바꾸지 않는다: "규칙도 바꾸기" 대신 끄기·이번만 (40번 독립 리뷰 R12)
+                applied != null -> AutoCatRow.Override(
+                    applied.siteName, applied.categoryName,
+                    categoryName.takeIf { isRealCategory(it) && it !in lockedCategoryNames },
+                )
                 else -> {
                     val keys = urlKeys
                     if (keys == null || !isRealCategory(categoryName) || categoryName in lockedCategoryNames ||

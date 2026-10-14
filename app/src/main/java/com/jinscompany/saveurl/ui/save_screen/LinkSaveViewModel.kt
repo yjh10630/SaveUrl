@@ -153,15 +153,26 @@ class LinkSaveViewModel @Inject constructor(
             ?.ruleState?.takeIf { it != AutoRuleState.DISMISSED }
         val enabled = runCatching { autoCategorySaveFlow.isEnabled() }.getOrDefault(false)
         val matched = if (enabled) runCatching { autoCategorySaveFlow.match(url) }.getOrNull() else null
+        val matchedRule = matched?.let { AppliedRule(it.rule.id, it.rule.key, it.rule.categoryId, it.categoryName) }
+        val keysChanged = _uiState.value.urlKeys != keys
+        if (keysChanged) {
+            // 다른 사이트로 바뀌면 옛 규칙에 한 칩 동작·만들기 결과는 이 URL 과 상관없다 (40번 독립 리뷰 R7)
+            ruleActionTaken = false
+            createdMove = null
+        }
         _uiState.update { s ->
             val base = s.copy(urlKeys = keys, keyRuleState = keyRuleState, autoCatEnabled = enabled)
             when (s.categorySource) {
-                CategorySource.USER, CategorySource.STORED -> base
-                CategorySource.NONE, CategorySource.RULE -> if (matched != null) {
+                CategorySource.STORED -> base
+                // 사용자가 고른 값은 그대로 두고, 비교 기준 규칙만 새 URL 것으로 (옛 규칙 칩·기록이 남지 않게)
+                CategorySource.USER -> if (keysChanged) {
+                    base.copy(appliedRule = matchedRule, autoCatDone = null, autoCatCanUndo = false)
+                } else base
+                CategorySource.NONE, CategorySource.RULE -> if (matchedRule != null) {
                     base.copy(
-                        categoryName = matched.categoryName,
+                        categoryName = matchedRule.categoryName,
                         categorySource = CategorySource.RULE,
-                        appliedRule = AppliedRule(matched.rule.id, matched.rule.key, matched.rule.categoryId, matched.categoryName),
+                        appliedRule = matchedRule,
                         autoCatDone = null,
                     )
                 } else if (s.categorySource == CategorySource.RULE) {
@@ -367,7 +378,8 @@ class LinkSaveViewModel @Inject constructor(
                     savedUrl = urlData.url ?: state.userInputUrl,
                     savedCategoryName = urlData.category,
                     savedCategoryId = savedId,
-                    appliedRuleId = state.appliedRule?.ruleId?.takeUnless { ruleActionTaken },
+                    // 잠금 카테고리에 저장했으면 기록하지 않는다: 점검 시트 최근 기록에 잠금 카테고리가 남지 않게 (40번 독립 리뷰 R12)
+                    appliedRuleId = state.appliedRule?.ruleId?.takeUnless { ruleActionTaken || urlData.category in state.lockedCategoryNames },
                 )
             }.onFailure { if (it is CancellationException) throw it else Firebase.crashlytics.recordException(it) }
         }
@@ -459,8 +471,10 @@ class LinkSaveViewModel @Inject constructor(
                         _uiState.update { current ->
                             current.copy(
                                 isEditScreen = false, userInputUrl = url, linkUrlPreviewUiState = LinkUrlPreviewUiState.Loading,
-                                // 다른 URL 로 바꾸면 사용자가 고른 값이 아닐 때만 다시 판정한다 (36번 §2.1-3)
+                                // 다른 URL 로 바꾸면 사용자가 고른 값이 아닐 때만 다시 판정한다 (36번 §2.1-3).
+                                // 저장된 링크를 보다가 바꿨으면 그 링크의 카테고리를 들고 가지 않는다: "선택 안 함"부터 (40번 독립 리뷰 R10)
                                 categorySource = if (current.categorySource == CategorySource.STORED) CategorySource.NONE else current.categorySource,
+                                categoryName = if (current.categorySource == CategorySource.STORED) FilterDefaults.CATEGORY_ALL else current.categoryName,
                                 autoCatDone = null,
                             )
                         }

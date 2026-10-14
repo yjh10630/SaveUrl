@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.room.CategoryDao
 import com.jinscompany.saveurl.domain.model.CategoryModel
+import com.jinscompany.saveurl.ui.FilterDefaults
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -22,7 +23,7 @@ class CategoryDBSourceImpl @Inject constructor (
         return@withContext try {
             db.withTransaction {
                 // 같은 이름의 카테고리가 이미 있으면(편집 화면에 보이지 않는 "미분류" 포함) 중복 생성하지 않음
-                if (categoryDao.get(data.name) != null) return@withTransaction false
+                if (isReservedName(data.name) || categoryDao.get(data.name) != null) return@withTransaction false
                 val orderMaxCnt = categoryDao.getMaxOrder() ?: 0
                 data.order = orderMaxCnt + 1
                 val id = categoryDao.insert(data)
@@ -79,12 +80,19 @@ class CategoryDBSourceImpl @Inject constructor (
         }
     }
 
+    /**
+     * 가상 카테고리 이름("전체"=선택 안 함, "북마크")과 기본 카테고리 "미분류"는 새로 만들거나 그 이름으로 바꿀 수 없다.
+     * 규칙이 가리키는 카테고리를 "전체"로 바꾸면 규칙이 "선택 안 함"을 자동으로 고르게 된다 (40번 독립 리뷰 R15)
+     */
+    private fun isReservedName(name: String): Boolean =
+        name.isBlank() || name == FilterDefaults.CATEGORY_ALL || name == FilterDefaults.CATEGORY_BOOKMARK || name == CategoryModel.UNCATEGORIZED
+
     override suspend fun update(oldName: String, newName: String): Boolean = withContext(Dispatchers.IO) {
         return@withContext try {
             db.withTransaction {
                 val updateData = categoryDao.get(oldName)
                 // 편집 불가 카테고리("미분류")는 이름 변경 불가, 이미 있는 이름으로 변경하면 두 카테고리가 섞이므로 거부
-                if (updateData != null && updateData.isEditable && categoryDao.get(newName) == null) {
+                if (updateData != null && updateData.isEditable && !isReservedName(newName) && categoryDao.get(newName) == null) {
                     updateData.name = newName
                     categoryDao.update(updateData)
                     // 링크는 카테고리를 이름으로 참조하므로 함께 변경하지 않으면 변경된 카테고리로 필터링 시 기존 링크가 보이지 않음.

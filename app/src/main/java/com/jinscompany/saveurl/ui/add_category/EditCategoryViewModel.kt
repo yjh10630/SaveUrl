@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -41,6 +42,15 @@ class EditCategoryViewModel @Inject constructor(
     val categoryItemsState: State<List<CategoryModel>> = _categoryItemsState
 
     val isUnlocked: StateFlow<Boolean> = lockSession.isUnlocked
+
+    init {
+        // 다시 잠기면 잠금 카테고리 삭제 확인을 닫는다: 인증 없이 "삭제"를 누를 수 없게, 이름이 남지 않게 (40번 독립 리뷰 R16)
+        viewModelScope.launch {
+            lockSession.isUnlocked.drop(1).collect { unlocked ->
+                if (!unlocked && _pendingDelete.value?.locked == true) _pendingDelete.value = null
+            }
+        }
+    }
 
     private val _effect = MutableSharedFlow<EditCategoryEffect>()
     val effect = _effect.asSharedFlow()
