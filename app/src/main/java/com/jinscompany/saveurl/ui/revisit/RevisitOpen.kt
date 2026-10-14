@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -80,6 +81,7 @@ class RevisitOpenViewModel @Inject constructor(
     private val inbox: RevisitOpenInbox,
     private val urlDao: BaseSaveUrlDao,
     private val markAsReadUseCase: MarkAsReadUseCase,
+    private val notifier: RevisitNotifier,
 ) : ViewModel() {
     val pending: StateFlow<RevisitOpenRequest?> = inbox.pending
 
@@ -90,8 +92,9 @@ class RevisitOpenViewModel @Inject constructor(
         data object ShowUnread : Action
     }
 
-    private val _actions = MutableSharedFlow<Action>(extraBufferCapacity = 4)
-    val actions = _actions.asSharedFlow()
+    // 앱을 새로 띄울 때는 요청 처리가 화면의 수집보다 먼저 끝날 수 있어 Channel 로 쌓아 둔다 (SharedFlow 는 구독 전 값을 버림)
+    private val _actions = kotlinx.coroutines.channels.Channel<Action>(kotlinx.coroutines.channels.Channel.BUFFERED)
+    val actions = _actions.receiveAsFlow()
 
     fun handlePending() {
         val request = inbox.take() ?: return
@@ -99,14 +102,16 @@ class RevisitOpenViewModel @Inject constructor(
             when (request) {
                 RevisitOpenRequest.Unread -> {
                     inbox.requestTab(MainTab.UNREAD)
-                    _actions.emit(Action.ShowUnread)
+                    _actions.send(Action.ShowUnread)
                 }
                 is RevisitOpenRequest.Link -> {
+                    // [열기] 버튼은 자동 닫힘(autoCancel)이 적용되지 않으므로 직접 지운다
+                    notifier.cancelLink(request.linkId)
                     val link = urlDao.getById(request.linkId)
                     val url = link?.url
                     when {
-                        link == null || url.isNullOrEmpty() -> _actions.emit(Action.Deleted)
-                        urlDao.isLocked(request.linkId) > 0 -> _actions.emit(Action.NeedAuth(request.linkId))
+                        link == null || url.isNullOrEmpty() -> _actions.send(Action.Deleted)
+                        urlDao.isLocked(request.linkId) > 0 -> _actions.send(Action.NeedAuth(request.linkId))
                         else -> open(url)
                     }
                 }
@@ -118,13 +123,13 @@ class RevisitOpenViewModel @Inject constructor(
     fun openAfterAuth(linkId: Int) {
         viewModelScope.launch {
             val url = urlDao.getById(linkId)?.url
-            if (url.isNullOrEmpty()) _actions.emit(Action.Deleted) else open(url)
+            if (url.isNullOrEmpty()) _actions.send(Action.Deleted) else open(url)
         }
     }
 
     private suspend fun open(url: String) {
         markAsReadUseCase(url)
-        _actions.emit(Action.Open(url))
+        _actions.send(Action.Open(url))
     }
 }
 

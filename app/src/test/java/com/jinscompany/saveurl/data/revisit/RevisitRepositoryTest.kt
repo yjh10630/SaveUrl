@@ -7,6 +7,7 @@ import com.jinscompany.saveurl.domain.model.LinkReminder
 import com.jinscompany.saveurl.domain.model.UpcomingReminder
 import com.jinscompany.saveurl.domain.model.UrlData
 import com.jinscompany.saveurl.domain.revisit.ReminderPreset
+import com.jinscompany.saveurl.domain.revisit.ReminderSync
 import com.jinscompany.saveurl.domain.revisit.ReminderTimes
 import com.jinscompany.saveurl.domain.revisit.RevisitRules
 import com.jinscompany.saveurl.utils.PreferencesManager
@@ -31,7 +32,7 @@ import java.time.ZonedDateTime
  */
 class RevisitRepositoryTest {
     private val zone = ZoneId.of("Asia/Seoul")
-    private val now = ZonedDateTime.of(2026, 10, 14, 12, 0, 0, 0, zone).toInstant().toEpochMilli() // 수 12:00
+    private var now = ZonedDateTime.of(2026, 10, 14, 12, 0, 0, 0, zone).toInstant().toEpochMilli() // 수 12:00
     private val hour = 60 * 60_000L
     private val day = 24 * hour
 
@@ -58,7 +59,8 @@ class RevisitRepositoryTest {
         assertEquals(7, saved.captured.linkId)
         assertEquals(now + day, saved.captured.remindAt)
         assertEquals("tomorrow", saved.captured.preset)
-        verify { alarms.scheduleLink(7, now + day) }
+        // 정확하지 않은 알람의 창(최대 1시간) 때문에 80분 전에 먼저 깨어 다시 건다
+        verify { alarms.scheduleLink(7, now + day - 80 * 60_000L) }
 
         repo.cancelReminder(7)
         coVerify { reminderDao.delete(7) }
@@ -85,7 +87,7 @@ class RevisitRepositoryTest {
     fun `시간을 뒤로 바꿔서 일찍 울린 알람은 다시 건다`() = runTest {
         coEvery { reminderDao.getUpcoming(5) } returns upcoming(5, now + 3 * hour)
         repo.onLinkAlarm(5)
-        verify { alarms.scheduleLink(5, now + 3 * hour) }
+        verify { alarms.scheduleLink(5, now + 3 * hour - 80 * 60_000L) }
         verify(exactly = 0) { notifier.notifyLink(any(), any(), any()) }
         coVerify(exactly = 0) { reminderDao.delete(5) }
     }
@@ -119,7 +121,7 @@ class RevisitRepositoryTest {
 
         verify { alarms.cancelLink(99) }
         coVerify { reminderDao.deleteAll(listOf(99)) }
-        verify { alarms.scheduleLink(1, now + day) }
+        verify { alarms.scheduleLink(1, ReminderSync.wakeAt(now + day, now)) }
         coVerify { reminderDao.deleteAll(listOf(3)) }
         coVerify { reminderDao.deleteAll(listOf(6, 2)) }
         verify { notifier.notifyLink(match { it.linkId == 2 }, any(), now) }
@@ -129,7 +131,8 @@ class RevisitRepositoryTest {
     }
 
     @Test
-    fun `주간 정리 - 켜져 있으면 이번 주 숫자로 한 번 보내고 다음 일요일 예약`() = runTest {
+    fun `주간 정리 - 일요일 8시가 지나 울리면 이번 주 숫자로 한 번 보내고 다음 일요일 예약`() = runTest {
+        now = ZonedDateTime.of(2026, 10, 18, 20, 5, 0, 0, zone).toInstant().toEpochMilli() // 일 20:05
         every { prefs.weeklyDigestEnabled } returns flowOf(true)
         every { remote.weeklyDigestEnabled } returns MutableStateFlow(true)
         every { prefs.weeklyLastSentWeek } returns flowOf(-1)
@@ -140,11 +143,34 @@ class RevisitRepositoryTest {
         repo.onWeeklyAlarm()
 
         verify { notifier.notifyWeekly(4, 2) }
-        verify { alarms.scheduleWeekly(ReminderTimes.nextWeeklyDigest(now + 60_000L, zone)) }
+        val nextSunday = ZonedDateTime.of(2026, 10, 25, 20, 0, 0, 0, zone).toInstant().toEpochMilli()
+        verify { alarms.scheduleWeekly(ReminderSync.wakeAt(nextSunday, now)) }
+    }
+
+    @Test
+    fun `주간 정리 - 단계 예약으로 일요일 8시 전에 깨면 보내지 않고 다시 건다`() = runTest {
+        now = ZonedDateTime.of(2026, 10, 18, 18, 40, 0, 0, zone).toInstant().toEpochMilli() // 일 18:40
+        every { prefs.weeklyDigestEnabled } returns flowOf(true)
+        every { remote.weeklyDigestEnabled } returns MutableStateFlow(true)
+        repo.onWeeklyAlarm()
+        verify(exactly = 0) { notifier.notifyWeekly(any(), any()) }
+        val sunday20 = ZonedDateTime.of(2026, 10, 18, 20, 0, 0, 0, zone).toInstant().toEpochMilli()
+        verify { alarms.scheduleWeekly(ReminderSync.wakeAt(sunday20, now)) }
+    }
+
+    @Test
+    fun `주간 정리 - 12시간 넘게 늦게 깨면 이번 주는 건너뛰고 다음 일요일 예약`() = runTest {
+        now = ZonedDateTime.of(2026, 10, 19, 10, 0, 0, 0, zone).toInstant().toEpochMilli() // 월 10:00
+        every { prefs.weeklyDigestEnabled } returns flowOf(true)
+        every { remote.weeklyDigestEnabled } returns MutableStateFlow(true)
+        repo.onWeeklyAlarm()
+        verify(exactly = 0) { notifier.notifyWeekly(any(), any()) }
+        verify { alarms.scheduleWeekly(any()) }
     }
 
     @Test
     fun `주간 정리 - 저장도 안 읽음도 0 이면 보내지 않지만 다음 주는 예약`() = runTest {
+        now = ZonedDateTime.of(2026, 10, 18, 20, 5, 0, 0, zone).toInstant().toEpochMilli()
         every { prefs.weeklyDigestEnabled } returns flowOf(true)
         every { remote.weeklyDigestEnabled } returns MutableStateFlow(true)
         every { prefs.weeklyLastSentWeek } returns flowOf(-1)

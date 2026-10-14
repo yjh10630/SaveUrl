@@ -74,7 +74,7 @@ class RevisitNotifier @Inject constructor(
         } else {
             body = reminder.title?.takeIf { it.isNotBlank() } ?: displayHost(reminder.url)
             val site = reminder.siteName?.takeIf { it.isNotBlank() } ?: displayHost(reminder.url)
-            val ago = ReminderTimes.savedAgo(reminder.addDate, now)
+            val ago = ReminderTimes.savedAgo(reminder.addDate, now, java.time.ZoneId.systemDefault())
             second = if (ago == null) context.getString(R.string.notif_reminder_saved_today, site)
                 else context.getString(R.string.notif_reminder_saved_ago, site, ago)
         }

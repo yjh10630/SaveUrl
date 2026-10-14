@@ -59,7 +59,7 @@ fun RevisitCard(
     val now = remember { System.currentTimeMillis() }
     val site = link.siteName?.takeIf { it.isNotBlank() }
         ?: runCatching { android.net.Uri.parse(link.url).host?.removePrefix("www.") }.getOrNull().orEmpty()
-    val ago = ReminderTimes.savedAgo(link.addDate, now)
+    val ago = ReminderTimes.savedAgo(link.addDate, now, java.time.ZoneId.systemDefault())
     Column(
         modifier = modifier
             .padding(horizontal = AppDimens.Gutter, vertical = 8.dp)

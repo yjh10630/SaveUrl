@@ -98,11 +98,13 @@ class ReminderTimesTest {
     @Test
     fun `저장 경과 표기`() {
         val day = 24 * 60 * 60_000L
-        val now = 1000 * day
-        assertNull(ReminderTimes.savedAgo(now - 1000, now))
-        assertEquals("3일", ReminderTimes.savedAgo(now - 3 * day, now))
-        assertEquals("2주", ReminderTimes.savedAgo(now - 15 * day, now))
-        assertEquals("2개월", ReminderTimes.savedAgo(now - 61 * day, now))
-        assertEquals("1년", ReminderTimes.savedAgo(now - 400 * day, now))
+        val now = at(2026, 10, 15, 9)
+        assertNull(ReminderTimes.savedAgo(at(2026, 10, 15, 0, 5), now, seoul))
+        // 어제 저녁 저장 → 오늘 아침에는 "1일 전"
+        assertEquals("1일", ReminderTimes.savedAgo(at(2026, 10, 14, 19, 15), now, seoul))
+        assertEquals("3일", ReminderTimes.savedAgo(now - 3 * day, now, seoul))
+        assertEquals("2주", ReminderTimes.savedAgo(now - 15 * day, now, seoul))
+        assertEquals("2개월", ReminderTimes.savedAgo(now - 61 * day, now, seoul))
+        assertEquals("1년", ReminderTimes.savedAgo(now - 400 * day, now, seoul))
     }
 }

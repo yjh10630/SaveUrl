@@ -155,9 +155,12 @@ object ReminderTimes {
         }
     }
 
-    /** "{n}주" 같은 저장 경과 ("… 전에 저장"). 하루가 안 됐으면 null ("오늘 저장") */
-    fun savedAgo(addDate: Long, now: Long): String? {
-        val days = ((now - addDate).coerceAtLeast(0L)) / (24 * 60 * 60_000L)
+    /**
+     * "{n}주" 같은 저장 경과 ("… 전에 저장"). 달력 날짜로 센다 (어제 저녁에 저장한 링크를 오늘 아침에 "오늘 저장"이라 하지 않게).
+     * 오늘 저장했으면 null ("오늘 저장")
+     */
+    fun savedAgo(addDate: Long, now: Long, zone: ZoneId): String? {
+        val days = (epochDay(now, zone) - epochDay(addDate, zone)).coerceAtLeast(0L)
         return when {
             days < 1 -> null
             days < 7 -> "${days}일"

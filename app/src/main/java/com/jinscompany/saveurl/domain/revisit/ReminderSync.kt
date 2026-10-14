@@ -33,4 +33,24 @@ object ReminderSync {
     }
 
     private const val EARLY_TOLERANCE_MS = 60_000L
+
+    /**
+     * 알람을 걸 시각 (단계 예약). 정확하지 않은 알람은 Android 12+ 에서 "남은 시간의 75%, 최대 1시간" 창 안 아무 때나 울린다
+     * (에뮬레이터 dumpsys: 13시간 뒤 예약 → window +1h). 그대로 걸면 "내일 아침 9시"가 10시에 올 수 있어,
+     * 목표 20분 전 안쪽까지는 미리 깨어나 다시 거는 단계를 둔다. 마지막 단계(20분 이내)의 창은 15분 이하다.
+     * - 80분 넘게 남음: 목표 80분 전 (창 최대 1시간 → 목표 20분 전까지는 울림)
+     * - 20~80분 남음: 울리는 창 끝이 목표 20분 전이 되도록 (T + 0.75 × (T − now) = 목표 − 20분)
+     * - 20분 이내: 목표 시각
+     */
+    fun wakeAt(target: Long, now: Long): Long {
+        val remaining = target - now
+        if (remaining <= FINAL_STAGE_MS) return target
+        val capped = target - FINAL_STAGE_MS - MAX_WINDOW_MS
+        if (capped - now >= MAX_WINDOW_MS / 3 * 4) return capped
+        return now + maxOf(MIN_STAGE_MS, ((remaining - FINAL_STAGE_MS) / 1.75).toLong())
+    }
+
+    private const val FINAL_STAGE_MS = 20 * 60_000L
+    private const val MAX_WINDOW_MS = 60 * 60_000L
+    private const val MIN_STAGE_MS = 60_000L
 }

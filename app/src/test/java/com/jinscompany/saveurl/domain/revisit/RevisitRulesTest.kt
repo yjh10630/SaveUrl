@@ -33,6 +33,32 @@ class RevisitRulesTest {
     }
 
     @Test
+    fun `단계 예약 - 마지막 단계는 20분 안쪽에서 목표 시각, 그 전에는 창이 끝나도 목표 20분 전`() {
+        val min = 60_000L
+        val target = 10_000 * min
+        assertEquals(target, ReminderSync.wakeAt(target, target - 20 * min))
+        assertEquals(target, ReminderSync.wakeAt(target, target - 5 * min))
+        // 멀리 있으면 80분 전 (창 최대 1시간)
+        assertEquals(target - 80 * min, ReminderSync.wakeAt(target, target - 13 * 60 * min))
+        // 20~160분 사이: T + 0.75(T - now) <= 목표 - 20분
+        listOf(21L, 40L, 80L, 120L, 159L).forEach { m ->
+            val now = target - m * min
+            val t = ReminderSync.wakeAt(target, now)
+            assertTrue("$m", t > now)
+            val windowEnd = t + minOf((0.75 * (t - now)).toLong(), 60 * min)
+            assertTrue("$m: $windowEnd", windowEnd <= target - 20 * min + min)
+        }
+        // 가장 일찍 울려도 몇 단계 안에 마지막 단계에 닿는다
+        var now = target - 13 * 60 * min
+        var stages = 0
+        while (target - now > 20 * min) {
+            now = ReminderSync.wakeAt(target, now)
+            stages++
+        }
+        assertTrue("stages=$stages", stages <= 12)
+    }
+
+    @Test
     fun `오늘의 링크는 같은 날 같은 결과, 후보가 없으면 null`() {
         val ids = (1..50).toList()
         assertEquals(RevisitRules.pick(ids, 20_000), RevisitRules.pick(ids, 20_000))

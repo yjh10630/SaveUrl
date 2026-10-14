@@ -82,14 +82,14 @@ class RevisitRepository @Inject constructor(
 
     suspend fun setReminder(linkId: Int, at: Long, preset: ReminderPreset) = mutex.withLock {
         reminderDao.upsert(LinkReminder(linkId = linkId, remindAt = at, createdAt = clock.now(), preset = preset.key))
-        alarms.scheduleLink(linkId, at)
+        alarms.scheduleLink(linkId, ReminderSync.wakeAt(at, clock.now()))
     }
 
     /** 실행 취소·되돌리기용: 예전 예약 그대로 (없으면 지움) */
     suspend fun restoreReminder(linkId: Int, previous: LinkReminder?) {
         if (previous == null) cancelReminder(linkId) else mutex.withLock {
             reminderDao.upsert(previous.copy(id = 0))
-            alarms.scheduleLink(linkId, previous.remindAt)
+            alarms.scheduleLink(linkId, ReminderSync.wakeAt(previous.remindAt, clock.now()))
         }
     }
 
@@ -116,7 +116,7 @@ class RevisitRepository @Inject constructor(
         }
         val now = clock.now()
         when (ReminderSync.onAlarm(reminder.remindAt, now)) {
-            ReminderSync.FireDecision.RESCHEDULE -> alarms.scheduleLink(linkId, reminder.remindAt)
+            ReminderSync.FireDecision.RESCHEDULE -> alarms.scheduleLink(linkId, ReminderSync.wakeAt(reminder.remindAt, now))
             ReminderSync.FireDecision.DROP -> reminderDao.delete(linkId)
             ReminderSync.FireDecision.FIRE -> {
                 reminderDao.delete(linkId)
@@ -137,7 +137,7 @@ class RevisitRepository @Inject constructor(
             }
             val now = clock.now()
             val plan = ReminderSync.plan(reminderDao.getAll().map { it.linkId to it.remindAt }, now)
-            plan.schedule.forEach { (linkId, at) -> alarms.scheduleLink(linkId, at) }
+            plan.schedule.forEach { (linkId, at) -> alarms.scheduleLink(linkId, ReminderSync.wakeAt(at, now)) }
             if (plan.drop.isNotEmpty()) reminderDao.deleteAll(plan.drop)
             val toFire = plan.fireNow.mapNotNull { reminderDao.getUpcoming(it) }
             if (plan.fireNow.isNotEmpty()) reminderDao.deleteAll(plan.fireNow)
@@ -171,7 +171,8 @@ class RevisitRepository @Inject constructor(
 
     private suspend fun syncWeeklyLocked() {
         val enabled = preferences.weeklyDigestEnabled.first() && remoteFlags.weeklyDigestEnabled.value
-        if (enabled) alarms.scheduleWeekly(ReminderTimes.nextWeeklyDigest(clock.now(), clock.zone()))
+        val now = clock.now()
+        if (enabled) alarms.scheduleWeekly(ReminderSync.wakeAt(ReminderTimes.nextWeeklyDigest(now, clock.zone()), now))
         else alarms.cancelWeekly()
     }
 
@@ -184,15 +185,26 @@ class RevisitRepository @Inject constructor(
             }
             val now = clock.now()
             val zone = clock.zone()
-            val (saved, unread) = weeklyCounts(now, zone)
-            val week = ReminderTimes.isoWeekKey(now, zone)
-            if (RevisitRules.shouldSendWeekly(saved, unread, preferences.weeklyLastSentWeek.first(), week) &&
-                preferences.claimWeeklySent(week)
-            ) {
-                notifier.notifyWeekly(saved, unread)
+            val next = ReminderTimes.nextWeeklyDigest(now, zone)
+            // 단계 예약으로 일찍 깼으면 다시 건다 (일요일 20:00 전)
+            if (next - now > WEEKLY_DUE_TOLERANCE_MS && next - now < WEEKLY_EARLY_LIMIT_MS) {
+                alarms.scheduleWeekly(ReminderSync.wakeAt(next, now))
+                return@runCatching
             }
-            // 다음 일요일 (방금 울린 일요일 20:00 이 지났으므로 다음 주)
-            alarms.scheduleWeekly(ReminderTimes.nextWeeklyDigest(now + 60_000L, zone))
+            // 일요일 20:00 이 됐거나 지났음. 너무 늦게(12시간 넘게) 깼으면 이번 주는 건너뛴다
+            val due = if (next - now <= WEEKLY_DUE_TOLERANCE_MS) next else next - WEEK_MS
+            if (now - due <= WEEKLY_LATE_LIMIT_MS) {
+                val (saved, unread) = weeklyCounts(now, zone)
+                val week = ReminderTimes.isoWeekKey(due, zone)
+                if (RevisitRules.shouldSendWeekly(saved, unread, preferences.weeklyLastSentWeek.first(), week) &&
+                    preferences.claimWeeklySent(week)
+                ) {
+                    notifier.notifyWeekly(saved, unread)
+                }
+            }
+            // 다음 일요일 (이번 일요일 20:00 은 지났으므로 그다음)
+            val following = ReminderTimes.nextWeeklyDigest(maxOf(now, due) + 2 * 60_000L, zone)
+            alarms.scheduleWeekly(ReminderSync.wakeAt(following, now))
         }.onFailure { CrashReporter.record(it) }
     }
 
@@ -229,6 +241,11 @@ class RevisitRepository @Inject constructor(
     }
 
     private companion object {
+        const val WEEKLY_DUE_TOLERANCE_MS = 60_000L
+        /** 이보다 많이 남았으면 단계 예약으로 일찍 깬 것이 아니라 일요일이 지난 것 */
+        const val WEEKLY_EARLY_LIMIT_MS = 24 * 60 * 60_000L
+        const val WEEKLY_LATE_LIMIT_MS = 12 * 60 * 60_000L
+        const val WEEK_MS = 7 * 24 * 60 * 60_000L
         const val THUMBNAIL_TIMEOUT_MS = 3_000L
         const val THUMBNAIL_PX = 256
     }
