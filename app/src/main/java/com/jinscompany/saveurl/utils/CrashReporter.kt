@@ -2,6 +2,7 @@ package com.jinscompany.saveurl.utils
 
 import com.google.firebase.crashlytics.ktx.crashlytics
 import com.google.firebase.ktx.Firebase
+import org.jsoup.HttpStatusException
 
 /**
  * Crashlytics 로 나가는 모든 오류는 여기를 거친다. 링크 주소·사이트·제목·카테고리 이름이 서버로 나가지 않게
@@ -13,7 +14,10 @@ import com.google.firebase.ktx.Firebase
  */
 object CrashReporter {
 
-    /** 메시지 없이 원래 예외 종류와 스택만 남긴 예외. Crashlytics 는 스택 프레임으로 묶으므로 그룹은 그대로다. */
+    /**
+     * 메시지 없이 원래 예외 종류와 스택만 남긴 예외. Crashlytics 는 스택 프레임으로 묶으므로 그룹은 그대로다.
+     * release 에서 [originalClassName] 은 R8 로 줄어든 이름일 수 있다(스택 프레임은 매핑 파일로 복원됨).
+     */
     class SanitizedException(
         val originalClassName: String,
         detail: String?,
@@ -41,11 +45,8 @@ object CrashReporter {
 
     /** 메시지 대신 남겨도 되는 값: HTTP 상태 코드처럼 숫자뿐인 정보만 (주소는 버림) */
     private fun safeFieldsOf(t: Throwable): String? {
-        // jsoup HttpStatusException.getStatusCode() — 리플렉션으로 읽어 이 파일이 jsoup 에 묶이지 않게
-        if (t.javaClass.name == "org.jsoup.HttpStatusException") {
-            val code = runCatching { t.javaClass.getMethod("getStatusCode").invoke(t) as? Int }.getOrNull()
-            if (code != null) return "status=$code"
-        }
+        // release 는 R8 로 클래스 이름이 바뀌므로 이름 비교·리플렉션이 아니라 타입으로 판단한다
+        if (t is HttpStatusException) return "status=${t.statusCode}"
         return null
     }
 
