@@ -251,7 +251,8 @@ class MainListViewModel @Inject constructor(
                 MainListIntent.DismissTutorialCard -> preferencesManager.dismissTutorialCard()
                 is MainListIntent.DismissTutorialNewCard -> preferencesManager.dismissTutorialNewCard(intent.versionCode)
                 MainListIntent.RelockCategories -> lockSession.relock()
-                is MainListIntent.PrioritizeMeta -> metaFillScheduler.prioritize(intent.linkId)
+                is MainListIntent.PrioritizeMeta -> metaFillScheduler.prioritize(intent.linkId, intent.explicit)
+                is MainListIntent.CancelPrioritizeMeta -> metaFillScheduler.cancelPriority(intent.linkId)
                 MainListIntent.OpenImport -> _mainListEffect.emit(MainListUiEffect.OpenImport)
                 MainListIntent.OpenImportHistory -> _mainListEffect.emit(MainListUiEffect.OpenImportHistory)
             }

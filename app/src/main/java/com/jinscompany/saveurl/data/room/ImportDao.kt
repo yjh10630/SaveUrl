@@ -12,7 +12,7 @@ import com.jinscompany.saveurl.domain.model.UrlData
 import kotlinx.coroutines.flow.Flow
 
 /** 미리보기 채우기 대상 한 줄 */
-data class MetaFillRow(val id: Int, val url: String?, val title: String?, val metaState: Int)
+data class MetaFillRow(val id: Int, val url: String?, val title: String?, val metaState: Int, val addDate: Long = 0L)
 
 /** 링크 가져오기 (묶음 저장·되돌리기·기록) 와 미리보기 채우기 */
 @Dao
@@ -29,6 +29,10 @@ interface ImportDao {
 
     @Query("DELETE FROM ImportBatch WHERE id = :id")
     suspend fun deleteBatch(id: Long): Int
+
+    /** 넣는 중(IN_PROGRESS)으로 멈췄는데 링크가 하나도 없는 묶음 (앱 시작 때 정리) */
+    @Query("SELECT b.id FROM ImportBatch b WHERE b.state = 1 AND NOT EXISTS (SELECT 1 FROM BaseSaveUrl u WHERE u.importBatchId = b.id)")
+    suspend fun getInterruptedEmptyBatchIds(): List<Long>
 
     /** 가져온 링크. 기존 insertAll(REPLACE) 과 달리 충돌하면 실패한다 (새 행만 넣으므로 충돌하지 않는다) */
     @Insert(onConflict = OnConflictStrategy.ABORT)
@@ -83,11 +87,18 @@ interface ImportDao {
 
     // ---- 미리보기 채우기 (LinkMetaFillWorker) ----
 
-    /** 채울 링크 (최신 날짜부터) */
-    @Query("SELECT id, url, title, metaState FROM BaseSaveUrl WHERE metaState IN (1, 2) ORDER BY addDate DESC LIMIT :limit")
-    suspend fun getPendingMeta(limit: Int): List<MetaFillRow>
+    /**
+     * 채울 링크 (최신 날짜부터). 한 실행 안에서는 ([beforeDate], [beforeId]) 다음부터 이어 읽는다:
+     * 응답이 없어 대기 상태로 남긴 링크를 같은 실행에서 다시 집지 않고, 그 뒤의 링크도 막지 않게.
+     */
+    @Query("""
+        SELECT id, url, title, metaState, addDate FROM BaseSaveUrl
+        WHERE metaState IN (1, 2) AND (addDate < :beforeDate OR (addDate = :beforeDate AND id < :beforeId))
+        ORDER BY addDate DESC, id DESC LIMIT :limit
+    """)
+    suspend fun getPendingMeta(limit: Int, beforeDate: Long, beforeId: Int): List<MetaFillRow>
 
-    @Query("SELECT id, url, title, metaState FROM BaseSaveUrl WHERE id = :id")
+    @Query("SELECT id, url, title, metaState, addDate FROM BaseSaveUrl WHERE id = :id")
     suspend fun getMetaRow(id: Int): MetaFillRow?
 
     @Query("SELECT COUNT(*) FROM BaseSaveUrl WHERE metaState IN (1, 2)")

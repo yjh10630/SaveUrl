@@ -22,6 +22,12 @@ data class LinkMeta(
     /** 미리보기로 쓰기에 충분한지: 메타 기반 제목이 있으면 OK */
     val isGood: Boolean get() = hasTitle && titleFromMeta
 
+    /**
+     * 서버에서 응답을 하나도 못 받았는지 (연결 오류·DNS 실패·시간 초과).
+     * 인터넷이 잠깐 안 되는 경우와 없어진 사이트가 모두 여기에 해당하므로, 영구 실패로 볼지는 호출부가 정한다.
+     */
+    val isUnreachable: Boolean get() = method == METHOD_UNREACHABLE
+
     /** 점수: 제목(메타) > 이미지 > 설명 순으로 가중치 */
     val score: Int
         get() = (if (hasTitle) 4 else 0) + (if (titleFromMeta) 4 else 0) +
@@ -35,3 +41,5 @@ data class LinkMeta(
         siteName = siteName.orEmpty(),
     )
 }
+
+const val METHOD_UNREACHABLE = "unreachable"

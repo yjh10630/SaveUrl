@@ -159,4 +159,17 @@ class LinkPreviewFetcherTest {
         assertFalse(meta.hasTitle)
         assertTrue(http.requests.size <= 30)
     }
+
+    /** 39번 독립 리뷰 R2: 응답을 하나도 못 받으면 "제목 없음"이 아니라 "닿지 않음"으로 구분한다 */
+    @Test
+    fun `연결 오류만 나면 unreachable, 응답이 오면 failed`() {
+        val down = FakeHttp { _, _ -> throw java.net.UnknownHostException("no network") }
+        val unreachable = LinkPreviewFetcher(down, deviceUserAgent = { deviceUa }).fetch("https://example.com/a")
+        assertTrue(unreachable.isUnreachable)
+        assertFalse(unreachable.hasTitle)
+
+        val empty = FakeHttp { _, _ -> html("<html><head></head><body></body></html>") }
+        val failed = LinkPreviewFetcher(empty, deviceUserAgent = { deviceUa }).fetch("https://example.com/a")
+        assertFalse(failed.isUnreachable)
+    }
 }

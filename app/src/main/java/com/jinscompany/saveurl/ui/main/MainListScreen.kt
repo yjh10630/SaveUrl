@@ -113,6 +113,7 @@ import com.jinscompany.saveurl.ui.navigation.navigateToImport
 import com.jinscompany.saveurl.ui.navigation.navigateToImportHistory
 import androidx.compose.material.icons.outlined.WifiOff
 import androidx.compose.material3.CircularProgressIndicator
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.Row
 import com.jinscompany.saveurl.ui.theme.AppDimens
@@ -442,7 +443,8 @@ fun MainListScreen(
             metaFillProgress = metaFillProgress,
             metaFillCellular = metaFillCellular,
             onMetaFillCardClick = { viewModel.onIntent(MainListIntent.OpenImportHistory) },
-            onPrioritizeMeta = { id -> viewModel.onIntent(MainListIntent.PrioritizeMeta(id)) },
+            onPrioritizeMeta = { id, explicit -> viewModel.onIntent(MainListIntent.PrioritizeMeta(id, explicit)) },
+            onCancelPrioritizeMeta = { id -> viewModel.onIntent(MainListIntent.CancelPrioritizeMeta(id)) },
         )
     }
 }
@@ -486,7 +488,8 @@ fun MainListScreen(
     metaFillCellular: Boolean = false,
     onMetaFillCardClick: () -> Unit = {},
     /** 미리보기를 기다리는 카드가 1초 넘게 보였거나 실패한 링크를 열었을 때 */
-    onPrioritizeMeta: (Int) -> Unit = {},
+    onPrioritizeMeta: (id: Int, explicit: Boolean) -> Unit = { _, _ -> },
+    onCancelPrioritizeMeta: (Int) -> Unit = {},
 ) {
     val colors = AppTheme.colors
     val tutorialCardVisible = tutorialCard != TutorialCardMode.Hidden
@@ -617,10 +620,18 @@ fun MainListScreen(
                             Spacer(modifier = Modifier.height(4.dp))
                         }
                         if (MetaState.isPending(item.metaState)) {
-                            // 화면에 1초 넘게 보이면 그 링크를 먼저 채운다 (모바일 데이터 허용, 동시 1개)
+                            // 화면에 1초 넘게 보이면 그 링크를 먼저 채운다 (모바일 데이터 허용, 동시 1개).
+                            // 화면에서 사라지면 기다리던 요청을 뺀다 (목록을 훑어도 요청이 쌓이지 않게)
                             LaunchedEffect(item.id) {
-                                delay(PENDING_VISIBLE_MS)
-                                onPrioritizeMeta(item.id)
+                                var requested = false
+                                try {
+                                    delay(PENDING_VISIBLE_MS)
+                                    requested = true
+                                    onPrioritizeMeta(item.id, false)
+                                    awaitCancellation()
+                                } finally {
+                                    if (requested) onCancelPrioritizeMeta(item.id)
+                                }
                             }
                         }
                         LinkListItem(
@@ -628,7 +639,7 @@ fun MainListScreen(
                             viewMode = viewMode,
                             onClick = {
                                 // 미리보기를 못 가져온 링크는 열 때 다시 시도
-                                if (item.metaState == MetaState.FAILED) onPrioritizeMeta(item.id)
+                                if (item.metaState == MetaState.FAILED) onPrioritizeMeta(item.id, true)
                                 onLinkItemClick.invoke(item.url)
                             },
                             onLongClick = { onLinkItemLongClick.invoke(item) },

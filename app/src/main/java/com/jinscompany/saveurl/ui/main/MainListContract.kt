@@ -41,7 +41,10 @@ sealed class MainListIntent {
     /** [다시 잠그기] 칩 */
     data object RelockCategories: MainListIntent()
     /** 미리보기를 기다리는 카드가 1초 넘게 보였거나, 실패한 링크를 열었을 때: 그 링크를 먼저 채운다 */
-    data class PrioritizeMeta(val linkId: Int): MainListIntent()
+    /** [explicit] = 링크를 직접 열었음 (화면에서 사라져도 취소하지 않음) */
+    data class PrioritizeMeta(val linkId: Int, val explicit: Boolean = false): MainListIntent()
+    /** 기다리던 카드가 화면에서 사라짐 */
+    data class CancelPrioritizeMeta(val linkId: Int): MainListIntent()
     /** 빈 화면 "카톡·북마크에서 가져오기" */
     data object OpenImport: MainListIntent()
     /** "미리보기 채우는 중" 상태 카드 → 가져오기 기록 */
