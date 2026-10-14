@@ -1,0 +1,8 @@
+나와의 채팅 님과 카카오톡 대화
+저장한 날짜 : 2026년 9월 18일 오후 7:25
+
+2026년 1월 10일 오후 2:00, 나 : 저장용 https://brunch.co.kr/@author/12
+전달 메시지:
+2020년 5월 5일 오전 10:00, 옛날사람 : 예전에 공유한 https://old.example.com/post
+이어지는 줄 https://next.example.com/a,https://next2.example.com/b
+2026년 1월 11일 오전 9:00, 나 : 마지막 https://last.example.com/x.

@@ -1,0 +1,6 @@
+id,url,imageUrl,siteName,title,description,tagList,addDate,category,isBookMark,isRead,normalizedUrl,categoryLocked
+1,https://blog.naver.com/a/1,https://img.example.com/1.jpg,네이버 블로그,"제목, 쉼표 포함","여러 줄
+설명","[""레시피"",""주말""]",1700000000000,요리,true,false,https://blog.naver.com/a/1,false
+2,https://shop.example.com/p/2,,쇼핑몰,비밀 상품,,[],1700000001000,쇼핑,false,true,https://shop.example.com/p/2,true
+3,https://news.example.com/3,,,,,[],1700000002000,,false,false,,false
+4,javascript:void(0),,,잘못된 링크,,[],1700000003000,요리,false,false,,false
