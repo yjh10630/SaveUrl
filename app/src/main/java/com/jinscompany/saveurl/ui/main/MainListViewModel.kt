@@ -58,6 +58,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -181,9 +182,13 @@ class MainListViewModel @Inject constructor(
         viewModelScope.launch { preferencesManager.setAutoCategoryLaunchCardDone() }
     }
 
-    /** 제안 스낵바 "규칙 만들기" (1탭 수락). @return 규칙 id */
-    suspend fun acceptSuggestion(suggestion: RuleSuggestion): Long =
+    /**
+     * 제안 스낵바 "규칙 만들기" (1탭 수락). @return 규칙 id
+     * ViewModel 범위에서 저장한다: 누른 직후 화면을 떠나 스낵바 코루틴이 취소돼도 규칙은 만들어진다.
+     */
+    suspend fun acceptSuggestion(suggestion: RuleSuggestion): Long = viewModelScope.async {
         autoCategoryRepository.createOrActivate(suggestion.key, suggestion.categoryId, AutoRuleSource.SUGGESTION)
+    }.await()
 
     /** 수락 확인 스낵바 "되돌리기": 규칙 삭제 (거절로 남기지 않음) */
     fun undoAcceptedSuggestion(ruleId: Long) {
