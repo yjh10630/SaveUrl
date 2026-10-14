@@ -1,6 +1,7 @@
 package com.jinscompany.saveurl.ui.main
 
 import com.jinscompany.saveurl.domain.lock.CategoryLockSession
+import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.importer.FakeImportRepository
 import com.jinscompany.saveurl.domain.importer.FakeMetaFillScheduler
 import com.jinscompany.saveurl.ui.importer.MainListRequests
@@ -39,7 +40,7 @@ class MainListViewModelRelockTest {
         val preferencesManager: PreferencesManager = mockk(relaxed = true) {
             every { isInitFirstRun } returns flowOf(true)
         }
-        val getCategoriesUseCase: GetCategoriesUseCase = mockk { coEvery { this@mockk.invoke(any()) } returns emptyList() }
+        val getCategoriesUseCase: GetCategoriesUseCase = mockk { coEvery { this@mockk.invoke(any()) } returns listOf(CategoryModel(name = "카톡 맛집 탐방")) }
         val observeLocked: ObserveLockedCategoriesUseCase = mockk {
             every { this@mockk.invoke() } returns MutableStateFlow(listOf("쇼핑"))
         }
@@ -80,6 +81,14 @@ class MainListViewModelRelockTest {
         assertEquals(MainTab.RECENT, vm.selectedTab.value)
         // 한 번만 쓴다
         assertEquals(null, mainListRequests.takeCategory())
+    }
+
+    @Test
+    fun `보고 있던 카테고리가 사라지면(되돌리기) 전체로 돌아간다`() = runTest {
+        mainListRequests.showCategory("없어진 카테고리")
+        val vm = viewModel()
+        advanceUntilIdle()
+        assertEquals(listOf(FilterDefaults.CATEGORY_ALL), vm.filterSelectedItems.value.categories)
     }
 
     @Test
