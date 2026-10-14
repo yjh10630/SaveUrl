@@ -51,4 +51,33 @@ class ImportCommitRunnerTest {
         assertTrue(repo.links.isEmpty())
         assertTrue(repo.categories.isEmpty())
     }
+
+    /** 39번 독립 리뷰 R5: 저장 공간이 꽉 차 되돌리기도 실패해도 앱이 죽지 않고, "넣는 중"으로 남아 다음 가져오기를 막지 않는다 */
+    @Test
+    fun `되돌리기까지 실패해도 실패 상태로 끝나고 다음 가져오기를 받는다`() = runTest {
+        val repo = FakeImportRepository(failAfterChunks = 1, failRollback = true)
+        val runner = ImportCommitRunner(repo, FakeMetaFillScheduler(), TestScope(UnconfinedTestDispatcher(testScheduler)))
+        runner.start(request(5))
+        advanceUntilIdle()
+        assertEquals(CommitState.Failed(ImportError.STORAGE_FULL), runner.state.value)
+        assertEquals(null, runner.runningBatchId)
+
+        runner.reset()
+        runner.start(request(1))
+        advanceUntilIdle()
+        assertTrue(runner.state.value is CommitState.Done)
+    }
+
+    /** 39번 독립 리뷰 R7: 앱 시작 정리가 끝난 뒤에 넣기를 시작한다 */
+    @Test
+    fun `시작 정리는 한 번만 돌고 넣기보다 먼저 끝난다`() = runTest {
+        val repo = FakeImportRepository()
+        val runner = ImportCommitRunner(repo, FakeMetaFillScheduler(), TestScope(UnconfinedTestDispatcher(testScheduler)))
+        runner.cleanupInterrupted()
+        runner.cleanupInterrupted()
+        runner.start(request(2))
+        advanceUntilIdle()
+        assertEquals(1, repo.cleanups)
+        assertTrue(runner.state.value is CommitState.Done)
+    }
 }

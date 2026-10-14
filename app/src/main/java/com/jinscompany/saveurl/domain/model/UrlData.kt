@@ -2,12 +2,17 @@ package com.jinscompany.saveurl.domain.model
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-@Entity(tableName = "BaseSaveUrl")
+@Entity(
+    tableName = "BaseSaveUrl",
+    // 가져오기 기록(묶음별 개수)·되돌리기, 미리보기 채우기 대기열·상태 카드 (Room v6)
+    indices = [Index(value = ["importBatchId", "metaState"]), Index(value = ["metaState", "addDate"])],
+)
 data class UrlData(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     @ColumnInfo(name = "url") val url: String? = null,

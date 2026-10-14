@@ -35,6 +35,9 @@ interface ImportRepository {
     /** 취소·실패: 이 묶음이 넣은 링크·만든 빈 카테고리·묶음 행까지 지워 가져오기 전으로 돌린다 */
     suspend fun rollback(batchId: Long)
 
+    /** 앱 시작 때: 링크 없이 멈춘 "넣는 중" 묶음을 [rollback] 한다 (프로세스가 죽은 경우). 정리한 수 */
+    suspend fun cleanupInterrupted(): Int
+
     /** 되돌리기: 링크와 비게 된 새 카테고리를 지우고 기록에 "되돌림"으로 남긴다 (휴지통을 거치지 않음) */
     suspend fun undo(batchId: Long): ImportUndoResult
 

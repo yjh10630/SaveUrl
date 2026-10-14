@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.flowOf
 internal class FakeImportRepository(
     initialKeys: Set<String> = emptySet(),
     private val failAfterChunks: Int? = null,
+    /** 저장 공간이 꽉 차 되돌리기도 실패하는 경우 */
+    private val failRollback: Boolean = false,
 ) : ImportRepository {
     val links = LinkedHashMap<String, Long?>().apply { initialKeys.forEach { put(it, null) } }
     val categories = LinkedHashSet<String>()
@@ -47,8 +49,13 @@ internal class FakeImportRepository(
         return ImportCommitResult(batchId, inserted, skipped, created)
     }
 
+    var cleanups = 0
+
+    override suspend fun cleanupInterrupted(): Int { cleanups++; return 0 }
+
     override suspend fun rollback(batchId: Long) {
         rollbacks++
+        if (failRollback) throw IllegalStateException("database or disk is full")
         links.entries.removeAll { it.value == batchId }
         batches.remove(batchId)?.forEach { categories.remove(it) }
     }
@@ -69,5 +76,6 @@ internal class FakeMetaFillScheduler : MetaFillScheduler {
     var scheduled = 0
     val prioritized = ArrayList<Int>()
     override fun schedule() { scheduled++ }
-    override fun prioritize(linkId: Int) { prioritized.add(linkId) }
+    override fun prioritize(linkId: Int, explicit: Boolean) { prioritized.add(linkId) }
+    override fun cancelPriority(linkId: Int) { prioritized.remove(linkId) }
 }

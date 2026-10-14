@@ -22,6 +22,11 @@ data class ImportBatch(
     @ColumnInfo(name = "insertedCount") val insertedCount: Int = 0,
     /** 이 가져오기가 새로 만든 카테고리. 되돌릴 때 비어 있으면 지운다 */
     @ColumnInfo(name = "createdCategories") val createdCategories: List<String> = emptyList(),
+    /**
+     * 백업 파일 때문에 이번에 잠근 "이미 있던" 카테고리. 취소·실패로 되돌릴 때 다시 푼다
+     * (되돌리기[undo]는 풀지 않음: 잠금은 더 안전한 쪽이고, 그사이 사용자가 직접 잠갔는지 구분할 수 없다)
+     */
+    @ColumnInfo(name = "lockedCategories") val lockedCategories: List<String> = emptyList(),
     /** [ImportBatchState] */
     @ColumnInfo(name = "state") val state: Int = ImportBatchState.IN_PROGRESS,
     /** 되돌린 시각 (되돌린 행은 30일 뒤 기록에서 숨김) */

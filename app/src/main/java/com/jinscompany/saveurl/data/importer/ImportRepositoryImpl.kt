@@ -59,18 +59,20 @@ class ImportRepositoryImpl(
         onProgress: (done: Int, total: Int) -> Unit,
     ): ImportCommitResult {
         val total = request.records.size
-        val batchId = importDao.insertBatch(
-            ImportBatch(
-                source = request.format.sourceKey(),
-                label = request.label,
-                createdAt = clock(),
-                requestedCount = total,
-                state = ImportBatchState.IN_PROGRESS,
-            )
-        )
-        onBatchCreated(batchId)
+        // 묶음 행을 넣은 직후 취소가 와도 id 를 넘겨 두어야 되돌릴 수 있다 (39번 독립 리뷰 R7)
+        val batchId = withContext(NonCancellable) {
+            importDao.insertBatch(
+                ImportBatch(
+                    source = request.format.sourceKey(),
+                    label = request.label,
+                    createdAt = clock(),
+                    requestedCount = total,
+                    state = ImportBatchState.IN_PROGRESS,
+                )
+            ).also(onBatchCreated)
+        }
 
-        // 1) 카테고리 준비 (필요한 것만 맨 뒤 순서로, 같은 이름은 합침) + 백업의 잠금 카테고리. 만든 이름은 묶음에 적어 둔다
+        // 1) 카테고리 준비 (필요한 것만 맨 뒤 순서로, 같은 이름은 합침). 새로 만드는 카테고리는 백업대로 잠근다. 만든 이름은 묶음에 적어 둔다
         val created = db.withTransaction {
             val categoryDao = db.categoryDao()
             val made = ArrayList<String>()
@@ -81,12 +83,6 @@ class ImportRepositoryImpl(
                     categoryDao.insert(CategoryModel(name = name, order = order, isLocked = name in request.lockCategories))
                     made.add(name)
                 }
-            }
-            // 이미 있던 카테고리는 잠그는 쪽으로만 (풀지 않음, 37번 8.2)
-            for (name in request.lockCategories) {
-                val existing = categoryDao.get(name) ?: continue
-                if (existing.isEditable && !existing.isLocked) categoryDao.setLocked(name, true)
-                db.domainCategoryDao().deleteByCategory(name)
             }
             // 미분류 행이 없어서 이번에 만들었으면 기록해 둔다 (취소·되돌리기 때 비었으면 지워 "가져오기 전과 같게")
             if (request.records.any { it.category == null } && ensureUncategorized()) made.add(CategoryModel.UNCATEGORIZED)
@@ -129,7 +125,24 @@ class ImportRepositoryImpl(
             done += chunk.size
             onProgress(done, total)
         }
-        importDao.getBatch(batchId)?.let { importDao.updateBatch(it.copy(state = ImportBatchState.DONE, insertedCount = inserted)) }
+        // 3) 이미 있던 카테고리를 백업대로 잠그는 것은 링크를 다 넣은 뒤 완료 표시와 같은 트랜잭션에서 한다.
+        //    중간에 취소·실패하면 기존 카테고리와 자동 분류 학습값은 건드리지 않은 상태로 남는다 (39번 독립 리뷰 R6)
+        db.withTransaction {
+            val categoryDao = db.categoryDao()
+            val lockedNow = ArrayList<String>()
+            // 잠그는 쪽으로만 (풀지 않음, 37번 8.2)
+            for (name in request.lockCategories) {
+                val existing = categoryDao.get(name) ?: continue
+                if (existing.isEditable && !existing.isLocked) {
+                    categoryDao.setLocked(name, true)
+                    lockedNow.add(name)
+                }
+                db.domainCategoryDao().deleteByCategory(name)
+            }
+            importDao.getBatch(batchId)?.let {
+                importDao.updateBatch(it.copy(state = ImportBatchState.DONE, insertedCount = inserted, lockedCategories = lockedNow))
+            }
+        }
         return ImportCommitResult(batchId, inserted, skipped, created)
     }
 
@@ -138,9 +151,18 @@ class ImportRepositoryImpl(
             val batch = importDao.getBatch(batchId)
             importDao.deleteLinksOfBatch(batchId)
             batch?.createdCategories?.forEach { deleteIfEmpty(it) }
+            // 이번 가져오기가 잠근 기존 카테고리는 다시 푼다 ("가져오기 전과 같게")
+            batch?.lockedCategories?.forEach { db.categoryDao().setLocked(it, false) }
             importDao.deleteBatch(batchId)
         }
         Unit
+    }
+
+    override suspend fun cleanupInterrupted(): Int = withContext(Dispatchers.IO + NonCancellable) {
+        // 앱이 막 시작해서 넣는 중인 묶음은 없다. 링크가 하나도 안 들어간 채 멈춘 묶음은 기록에 되돌릴 수 없는 줄로 남으므로 지운다
+        val stale = importDao.getInterruptedEmptyBatchIds()
+        stale.forEach { rollback(it) }
+        stale.size
     }
 
     override suspend fun undo(batchId: Long): ImportUndoResult = withContext(Dispatchers.IO + NonCancellable) {

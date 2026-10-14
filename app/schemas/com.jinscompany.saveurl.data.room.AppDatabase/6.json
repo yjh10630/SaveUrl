@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 6,
-    "identityHash": "2805bd70eafce289d2673ba5e57e72b7",
+    "identityHash": "692636b095e2c4143cbc6969a75605f3",
     "entities": [
       {
         "tableName": "BaseSaveUrl",
@@ -102,7 +102,28 @@
             "id"
           ]
         },
-        "indices": [],
+        "indices": [
+          {
+            "name": "index_BaseSaveUrl_importBatchId_metaState",
+            "unique": false,
+            "columnNames": [
+              "importBatchId",
+              "metaState"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_BaseSaveUrl_importBatchId_metaState` ON `${TABLE_NAME}` (`importBatchId`, `metaState`)"
+          },
+          {
+            "name": "index_BaseSaveUrl_metaState_addDate",
+            "unique": false,
+            "columnNames": [
+              "metaState",
+              "addDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_BaseSaveUrl_metaState_addDate` ON `${TABLE_NAME}` (`metaState`, `addDate`)"
+          }
+        ],
         "foreignKeys": []
       },
       {
@@ -277,7 +298,7 @@
       },
       {
         "tableName": "ImportBatch",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `source` TEXT NOT NULL, `label` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `requestedCount` INTEGER NOT NULL, `insertedCount` INTEGER NOT NULL, `createdCategories` TEXT NOT NULL, `state` INTEGER NOT NULL, `undoneAt` INTEGER)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `source` TEXT NOT NULL, `label` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `requestedCount` INTEGER NOT NULL, `insertedCount` INTEGER NOT NULL, `createdCategories` TEXT NOT NULL, `lockedCategories` TEXT NOT NULL, `state` INTEGER NOT NULL, `undoneAt` INTEGER)",
         "fields": [
           {
             "fieldPath": "id",
@@ -322,6 +343,12 @@
             "notNull": true
           },
           {
+            "fieldPath": "lockedCategories",
+            "columnName": "lockedCategories",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
             "fieldPath": "state",
             "columnName": "state",
             "affinity": "INTEGER",
@@ -347,7 +374,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2805bd70eafce289d2673ba5e57e72b7')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '692636b095e2c4143cbc6969a75605f3')"
     ]
   }
 }

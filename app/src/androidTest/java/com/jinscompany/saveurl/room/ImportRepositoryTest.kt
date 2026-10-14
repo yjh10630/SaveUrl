@@ -6,10 +6,12 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.jinscompany.saveurl.data.importer.ImportRepositoryImpl
 import com.jinscompany.saveurl.data.room.AppDatabase
+import com.jinscompany.saveurl.data.room.DomainCategoryEntity
 import com.jinscompany.saveurl.domain.importer.ImportCommitRequest
 import com.jinscompany.saveurl.domain.importer.ImportFormat
 import com.jinscompany.saveurl.domain.importer.ImportRecord
 import com.jinscompany.saveurl.domain.model.CategoryModel
+import com.jinscompany.saveurl.domain.model.ImportBatch
 import com.jinscompany.saveurl.domain.model.ImportBatchState
 import com.jinscompany.saveurl.domain.model.MetaState
 import com.jinscompany.saveurl.domain.model.TrashItem
@@ -172,5 +174,51 @@ class ImportRepositoryTest {
         db.trashDao().insert(TrashItem(id = 99, url = "u", imgUrl = "", siteName = "", title = "", description = "", tagList = emptyList(), addDate = 0, category = "개발", isBookMark = false))
         repo.undo(result.batchId)
         assertNotNull(db.categoryDao().get("개발"))
+    }
+
+    /** 39번 독립 리뷰 R6: 백업이 기존 카테고리를 잠그는 건 다 넣은 뒤. 중간에 실패하면 기존 카테고리·학습값은 그대로 */
+    @Test
+    fun failedBackupImportLeavesExistingCategoryUnlocked() = runBlocking {
+        db.domainCategoryDao().insert(DomainCategoryEntity(domain = "food.example.com", category = "맛집"))
+        var batchId = 0L
+        val error = runCatching {
+            repo.commit(
+                request(listOf(record(1, "맛집")), lock = setOf("맛집")),
+                { batchId = it },
+                { done, _ -> if (done > 0) throw IllegalStateException("disk full") },
+            )
+        }.exceptionOrNull()
+        assertNotNull(error)
+        repo.rollback(batchId)
+        assertFalse(db.categoryDao().get("맛집")!!.isLocked)
+        assertNotNull(db.domainCategoryDao().get("food.example.com"))
+        assertEquals(1, db.baseSaveUrlDao().get().size)
+    }
+
+    /** 39번 독립 리뷰 R6: 완료 직후 롤백(취소가 늦게 도착)해도 이번에 잠근 기존 카테고리는 다시 풀린다 */
+    @Test
+    fun rollbackAfterDoneUnlocksCategoriesLockedByImport() = runBlocking {
+        val result = repo.commit(request(listOf(record(1, "맛집")), lock = setOf("맛집")), {}, { _, _ -> })
+        assertTrue(db.categoryDao().get("맛집")!!.isLocked)
+        assertEquals(listOf("맛집"), db.importDao().getBatch(result.batchId)!!.lockedCategories)
+        repo.rollback(result.batchId)
+        assertFalse(db.categoryDao().get("맛집")!!.isLocked)
+    }
+
+    /** 39번 독립 리뷰 R7: 링크 없이 "넣는 중"으로 멈춘 묶음과 그 묶음이 만든 빈 카테고리는 앱 시작 때 지운다 */
+    @Test
+    fun cleanupRemovesInterruptedEmptyBatches() = runBlocking {
+        db.categoryDao().insert(CategoryModel(name = "빈 폴더", order = 2))
+        val stale = db.importDao().insertBatch(
+            ImportBatch(source = "bookmark", label = "b.html", createdAt = 1L, requestedCount = 3, createdCategories = listOf("빈 폴더"))
+        )
+        val partial = repo.commit(request(listOf(record(1, null))), {}, { _, _ -> }).batchId
+        db.importDao().getBatch(partial)!!.let { db.importDao().updateBatch(it.copy(state = ImportBatchState.IN_PROGRESS)) }
+
+        assertEquals(1, repo.cleanupInterrupted())
+        assertNull(db.importDao().getBatch(stale))
+        assertNull(db.categoryDao().get("빈 폴더"))
+        // 링크가 들어간 "일부만 가져옴" 묶음은 기록에서 되돌릴 수 있게 남긴다
+        assertNotNull(db.importDao().getBatch(partial))
     }
 }
