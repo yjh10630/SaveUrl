@@ -101,4 +101,26 @@ class AutoCategoryMatcherTest {
         assertNull(AutoRuleStats.commonOverrideCategoryId(base.copy(recentCategoryIds = listOf("0", "0"))))
         assertNull(AutoRuleStats.commonOverrideCategoryId(base.copy(recentCategoryIds = listOf("3", "3"))))
     }
+
+    @Test
+    fun `이긴 규칙이 꺼진 규칙 뒤의 넓은 규칙으로 바뀌지 않도록, 판정은 켜진 규칙 전부로 (R1)`() {
+        val rules = listOf(
+            rule(RuleMatchType.HOST, "blog.naver.com", 2),
+            rule(RuleMatchType.PATH, "blog.naver.com/seoul_eat", 9),
+        )
+        // 주인 규칙이 이긴다 (부르는 쪽이 잠금 카테고리면 "선택 안 함"으로 바꾼다)
+        assertEquals(9, match("https://blog.naver.com/seoul_eat/1", rules))
+        assertEquals(RuleKey(RuleMatchType.PATH, "blog.naver.com/seoul_eat"),
+            AutoCategoryMatcher.winningKey(AutoCategoryKeys.keysOf("https://blog.naver.com/seoul_eat/1")!!, rules.map { it.key }))
+    }
+
+    @Test
+    fun `winningKey - 주인 키, 긴 호스트, 없으면 null`() {
+        val keys = AutoCategoryKeys.keysOf("https://docs.google.com/document/1")!!
+        val google = RuleKey(RuleMatchType.HOST, "google.com")
+        val docs = RuleKey(RuleMatchType.HOST, "docs.google.com")
+        assertEquals(docs, AutoCategoryMatcher.winningKey(keys, listOf(google, docs)))
+        assertEquals(google, AutoCategoryMatcher.winningKey(keys, listOf(google)))
+        assertNull(AutoCategoryMatcher.winningKey(keys, listOf(RuleKey(RuleMatchType.HOST, "naver.com"))))
+    }
 }

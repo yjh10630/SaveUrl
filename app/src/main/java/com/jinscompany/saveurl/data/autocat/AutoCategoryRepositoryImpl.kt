@@ -4,9 +4,9 @@ import androidx.room.withTransaction
 import com.jinscompany.saveurl.data.room.AppDatabase
 import com.jinscompany.saveurl.data.room.AutoCategoryRuleDao
 import com.jinscompany.saveurl.domain.autocat.AutoCategoryKeys
+import com.jinscompany.saveurl.domain.autocat.AutoCategoryMatcher
 import com.jinscompany.saveurl.domain.autocat.AutoRuleStats
 import com.jinscompany.saveurl.domain.autocat.RuleKey
-import com.jinscompany.saveurl.domain.autocat.RuleMatchType
 import com.jinscompany.saveurl.domain.autocat.RuleSuggester
 import com.jinscompany.saveurl.domain.autocat.RuleSuggestion
 import com.jinscompany.saveurl.domain.autocat.SuggestThresholds
@@ -119,12 +119,12 @@ class AutoCategoryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun linksForKey(key: RuleKey): List<AutoCatLinkRow> = withContext(Dispatchers.IO) {
+        // 저장할 때 이 규칙이 고를 링크만: 더 구체적인 켜진 규칙(잠금 카테고리 규칙 포함)이 이기는 링크는 빼고 (40번 독립 리뷰 R3).
+        // 만들기 전이면 이 키를 임시로 넣어 판정한다
+        val ruleKeys = dao.getAll().filter { it.ruleState == AutoRuleState.ACTIVE }.mapTo(HashSet()) { it.key }.apply { add(key) }
         dao.getVisibleLinkRows().filter { row ->
             val keys = AutoCategoryKeys.keysOf(row.url) ?: return@filter false
-            when (key.type) {
-                RuleMatchType.PATH -> keys.ownerKey == key
-                RuleMatchType.HOST -> AutoCategoryKeys.hostMatches(key.pattern, keys.host)
-            }
+            AutoCategoryMatcher.winningKey(keys, ruleKeys) == key
         }
     }
 

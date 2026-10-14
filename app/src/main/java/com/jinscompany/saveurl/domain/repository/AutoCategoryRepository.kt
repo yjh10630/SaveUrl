@@ -29,7 +29,7 @@ interface AutoCategoryRepository {
 
     suspend fun getRule(id: Long): AutoRuleWithCategory?
 
-    /** 저장 화면 판정용 규칙 (켜짐 + 잠금 카테고리 아님) */
+    /** 저장 화면 판정용 규칙 (켜진 규칙 전부, 잠금 카테고리 포함: [com.jinscompany.saveurl.domain.autocat.matchFor] 가 거른다) */
     suspend fun getApplicableRules(): List<AutoRuleWithCategory>
 
     suspend fun findByKey(key: RuleKey): AutoCategoryRule?

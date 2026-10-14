@@ -9,7 +9,8 @@ import com.jinscompany.saveurl.domain.repository.AutoCategoryRepository
  * 저장할 URL 에 맞는 규칙 고르기 (33번 §2.2).
  *
  * 더 구체적인 규칙이 이긴다: 주인 규칙(PATH) > 긴 호스트 > 짧은 호스트. 같은 키에는 규칙이 하나뿐이라 충돌은 없다.
- * 켜진(ACTIVE) 규칙만 본다. 잠금 카테고리를 가리키는 규칙은 부르는 쪽에서 미리 뺀다.
+ * 켜진(ACTIVE) 규칙만 본다. 잠금 카테고리를 가리키는 규칙도 **후보에 넣고** 이기면 부르는 쪽이 "선택 안 함"으로 바꾼다
+ * (미리 빼면 더 넓은 규칙이 대신 이겨 "이 블로거는 비밀로" 한 링크가 보이는 카테고리로 간다, 40번 독립 리뷰 R1).
  */
 object AutoCategoryMatcher {
 
@@ -20,12 +21,22 @@ object AutoCategoryMatcher {
 
     fun <T> match(keys: UrlKeys, rules: List<T>, ruleOf: (T) -> AutoCategoryRule): T? {
         val active = rules.filter { ruleOf(it).ruleState == AutoRuleState.ACTIVE }
-        keys.ownerKey?.let { owner ->
-            active.firstOrNull { ruleOf(it).key == owner }?.let { return it }
+        val winner = winningKey(keys, active.map { ruleOf(it).key }) ?: return null
+        return active.firstOrNull { ruleOf(it).key == winner }
+    }
+
+    /**
+     * [ruleKeys] (켜진 규칙의 키) 중 [keys] 에 이기는 키. 규칙 시트 분포·기존 링크 적용·제안 근거도 같은 판정을 쓴다
+     * (저장할 때 그 규칙이 고르지 않을 링크를 옮기거나 세지 않게, 40번 독립 리뷰 R2·R3).
+     */
+    fun winningKey(keys: UrlKeys, ruleKeys: Collection<RuleKey>): RuleKey? {
+        keys.ownerKey?.let { owner -> if (owner in ruleKeys) return owner }
+        var best: RuleKey? = null
+        for (key in ruleKeys) {
+            if (key.type != RuleMatchType.HOST || !AutoCategoryKeys.hostMatches(key.pattern, keys.host)) continue
+            if (best == null || key.pattern.length > best.pattern.length) best = key
         }
-        return active
-            .filter { val key = ruleOf(it).key; key.type == RuleMatchType.HOST && AutoCategoryKeys.hostMatches(key.pattern, keys.host) }
-            .maxByOrNull { ruleOf(it).pattern.length }
+        return best
     }
 }
 
@@ -74,6 +85,9 @@ object AutoRuleStats {
     }
 }
 
-/** URL 에 맞는 저장 화면 규칙 (잠금 카테고리·꺼진 규칙 제외) */
+/**
+ * URL 에 맞는 저장 화면 규칙 (꺼진 규칙 제외). 이긴 규칙이 잠금 카테고리를 가리키면 null = "선택 안 함"
+ * (세션이 열려 있어도: 저장 화면에 잠금 이름을 미리 띄우지 않는다. 더 넓은 규칙으로 넘어가지도 않는다)
+ */
 suspend fun AutoCategoryRepository.matchFor(url: String?): AutoRuleWithCategory? =
-    AutoCategoryMatcher.match(url, getApplicableRules()) { it.rule }
+    AutoCategoryMatcher.match(url, getApplicableRules()) { it.rule }?.takeUnless { it.categoryLocked }

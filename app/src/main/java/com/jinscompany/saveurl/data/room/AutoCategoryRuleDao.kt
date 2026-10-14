@@ -30,11 +30,14 @@ interface AutoCategoryRuleDao {
     """)
     suspend fun getAllWithCategory(): List<AutoRuleWithCategory>
 
-    /** 저장 화면 판정용: 켜진 규칙 중 잠금 카테고리가 아닌 것 (잠금 카테고리 이름이 저장 화면에 보이면 안 됨) */
+    /**
+     * 저장 화면 판정용: 켜진 규칙 전부 (잠금 카테고리 포함). 잠금 카테고리 규칙이 이기면 판정 쪽이 "선택 안 함"으로 바꾼다
+     * (여기서 빼면 더 넓은 규칙이 대신 이긴다, 40번 독립 리뷰 R1)
+     */
     @Query("""
         SELECT r.*, c.name AS categoryName, c.isLocked AS categoryLocked, c.`order` AS categoryOrder
         FROM AutoCategoryRule r JOIN Category c ON c.id = r.categoryId
-        WHERE r.state = 'ACTIVE' AND c.isLocked = 0
+        WHERE r.state = 'ACTIVE'
     """)
     suspend fun getApplicable(): List<AutoRuleWithCategory>
 

@@ -171,4 +171,36 @@ class AutoCategoryRepositoryTest {
         assertTrue(db.autoCategoryRuleDao().getAll().isEmpty())
         assertNotNull(db.categoryDao().get("레시피"))
     }
+
+    @Test
+    fun lockedSpecificRuleDoesNotFallThroughToBroaderRule() = runBlocking {
+        // 40번 독립 리뷰 R1: 블로거 규칙이 잠금 카테고리를 가리키면 사이트 전체 규칙으로 넘어가지 않고 "선택 안 함"
+        repo.createOrActivate(RuleKey(RuleMatchType.PATH, "blog.naver.com/seoul_eat"), id("쇼핑"), AutoRuleSource.SAVE_SCREEN)
+        repo.createOrActivate(RuleKey(RuleMatchType.HOST, "blog.naver.com"), id("여행"), AutoRuleSource.SAVE_SCREEN)
+        assertNull(repo.matchFor("https://blog.naver.com/seoul_eat/1"))
+        assertEquals("여행", repo.matchFor("https://blog.naver.com/other/1")?.categoryName)
+        // 긴 호스트 규칙도 같다
+        repo.createOrActivate(RuleKey(RuleMatchType.HOST, "news.naver.com"), id("쇼핑"), AutoRuleSource.SAVE_SCREEN)
+        repo.createOrActivate(RuleKey(RuleMatchType.HOST, "naver.com"), id("여행"), AutoRuleSource.SAVE_SCREEN)
+        assertNull(repo.matchFor("https://n.news.naver.com/article/1"))
+    }
+
+    @Test
+    fun linksForKeySkipsLinksGovernedByMoreSpecificRule() = runBlocking {
+        // 40번 독립 리뷰 R3: 사이트 전체 규칙 적용은 블로거 규칙이 맡는 분류 안 된 링크를 옮기지 않는다
+        repo.createOrActivate(RuleKey(RuleMatchType.PATH, "blog.naver.com/seoul_eat"), id("레시피"), AutoRuleSource.SAVE_SCREEN)
+        link("https://blog.naver.com/seoul_eat/1", "전체")
+        link("https://blog.naver.com/other/1", "전체")
+        link("https://blog.naver.com/other/2", "여행")
+        val rows = repo.linksForKey(RuleKey(RuleMatchType.HOST, "blog.naver.com"))
+        assertEquals(setOf("https://blog.naver.com/other/1", "https://blog.naver.com/other/2"), rows.map { it.url }.toSet())
+        // 만들기 전(규칙 없음) 키도 임시로 넣어 판정한다
+        assertEquals(1, repo.linksForKey(RuleKey(RuleMatchType.PATH, "blog.naver.com/seoul_eat")).size)
+        // 하위 도메인이 더 구체적인 규칙을 가진 경우
+        repo.createOrActivate(RuleKey(RuleMatchType.HOST, "docs.google.com"), id("레시피"), AutoRuleSource.SAVE_SCREEN)
+        link("https://docs.google.com/d/1", "전체")
+        link("https://www.google.com/maps/1", "전체")
+        assertEquals(listOf("https://www.google.com/maps/1"), repo.linksForKey(RuleKey(RuleMatchType.HOST, "google.com")).map { it.url })
+    }
+
 }
