@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.jinscompany.saveurl.domain.lock.CategoryLockSession
 import com.jinscompany.saveurl.domain.model.CategoryModel
 import com.jinscompany.saveurl.domain.model.UrlData
+import com.jinscompany.saveurl.domain.model.MetaState
 import com.jinscompany.saveurl.domain.usecase.FindUrlDataUseCase
 import com.jinscompany.saveurl.domain.usecase.GetCategoriesUseCase
 import com.jinscompany.saveurl.domain.usecase.InsertCategoryUseCase
@@ -164,8 +165,10 @@ class LinkSaveViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value.getSaveData()?.let { urlData ->
                 if (_uiState.value.isEditScreen) {
-                    updateUrlUseCase(urlData)
-                    afterSave(urlData)
+                    // 가져와서 미리보기를 기다리던 링크를 사용자가 고쳐 저장하면 그 내용을 지킨다 (채우기 작업이 덮어쓰지 않게)
+                    val edited = if (urlData.metaState != MetaState.DONE) urlData.copy(metaState = MetaState.DONE) else urlData
+                    updateUrlUseCase(edited)
+                    afterSave(edited)
                 } else {
                     when (val result = saveUrlUseCase(urlData)) {
                         is SaveResult.Duplicate -> {

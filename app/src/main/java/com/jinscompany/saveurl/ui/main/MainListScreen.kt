@@ -106,6 +106,22 @@ import com.jinscompany.saveurl.ui.navigation.navigateToTutorial
 import com.jinscompany.saveurl.ui.lock.rememberOpenLockedCategories
 import com.jinscompany.saveurl.ui.tutorial.TutorialCardMode
 import com.jinscompany.saveurl.ui.tutorial.TutorialEntryCard
+import com.jinscompany.saveurl.domain.model.MetaFillProgress
+import com.jinscompany.saveurl.domain.model.MetaState
+import com.jinscompany.saveurl.ui.importer.ImportEntry
+import com.jinscompany.saveurl.ui.navigation.navigateToImport
+import com.jinscompany.saveurl.ui.navigation.navigateToImportHistory
+import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material3.CircularProgressIndicator
+import kotlinx.coroutines.delay
+import androidx.compose.foundation.layout.Row
+import com.jinscompany.saveurl.ui.theme.AppDimens
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.MaterialTheme
 import com.jinscompany.saveurl.ui.tutorial.TutorialNews
 import com.jinscompany.saveurl.ui.tutorial.currentVisibleTutorialTopics
 import com.jinscompany.saveurl.ui.theme.AppTheme
@@ -158,6 +174,9 @@ fun MainListScreen(
     val openLockedCategories = rememberOpenLockedCategories("main_open")
     val viewMode by sharedViewModel.listViewMode.collectAsState()
     val tutorialCardVisible by viewModel.tutorialCardVisible.collectAsState()
+    val importEnabled by viewModel.importEnabled.collectAsState()
+    val metaFillProgress by viewModel.metaFillProgress.collectAsState()
+    val metaFillCellular by viewModel.metaFillCellular.collectAsState()
     val tutorialBadgePrefs by viewModel.tutorialBadgePrefs.collectAsState()
     val visibleTutorialTopics = currentVisibleTutorialTopics()
     val tutorialCard = TutorialNews.cardMode(
@@ -250,6 +269,8 @@ fun MainListScreen(
 
                 is MainListUiEffect.ShowLinkInfoDialog -> { linkInfoDialog = effect.model }
                 MainListUiEffect.OpenTutorial -> navController.navigateToTutorial(replaceRightPane = isListPane)
+                MainListUiEffect.OpenImport -> navController.navigateToImport(ImportEntry.EMPTY_STATE, replaceRightPane = isListPane)
+                MainListUiEffect.OpenImportHistory -> navController.navigateToImportHistory(replaceRightPane = isListPane)
             }
         }
     }
@@ -417,6 +438,11 @@ fun MainListScreen(
             listState = listState,
             selectedUrl = pane?.selectedUrl,
             itemMenu = itemMenu,
+            onImportClick = if (importEnabled) ({ viewModel.onIntent(MainListIntent.OpenImport) }) else null,
+            metaFillProgress = metaFillProgress,
+            metaFillCellular = metaFillCellular,
+            onMetaFillCardClick = { viewModel.onIntent(MainListIntent.OpenImportHistory) },
+            onPrioritizeMeta = { id -> viewModel.onIntent(MainListIntent.PrioritizeMeta(id)) },
         )
     }
 }
@@ -453,6 +479,14 @@ fun MainListScreen(
     listState: LazyListState = rememberLazyListState(),
     selectedUrl: String? = null,
     itemMenu: (@Composable (UrlData) -> Unit)? = null,
+    /** 빈 화면 "카톡·북마크에서 가져오기" (null = 숨김) */
+    onImportClick: (() -> Unit)? = null,
+    /** 가져온 링크 미리보기 채우기 진행 (상태 카드) */
+    metaFillProgress: MetaFillProgress = MetaFillProgress(0, 0),
+    metaFillCellular: Boolean = false,
+    onMetaFillCardClick: () -> Unit = {},
+    /** 미리보기를 기다리는 카드가 1초 넘게 보였거나 실패한 링크를 열었을 때 */
+    onPrioritizeMeta: (Int) -> Unit = {},
 ) {
     val colors = AppTheme.colors
     val tutorialCardVisible = tutorialCard != TutorialCardMode.Hidden
@@ -528,6 +562,9 @@ fun MainListScreen(
             LockedViewingBanner()
         }
         ActiveFilterRow(filters = detailFilters)
+        if (metaFillProgress.isActive && !isEmpty) {
+            MetaFillStatusCard(progress = metaFillProgress, cellularAllowed = metaFillCellular, onClick = onMetaFillCardClick)
+        }
         if (!isEmpty) {
             SortRow(countLabel = countLabel, sort = filterParams.sort, onSortChange = onSortChange)
         }
@@ -541,6 +578,7 @@ fun MainListScreen(
                     type = emptyType,
                     onSaveClick = onSaveClick,
                     onTutorialClick = onTutorialClick,
+                    onImportClick = onImportClick,
                     modifier = Modifier.padding(top = if (tutorialCardVisible) 8.dp else 48.dp)
                 )
             }
@@ -578,10 +616,21 @@ fun MainListScreen(
                         } else if (index == 0 && viewMode == ListViewMode.DEFAULT) {
                             Spacer(modifier = Modifier.height(4.dp))
                         }
+                        if (MetaState.isPending(item.metaState)) {
+                            // 화면에 1초 넘게 보이면 그 링크를 먼저 채운다 (모바일 데이터 허용, 동시 1개)
+                            LaunchedEffect(item.id) {
+                                delay(PENDING_VISIBLE_MS)
+                                onPrioritizeMeta(item.id)
+                            }
+                        }
                         LinkListItem(
                             data = item,
                             viewMode = viewMode,
-                            onClick = { onLinkItemClick.invoke(item.url) },
+                            onClick = {
+                                // 미리보기를 못 가져온 링크는 열 때 다시 시도
+                                if (item.metaState == MetaState.FAILED) onPrioritizeMeta(item.id)
+                                onLinkItemClick.invoke(item.url)
+                            },
                             onLongClick = { onLinkItemLongClick.invoke(item) },
                             showDivider = index < snapshot.size - 1,
                             selected = selectedUrl != null && item.url == selectedUrl,
@@ -593,6 +642,52 @@ fun MainListScreen(
         }
     }
 }
+
+private const val PENDING_VISIBLE_MS = 1_000L
+
+/**
+ * "미리보기 채우는 중 done / total" 상태 카드 (34번 §S12). 누르면 가져오기 기록. 다 채우면 사라진다.
+ * 연결이 데이터 요금 네트워크뿐이고 모바일 데이터를 허용하지 않았으면 "Wi-Fi에 연결되면 미리보기를 채워요".
+ */
+@Composable
+private fun MetaFillStatusCard(progress: MetaFillProgress, cellularAllowed: Boolean, onClick: () -> Unit) {
+    val colors = AppTheme.colors
+    val context = LocalContext.current
+    val waiting = !cellularAllowed && runCatching {
+        val cm = context.getSystemService(android.net.ConnectivityManager::class.java)
+        cm.activeNetwork == null || cm.isActiveNetworkMetered
+    }.getOrDefault(false)
+    Row(
+        modifier = Modifier
+            .padding(horizontal = AppDimens.Gutter, vertical = 6.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(colors.surface)
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (waiting) {
+            Icon(Icons.Outlined.WifiOff, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(16.dp))
+        } else {
+            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = colors.accent)
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = if (waiting) stringResource(R.string.import_main_status_waiting)
+                else stringResource(R.string.import_main_status, fmtNumber(progress.done), fmtNumber(progress.total)),
+            style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+            color = colors.textPrimary,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+        )
+        if (!waiting && !cellularAllowed) {
+            Text(stringResource(R.string.import_main_status_wifi_only), style = MaterialTheme.typography.labelMedium, color = colors.textSecondary)
+        }
+    }
+}
+
+private fun fmtNumber(n: Int): String = java.text.NumberFormat.getInstance(java.util.Locale.KOREA).format(n)
 
 @Composable
 @Preview(showBackground = true)

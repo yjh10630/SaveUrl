@@ -37,6 +37,11 @@ import com.jinscompany.saveurl.utils.PreferencesManager
 import com.jinscompany.saveurl.ui.tutorial.TutorialBadgePrefs
 import com.jinscompany.saveurl.ui.tutorial.isTutorialLink
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.jinscompany.saveurl.domain.importer.MetaFillScheduler
+import com.jinscompany.saveurl.domain.model.MetaFillProgress
+import com.jinscompany.saveurl.domain.repository.ImportRepository
+import com.jinscompany.saveurl.ui.importer.MainListRequests
+import com.jinscompany.saveurl.utils.RemoteFlags
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -67,7 +72,22 @@ class MainListViewModel @Inject constructor(
     private val getTagListUseCase: GetTagListUseCase,
     private val lockSession: CategoryLockSession,
     observeLockedCategoriesUseCase: ObserveLockedCategoriesUseCase,
+    importRepository: ImportRepository,
+    private val metaFillScheduler: MetaFillScheduler,
+    remoteFlags: RemoteFlags,
+    private val mainListRequests: MainListRequests,
 ) : ViewModel() {
+
+    /** 링크 가져오기 원격 스위치 (빈 화면 버튼) */
+    val importEnabled: StateFlow<Boolean> = remoteFlags.importEnabled
+
+    /** 가져온 링크 미리보기 채우기 진행 (상태 카드). 잠금 카테고리 링크는 세지 않는다 */
+    val metaFillProgress: StateFlow<MetaFillProgress> = importRepository.observeFillProgress()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MetaFillProgress(0, 0))
+
+    /** 모바일 데이터에서도 채우기 (상태 카드의 "Wi-Fi에서만" 표시) */
+    val metaFillCellular: StateFlow<Boolean> = preferencesManager.metaFillCellular
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /** 잠금 카테고리 세션 (칩 줄: 닫힘 = 🔒 칩, 열림 = 잠금 카테고리 칩 + 다시 잠그기) */
     val isUnlocked: StateFlow<Boolean> = lockSession.isUnlocked
@@ -103,6 +123,13 @@ class MainListViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
+        // 가져오기 완료 [목록에서 보기]: 최근 저장 탭 + 그 카테고리(여러 개면 전체)
+        mainListRequests.takeCategory()?.let { category ->
+            _selectedTab.value = MainTab.RECENT
+            _filterSelectedItems.value = _filterSelectedItems.value.copy(
+                categories = listOf(category.ifEmpty { FilterDefaults.CATEGORY_ALL }), siteList = listOf(), tagList = listOf(),
+            )
+        }
         getLinkList()
         deleteExpiredTrash()
         loadCategories()
@@ -215,6 +242,9 @@ class MainListViewModel @Inject constructor(
                 MainListIntent.DismissTutorialCard -> preferencesManager.dismissTutorialCard()
                 is MainListIntent.DismissTutorialNewCard -> preferencesManager.dismissTutorialNewCard(intent.versionCode)
                 MainListIntent.RelockCategories -> lockSession.relock()
+                is MainListIntent.PrioritizeMeta -> metaFillScheduler.prioritize(intent.linkId)
+                MainListIntent.OpenImport -> _mainListEffect.emit(MainListUiEffect.OpenImport)
+                MainListIntent.OpenImportHistory -> _mainListEffect.emit(MainListUiEffect.OpenImportHistory)
             }
         }
     }

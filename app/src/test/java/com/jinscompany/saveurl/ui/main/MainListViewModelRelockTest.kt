@@ -1,6 +1,10 @@
 package com.jinscompany.saveurl.ui.main
 
 import com.jinscompany.saveurl.domain.lock.CategoryLockSession
+import com.jinscompany.saveurl.domain.importer.FakeImportRepository
+import com.jinscompany.saveurl.domain.importer.FakeMetaFillScheduler
+import com.jinscompany.saveurl.ui.importer.MainListRequests
+import com.jinscompany.saveurl.utils.RemoteFlags
 import com.jinscompany.saveurl.domain.usecase.GetCategoriesUseCase
 import com.jinscompany.saveurl.domain.usecase.GetSiteNameListUseCase
 import com.jinscompany.saveurl.domain.usecase.GetTagListUseCase
@@ -57,7 +61,33 @@ class MainListViewModelRelockTest {
             getTagListUseCase = getTagListUseCase,
             lockSession = lockSession,
             observeLockedCategoriesUseCase = observeLocked,
+            importRepository = FakeImportRepository(),
+            metaFillScheduler = scheduler,
+            remoteFlags = RemoteFlags(),
+            mainListRequests = mainListRequests,
         )
+    }
+
+    private val scheduler = FakeMetaFillScheduler()
+    private val mainListRequests = MainListRequests()
+
+    @Test
+    fun `가져오기 완료 목록에서 보기 - 최근 저장 탭과 그 카테고리를 고른다`() = runTest {
+        mainListRequests.showCategory("카톡 맛집 탐방")
+        val vm = viewModel()
+        advanceUntilIdle()
+        assertEquals(listOf("카톡 맛집 탐방"), vm.filterSelectedItems.value.categories)
+        assertEquals(MainTab.RECENT, vm.selectedTab.value)
+        // 한 번만 쓴다
+        assertEquals(null, mainListRequests.takeCategory())
+    }
+
+    @Test
+    fun `보이는 대기 카드는 먼저 채우도록 요청한다`() = runTest {
+        val vm = viewModel()
+        vm.onIntent(MainListIntent.PrioritizeMeta(42))
+        advanceUntilIdle()
+        assertEquals(listOf(42), scheduler.prioritized)
     }
 
     @Test

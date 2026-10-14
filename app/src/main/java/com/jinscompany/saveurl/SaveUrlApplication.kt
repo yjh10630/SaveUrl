@@ -9,6 +9,7 @@ import coil.ImageLoaderFactory
 import com.google.android.gms.ads.MobileAds
 import com.jinscompany.saveurl.data.backfill.NormalizedUrlBackfillRunner
 import com.jinscompany.saveurl.domain.lock.CategoryLockSession
+import com.jinscompany.saveurl.domain.importer.MetaFillScheduler
 import com.jinscompany.saveurl.utils.CmLog
 import com.jinscompany.saveurl.utils.ThemeMigrationRunner
 import com.jinscompany.saveurl.utils.globalCoroutineExceptionHandler
@@ -36,6 +37,9 @@ class SaveUrlApplication: Application(), ImageLoaderFactory {
     @Inject
     lateinit var categoryLockSession: CategoryLockSession
 
+    @Inject
+    lateinit var metaFillScheduler: MetaFillScheduler
+
     init {
         INSTANCE = this
     }
@@ -49,6 +53,8 @@ class SaveUrlApplication: Application(), ImageLoaderFactory {
         themeMigrationRunner.start(hadPriorData)
         // 업데이트 전 저장된 링크의 normalizedUrl 채우기 / 정규화 규칙 변경 시 재계산 (IO 스레드, 시작을 막지 않음)
         normalizedUrlBackfillRunner.start()
+        // 가져온 링크 중 미리보기를 못 채운 것이 있으면 이어서 채운다 (이미 예약돼 있으면 그대로)
+        metaFillScheduler.schedule()
         // 잠금 카테고리: 앱 전체가 나간 시각을 적고, 1분 넘게 지나 돌아오면 다시 잠근다 (회전·접기는 프로세스 이벤트가 아님)
         ProcessLifecycleOwner.get().lifecycle.addObserver(LifecycleEventObserver { _, event ->
             when (event) {

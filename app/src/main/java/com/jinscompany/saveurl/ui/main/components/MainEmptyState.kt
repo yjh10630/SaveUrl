@@ -47,6 +47,8 @@ fun MainEmptyState(
     onSaveClick: () -> Unit,
     onTutorialClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** "카톡·북마크에서 가져오기" (원격 스위치가 꺼졌으면 null = 숨김) */
+    onImportClick: (() -> Unit)? = null,
 ) {
     val colors = AppTheme.colors
     val (icon: ImageVector, titleRes: Int, descRes: Int) = when (type) {
@@ -99,6 +101,15 @@ fun MainEmptyState(
                 Text(stringResource(R.string.main_empty_action), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
             Spacer(modifier = Modifier.height(8.dp))
+            if (onImportClick != null) {
+                TextButton(onClick = singleClick { onImportClick() }) {
+                    Text(
+                        stringResource(R.string.import_empty_action),
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = colors.accent,
+                    )
+                }
+            }
             TextButton(onClick = singleClick { onTutorialClick() }) {
                 Text(
                     stringResource(R.string.main_empty_tutorial),

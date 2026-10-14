@@ -40,6 +40,12 @@ sealed class MainListIntent {
     data class DismissTutorialNewCard(val versionCode: Int): MainListIntent()
     /** [다시 잠그기] 칩 */
     data object RelockCategories: MainListIntent()
+    /** 미리보기를 기다리는 카드가 1초 넘게 보였거나, 실패한 링크를 열었을 때: 그 링크를 먼저 채운다 */
+    data class PrioritizeMeta(val linkId: Int): MainListIntent()
+    /** 빈 화면 "카톡·북마크에서 가져오기" */
+    data object OpenImport: MainListIntent()
+    /** "미리보기 채우는 중" 상태 카드 → 가져오기 기록 */
+    data object OpenImportHistory: MainListIntent()
 }
 
 /** 메인 리스트 상단 탭: 리스트 전체를 전환한다 */
@@ -55,6 +61,8 @@ sealed class MainListUiEffect {
     data class ShowSnackBarSaveUrl(val url: String): MainListUiEffect()
     data object ListRefresh: MainListUiEffect()
     data class ShowLinkInfoDialog(val model: SimpleMenuModel): MainListUiEffect()
+    data object OpenImport: MainListUiEffect()
+    data object OpenImportHistory: MainListUiEffect()
 }
 
 sealed class FilterState {
