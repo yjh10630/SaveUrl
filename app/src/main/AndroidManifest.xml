@@ -3,6 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 다시 보게 만들기 (42번): 링크 알림·주간 정리. 권한은 처음 알림을 예약할 때만 묻는다 (API 33+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 재부팅 뒤 링크 알림 다시 예약 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- TODO: 통신판매업 신고 완료 후 billing 복원 시 추가
     <uses-permission android:name="com.android.vending.BILLING" /> -->
 
@@ -60,6 +64,21 @@
                 <data android:mimeType="application/json" />
             </intent-filter>
         </activity>
+        <!-- 링크 알림·주간 정리 알람과 알림의 [내일 다시] (앱이 만든 PendingIntent 로만 불림) -->
+        <receiver
+            android:name=".data.revisit.RevisitAlarmReceiver"
+            android:exported="false" />
+        <!-- 재부팅·앱 업데이트·시각 변경 뒤 예약 다시 맞추기 (시스템 broadcast) -->
+        <receiver
+            android:name=".data.revisit.RevisitRescheduleReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="${AdMobId}"/>

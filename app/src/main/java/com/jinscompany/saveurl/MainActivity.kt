@@ -64,6 +64,11 @@ import com.jinscompany.saveurl.ui.importer.ImportEntry
 import com.jinscompany.saveurl.ui.importer.ImportShare
 import com.jinscompany.saveurl.ui.importer.ImportShareInbox
 import com.jinscompany.saveurl.ui.navigation.navigateToImport
+import com.jinscompany.saveurl.data.revisit.RevisitRepository
+import com.jinscompany.saveurl.ui.revisit.RevisitOpenHandler
+import com.jinscompany.saveurl.ui.revisit.RevisitOpenInbox
+import com.jinscompany.saveurl.ui.revisit.RevisitOpenRequest
+import com.jinscompany.saveurl.ui.revisit.RevisitOpenViewModel
 import com.jinscompany.saveurl.ui.tutorial.LocalTutorialFeatureFlags
 import com.jinscompany.saveurl.ui.tutorial.TutorialFeatureFlags
 import android.net.Uri
@@ -89,6 +94,14 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var importShareInbox: ImportShareInbox
+
+    @Inject
+    lateinit var revisitOpenInbox: RevisitOpenInbox
+
+    @Inject
+    lateinit var revisitRepository: RevisitRepository
+
+    private val revisitOpenViewModel by viewModels<RevisitOpenViewModel>()
 
     /** 잠금 카테고리 인증 프롬프트. onCreate 에서 만들어야 회전·폴드 뒤 새 Activity 가 진행 중인 프롬프트의 결과를 받는다 */
     private lateinit var lockPrompt: BiometricPrompt
@@ -129,7 +142,11 @@ class MainActivity : FragmentActivity() {
             flexibleLauncher = flexibleLauncher,
             sharedViewModel = sharedViewModel,
             isRecreated = savedInstanceState != null,
-            onRemoteConfigActivated = { remoteFlags.refresh() },
+            onRemoteConfigActivated = {
+                remoteFlags.refresh()
+                // 주간 정리 원격 스위치가 꺼졌으면 예약을 취소한다 (42번 §4.2)
+                lifecycleScope.launch { revisitRepository.syncWeekly() }
+            },
         )
         setupBackPressedHandler()
         setupLockPrompt()
@@ -142,6 +159,8 @@ class MainActivity : FragmentActivity() {
         )
         // 회전/프로세스 재생성 시에는 NavController 가 백스택을 복원하므로 공유 Intent 를 다시 처리하지 않는다
         val isFreshLaunch = savedInstanceState == null
+        // 알림에서 연 경우 (링크 열기 / 안 읽음 탭). 앱이 이미 떠 있으면 onNewIntent 로 온다
+        if (isFreshLaunch) RevisitOpenRequest.from(intent)?.let { revisitOpenInbox.put(it) }
         setContent {
             val navController = rememberNavController()
             val context = LocalContext.current
@@ -220,6 +239,7 @@ class MainActivity : FragmentActivity() {
                         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                             AppNavigation(navController)
                         }
+                        RevisitOpenHandler(viewModel = revisitOpenViewModel, navController = navController)
                     }
                     forceUpdateBlock?.let { reason ->
                         ForceUpdateDialog(
@@ -321,6 +341,13 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+    }
+
+    /** 앱이 떠 있을 때 알림을 누름 (FLAG_ACTIVITY_SINGLE_TOP | CLEAR_TOP) */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        RevisitOpenRequest.from(intent)?.let { revisitOpenInbox.put(it) }
     }
 
     override fun onResume() {

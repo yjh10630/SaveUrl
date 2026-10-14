@@ -82,6 +82,9 @@ interface BaseSaveUrlDao {
     @Query("SELECT * FROM BaseSaveUrl WHERE id = :id")
     suspend fun getById(id: Int): UrlData?
 
+    @Query("SELECT id FROM BaseSaveUrl WHERE url = :url ORDER BY id DESC LIMIT 1")
+    suspend fun getLatestIdByUrl(url: String): Int?
+
     /** 링크가 잠금 카테고리에 있는지 (그 순간의 Category 기준) */
     @Query("SELECT COUNT(*) FROM BaseSaveUrl WHERE id = :id AND NOT ${LockSql.NOT_LOCKED}")
     suspend fun isLocked(id: Int): Int

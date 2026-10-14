@@ -20,6 +20,10 @@ import javax.inject.Singleton
  * - `autocat_min_n` (기본 5), `autocat_min_n_general` (기본 10), `autocat_min_ratio` (기본 1.0): 자동 분류 제안 문턱 (36번 §4.1).
  *   하한: 개수 3, 비율 0.8 (그보다 작으면 하한으로). 범용 문턱은 일반 문턱보다 작지 않게, 비율은 1 이하로 맞춘다.
  *
+ * - `revisit_card_enabled` (기본 true), `revisit_min_age_days` (기본 7, 3~90), `weekly_digest_enabled` (기본 true),
+ *   `weekly_prompt_min_links` (기본 20, 하한 5): 다시 보게 만들기 (42번 §10.1). 링크별 알림·안 읽음에는 원격 스위치가 없다
+ *   (사용자가 직접 예약한 알림을 원격으로 없애지 않음). weekly_digest_enabled 는 기능을 쓸 수 있는지이고, 사용자 기본값은 꺼짐.
+ *
  * 콘솔에 값이 없거나 아직 한 번도 받지 못했으면 기본값을 쓴다 (기본값 등록 전에도 켜져 있도록 여기서 직접 판단).
  */
 @Singleton
@@ -27,6 +31,22 @@ class RemoteFlags @Inject constructor() : TutorialFeatureFlags {
 
     private val _importEnabled = MutableStateFlow(read(KEY_IMPORT_ENABLED, DEFAULT_IMPORT_ENABLED))
     val importEnabled: StateFlow<Boolean> = _importEnabled.asStateFlow()
+
+    private val _revisitCardEnabled = MutableStateFlow(read(KEY_REVISIT_CARD_ENABLED, true))
+    val revisitCardEnabled: StateFlow<Boolean> = _revisitCardEnabled.asStateFlow()
+
+    private val _weeklyDigestEnabled = MutableStateFlow(read(KEY_WEEKLY_DIGEST_ENABLED, true))
+    val weeklyDigestEnabled: StateFlow<Boolean> = _weeklyDigestEnabled.asStateFlow()
+
+    /** 다시 볼 링크 후보 최소 경과일 (3~90) */
+    @Volatile
+    var revisitMinAgeDays: Int = readRevisitMinAgeDays()
+        private set
+
+    /** 주간 정리 제안 카드 조건: 직접 저장한 링크 수 (하한 5) */
+    @Volatile
+    var weeklyPromptMinLinks: Int = readWeeklyPromptMinLinks()
+        private set
 
     /** 자동 분류 제안 문턱 */
     @Volatile
@@ -37,7 +57,17 @@ class RemoteFlags @Inject constructor() : TutorialFeatureFlags {
     fun refresh() {
         _importEnabled.value = read(KEY_IMPORT_ENABLED, DEFAULT_IMPORT_ENABLED)
         autoCategoryThresholds = readThresholds()
+        _revisitCardEnabled.value = read(KEY_REVISIT_CARD_ENABLED, true)
+        _weeklyDigestEnabled.value = read(KEY_WEEKLY_DIGEST_ENABLED, true)
+        revisitMinAgeDays = readRevisitMinAgeDays()
+        weeklyPromptMinLinks = readWeeklyPromptMinLinks()
     }
+
+    private fun readRevisitMinAgeDays(): Int =
+        (readLong(KEY_REVISIT_MIN_AGE_DAYS) ?: DEFAULT_REVISIT_MIN_AGE_DAYS.toLong()).coerceIn(3L, 90L).toInt()
+
+    private fun readWeeklyPromptMinLinks(): Int =
+        (readLong(KEY_WEEKLY_PROMPT_MIN_LINKS) ?: DEFAULT_WEEKLY_PROMPT_MIN_LINKS.toLong()).coerceIn(5L, 100_000L).toInt()
 
     private fun readThresholds(): SuggestThresholds = runCatching {
         SuggestThresholds.clamped(
@@ -73,6 +103,12 @@ class RemoteFlags @Inject constructor() : TutorialFeatureFlags {
         const val KEY_AUTOCAT_MIN_N = "autocat_min_n"
         const val KEY_AUTOCAT_MIN_N_GENERAL = "autocat_min_n_general"
         const val KEY_AUTOCAT_MIN_RATIO = "autocat_min_ratio"
+        const val KEY_REVISIT_CARD_ENABLED = "revisit_card_enabled"
+        const val KEY_REVISIT_MIN_AGE_DAYS = "revisit_min_age_days"
+        const val DEFAULT_REVISIT_MIN_AGE_DAYS = 7
+        const val KEY_WEEKLY_DIGEST_ENABLED = "weekly_digest_enabled"
+        const val KEY_WEEKLY_PROMPT_MIN_LINKS = "weekly_prompt_min_links"
+        const val DEFAULT_WEEKLY_PROMPT_MIN_LINKS = 20
 
         /** Remote Config 기본값 (InAppUpdateCheck.setDefaultsAsync 에 함께 넣는다) */
         val DEFAULTS: Map<String, Any> = mapOf(
@@ -80,6 +116,10 @@ class RemoteFlags @Inject constructor() : TutorialFeatureFlags {
             KEY_AUTOCAT_MIN_N to SuggestThresholds.DEFAULT_MIN_N.toLong(),
             KEY_AUTOCAT_MIN_N_GENERAL to SuggestThresholds.DEFAULT_MIN_N_BROAD.toLong(),
             KEY_AUTOCAT_MIN_RATIO to SuggestThresholds.DEFAULT_MIN_RATIO,
+            KEY_REVISIT_CARD_ENABLED to true,
+            KEY_REVISIT_MIN_AGE_DAYS to DEFAULT_REVISIT_MIN_AGE_DAYS.toLong(),
+            KEY_WEEKLY_DIGEST_ENABLED to true,
+            KEY_WEEKLY_PROMPT_MIN_LINKS to DEFAULT_WEEKLY_PROMPT_MIN_LINKS.toLong(),
         )
     }
 }

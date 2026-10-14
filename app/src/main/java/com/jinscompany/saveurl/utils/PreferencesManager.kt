@@ -57,6 +57,25 @@ class PreferencesManager @Inject constructor(
     private val AUTOCAT_LAUNCH_CARD_DONE = booleanPreferencesKey("autocat_launch_card_done")
     /** 처음 카테고리를 잠근 뒤 "잠근 링크는 나만 볼 수 있어요" 안내를 닫았음 (37번 §19) */
     private val LOCK_INTRO_SEEN = booleanPreferencesKey("lock_intro_seen")
+    // ---- 다시 보게 만들기 (42번 §3.4) ----
+    /** 알림 권한 사전 안내 시트를 한 번이라도 보였는지 (API 33+) */
+    private val NOTIF_PERMISSION_ASKED = booleanPreferencesKey("notif_permission_asked")
+    /** 다시 볼 링크 카드 사용자 스위치 (기본 켬) */
+    private val REVISIT_CARD_ENABLED = booleanPreferencesKey("revisit_card_enabled")
+    /** ✕ 로 오늘 닫은 날 (epochDay) */
+    private val REVISIT_CARD_CLOSED_DAY = longPreferencesKey("revisit_card_closed_day")
+    /** 오늘 고른 링크 "epochDay:linkId" (하루 동안 같은 링크) */
+    private val REVISIT_CARD_PICK = stringPreferencesKey("revisit_card_pick")
+    /** 주간 정리 알림 사용자 스위치 (기본 끔) */
+    private val WEEKLY_DIGEST_ENABLED = booleanPreferencesKey("weekly_digest_enabled")
+    /** 주간 정리 제안 카드 상태 ([com.jinscompany.saveurl.domain.revisit.WeeklyPromptState]) */
+    private val WEEKLY_PROMPT_STATE = intPreferencesKey("weekly_prompt_state")
+    /** 주간 정리 제안 카드가 보인 횟수 (앱을 연 날마다 1) */
+    private val WEEKLY_PROMPT_SHOWS = intPreferencesKey("weekly_prompt_shows")
+    /** 주간 정리 제안 카드를 마지막으로 센 날 (epochDay, 같은 날 여러 번 세지 않음) */
+    private val WEEKLY_PROMPT_LAST_DAY = longPreferencesKey("weekly_prompt_last_day")
+    /** 주간 정리를 마지막으로 보낸 ISO 연·주 */
+    private val WEEKLY_LAST_SENT_WEEK = intPreferencesKey("weekly_last_sent_week")
 
     val autoDeleteEnabled: Flow<Boolean> = context.dataStore.data
         .map { it[TRASH_ENABLE] ?: true }
@@ -235,4 +254,80 @@ class PreferencesManager @Inject constructor(
     suspend fun setAutoCategoryLaunchCardDone() {
         context.dataStore.edit { it[AUTOCAT_LAUNCH_CARD_DONE] = true }
     }
+
+    // ---- 다시 보게 만들기 (42번) ----
+    val notifPermissionAsked: Flow<Boolean> = context.dataStore.data.map { it[NOTIF_PERMISSION_ASKED] ?: false }
+
+    suspend fun setNotifPermissionAsked() {
+        context.dataStore.edit { it[NOTIF_PERMISSION_ASKED] = true }
+    }
+
+    val revisitCardEnabled: Flow<Boolean> = context.dataStore.data.map { it[REVISIT_CARD_ENABLED] ?: true }
+
+    suspend fun setRevisitCardEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[REVISIT_CARD_ENABLED] = enabled }
+    }
+
+    val revisitCardClosedDay: Flow<Long> = context.dataStore.data.map { it[REVISIT_CARD_CLOSED_DAY] ?: -1L }
+
+    suspend fun setRevisitCardClosedDay(epochDay: Long) {
+        context.dataStore.edit { it[REVISIT_CARD_CLOSED_DAY] = epochDay }
+    }
+
+    val revisitCardPick: Flow<String> = context.dataStore.data.map { it[REVISIT_CARD_PICK] ?: "" }
+
+    suspend fun setRevisitCardPick(value: String) {
+        context.dataStore.edit { it[REVISIT_CARD_PICK] = value }
+    }
+
+    val weeklyDigestEnabled: Flow<Boolean> = context.dataStore.data.map { it[WEEKLY_DIGEST_ENABLED] ?: false }
+
+    suspend fun setWeeklyDigestEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[WEEKLY_DIGEST_ENABLED] = enabled }
+    }
+
+    val weeklyPromptState: Flow<Int> = context.dataStore.data.map { it[WEEKLY_PROMPT_STATE] ?: 0 }
+
+    suspend fun setWeeklyPromptState(state: Int) {
+        context.dataStore.edit { it[WEEKLY_PROMPT_STATE] = state }
+    }
+
+    /**
+     * 제안 카드가 오늘([epochDay]) 처음 보였으면 횟수를 하나 올린다. 올린 뒤 횟수가 [max] 를 넘으면
+     * 자동 숨김(3)으로 바꾸고 false (= 이번에는 보이지 않음). 읽기와 쓰기를 한 번에 한다.
+     */
+    suspend fun countWeeklyPromptShow(epochDay: Long, max: Int, autoHiddenState: Int): Boolean {
+        var visible = true
+        context.dataStore.edit { prefs ->
+            if (prefs[WEEKLY_PROMPT_LAST_DAY] == epochDay) return@edit
+            val shows = (prefs[WEEKLY_PROMPT_SHOWS] ?: 0) + 1
+            if (shows > max) {
+                prefs[WEEKLY_PROMPT_STATE] = autoHiddenState
+                visible = false
+            } else {
+                prefs[WEEKLY_PROMPT_SHOWS] = shows
+                prefs[WEEKLY_PROMPT_LAST_DAY] = epochDay
+            }
+        }
+        return visible
+    }
+
+    /** 이번 주([week])에 아직 보내지 않았으면 기록하고 true (같은 주에 두 번 보내지 않기) */
+    suspend fun claimWeeklySent(week: Int): Boolean {
+        var claimed = false
+        context.dataStore.edit { prefs ->
+            if (prefs[WEEKLY_LAST_SENT_WEEK] != week) {
+                prefs[WEEKLY_LAST_SENT_WEEK] = week
+                claimed = true
+            }
+        }
+        return claimed
+    }
+
+    val weeklyLastSentWeek: Flow<Int> = context.dataStore.data.map { it[WEEKLY_LAST_SENT_WEEK] ?: -1 }
+
+    /** 앱을 처음 설치한 시각 (주간 정리 제안 카드: 설치 후 7일). 읽지 못하면 0 */
+    fun appInstalledAt(): Long = runCatching {
+        context.packageManager.getPackageInfo(context.packageName, 0).firstInstallTime
+    }.getOrDefault(0L)
 }

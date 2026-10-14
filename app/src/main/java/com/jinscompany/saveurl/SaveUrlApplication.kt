@@ -11,6 +11,8 @@ import com.jinscompany.saveurl.data.backfill.NormalizedUrlBackfillRunner
 import com.jinscompany.saveurl.domain.lock.CategoryLockSession
 import com.jinscompany.saveurl.domain.importer.ImportCommitRunner
 import com.jinscompany.saveurl.domain.importer.MetaFillScheduler
+import com.jinscompany.saveurl.data.revisit.RevisitNotifier
+import com.jinscompany.saveurl.data.revisit.RevisitRepository
 import com.jinscompany.saveurl.utils.CmLog
 import com.jinscompany.saveurl.utils.CrashReporter
 import com.jinscompany.saveurl.utils.ThemeMigrationRunner
@@ -45,6 +47,12 @@ class SaveUrlApplication: Application(), ImageLoaderFactory {
     @Inject
     lateinit var importCommitRunner: ImportCommitRunner
 
+    @Inject
+    lateinit var revisitRepository: RevisitRepository
+
+    @Inject
+    lateinit var revisitNotifier: RevisitNotifier
+
     init {
         INSTANCE = this
     }
@@ -65,6 +73,9 @@ class SaveUrlApplication: Application(), ImageLoaderFactory {
         metaFillScheduler.schedule()
         // 지난번에 가져오다 앱이 죽어 링크 없이 남은 묶음 정리 (기록에 되돌릴 수 없는 빈 줄이 남지 않게)
         importCommitRunner.cleanupInterrupted()
+        // 링크 알림·주간 정리: 채널을 만들고, 강제 종료 등으로 지워진 알람을 다시 맞춘다 (지난 예약은 24시간 안이면 지금 띄움. 42번 §2.4)
+        revisitNotifier.ensureChannels()
+        CoroutineScope(Dispatchers.IO + globalCoroutineExceptionHandler).launch { revisitRepository.syncAll() }
         // 잠금 카테고리: 앱 전체가 나간 시각을 적고, 1분 넘게 지나 돌아오면 다시 잠근다 (회전·접기는 프로세스 이벤트가 아님)
         ProcessLifecycleOwner.get().lifecycle.addObserver(LifecycleEventObserver { _, event ->
             when (event) {
