@@ -214,6 +214,10 @@ interface BaseSaveUrlDao {
     @Delete
     suspend fun delete(data: UrlData): Int
 
+    /** 2.0.0 까지 첫 실행에 넣던 튜토리얼 링크 항목 정리용 (LegacyTutorialLinkCleanup) */
+    @Query("DELETE FROM BaseSaveUrl WHERE url = :url")
+    suspend fun deleteByUrl(url: String): Int
+
     @Update
     suspend fun update(data: UrlData): Int
 

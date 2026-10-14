@@ -57,6 +57,8 @@ class PreferencesManager @Inject constructor(
     private val AUTOCAT_LAUNCH_CARD_DONE = booleanPreferencesKey("autocat_launch_card_done")
     /** 처음 카테고리를 잠근 뒤 "잠근 링크는 나만 볼 수 있어요" 안내를 닫았음 (37번 §19) */
     private val LOCK_INTRO_SEEN = booleanPreferencesKey("lock_intro_seen")
+    /** 2.0.0 까지 넣던 튜토리얼 링크 항목을 지웠는지 (한 번만 실행) */
+    private val LEGACY_TUTORIAL_LINK_REMOVED = booleanPreferencesKey("legacy_tutorial_link_removed")
     /** 마지막으로 제안한 클립보드 복사본 "복사 시각:URL 해시" (URL 은 두지 않음, 44번 §18) */
     private val CLIPBOARD_LAST_SHOWN = stringPreferencesKey("clipboard_last_shown")
     // ---- 다시 보게 만들기 (42번 §3.4) ----
@@ -230,6 +232,12 @@ class PreferencesManager @Inject constructor(
 
     suspend fun setClipboardLastShownKey(key: String) {
         context.dataStore.edit { it[CLIPBOARD_LAST_SHOWN] = key }
+    }
+
+    suspend fun isLegacyTutorialLinkRemoved(): Boolean = context.dataStore.data.first()[LEGACY_TUTORIAL_LINK_REMOVED] ?: false
+
+    suspend fun setLegacyTutorialLinkRemoved() {
+        context.dataStore.edit { it[LEGACY_TUTORIAL_LINK_REMOVED] = true }
     }
 
     suspend fun setLockIntroSeen() {
